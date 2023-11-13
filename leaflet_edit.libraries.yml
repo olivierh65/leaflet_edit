@@ -1,0 +1,154 @@
+leaflet-edit:
+  version: 0.1
+  js:
+    js/leafletedit.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+
+leaflet.ajax:
+  version: 1.x
+  js:
+    js/leaflet_ajax/leaflet.ajax.js: {}
+  dependencies:
+    - leaflet/leaflet
+
+leaflet-feature-control:
+  version: 1.0
+  js:
+    js/leaflet_feature_control/js/L.Control.Appearance.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+leaflet-feature-control-drupal:
+  version: VERSION
+  js:
+    js/leaflet_feature_control/leaflet_feature_control.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-doubleclick-drupal:
+  version: VERSION
+  js:
+    js/leaflet_doubleclick/leaflet_doubleclick.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-geoman:
+  version: 1.0
+  js:
+    js/leaflet_geoman/js/leaflet-geoman.min.js: {}
+  css:
+    component:
+      js/leaflet_geoman/js/leaflet-geoman.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+leaflet-geoman-drupal:
+  version: VERSION
+  js:
+    js/leaflet_geoman/leaflet_geoman.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-locatecontrol:
+  version: 1.0
+  js:
+    js/leaflet_locatecontrol/js/dist/L.Control.Locate.min.js: {}
+  css:
+    component:
+      js/leaflet_locatecontrol/js/dist/L.Control.Locate.min.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+leaflet-locatecontrol-drupal:
+  version: VERSION
+  js:
+    js/leaflet_locatecontrol/leaflet_locatecontrol.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+
+leaflet-styleeditor:
+  version: 1.0
+  js:
+    js/leaflet_styleeditor/js/dist/javascript/Leaflet.StyleEditor.min.js: {}
+  css:
+    component:
+      js/leaflet_styleeditor/js/dist/css/Leaflet.StyleEditor.min.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+leaflet-styleeditor-drupal:
+  version: VERSION
+  js:
+    js/leaflet_styleeditor/leaflet_styleeditor.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-geojson:
+  version: VERSION
+  js:
+    js/leaflet_geojson/leaflet_geojson.drupal.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-layerjson:
+  version: VERSION
+  js:
+    js/leaflet_layerjson/leaflet-layerjson.src.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-panel-layers:
+  version: VERSION
+  js:
+    js/leaflet-panel-layers/dist/leaflet-panel-layers.src.js: {}
+  css:
+    component:
+      js/leaflet-panel-layers/dist/leaflet-panel-layers.src.css: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-notifications:
+  version: VERSION
+  js:
+    js/leaflet.notifications/js/leaflet-notifications.js: {}
+  css:
+    component:
+      js/leaflet.notifications/css/leaflet-notifications.css: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-toolbar:
+  version: VERSION
+  js:
+    js/Leaflet.toolbar/dist/leaflet.toolbar.js: {}
+  css:
+    component:
+      js/Leaflet.toolbar/dist/leaflet.toolbar.css: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+
+leaflet-fullscreen:
+  version: VERSION
+  js:
+    js/leaflet.fullscreen/Control.FullScreen.js: {}
+  css:
+    component:
+      js/leaflet.fullscreen/Control.FullScreen.css: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings

@@ -1,0 +1,6 @@
+leaflet_edit.settings:
+  title: 'Leaflet Edit'
+  description: 'Configure Leaflet Edit'
+  route_name: leaflet_edit.settings
+  weight: 15
+  parent: system.admin_config_system

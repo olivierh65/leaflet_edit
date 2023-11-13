@@ -1,0 +1,7 @@
+leaflet_edit.settings:
+  path: '/admin/config/system/leaflet-edit'
+  defaults:
+    _form: '\Drupal\leaflet_edit\Form\SettingsForm'
+    _title: 'Leaflet Edit'
+  requirements:
+    _permission: 'administer site configuration'

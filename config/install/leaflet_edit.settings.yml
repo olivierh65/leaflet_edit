@@ -1,0 +1,25 @@
+feature_control_control: '2'
+feature_control_position: topright
+styleeditor_control: 0
+styleeditor_position: topleft
+doubleclick_control: null
+geoman_control: 1
+geoman_position: topright
+geoman_options:
+  drawMarker: drawMarker
+  drawPolyline: drawPolyline
+  drawPolygon: drawPolygon
+  editMode: editMode
+  dragMode: dragMode
+  cutPolygon: cutPolygon
+  removalMode: removalMode
+  drawControls: drawControls
+  editControls: editControls
+  customControls: customControls
+  drawCircleMarker: 0
+  drawRectangle: 0
+  drawCircle: 0
+  rotateMode: 0
+  oneBlock: 0
+locatecontrol_control: 0
+locatecontrol_position: topleft

@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * @file
+ * Contains leaflet_edit.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function leaflet_edit_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the leaflet_edit module.
+    case 'help.page.leaflet_edit':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Leaflet map editor') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function leaflet_edit_theme() {
+
+    return [
+        // Theme functions in extended_image.field.inc
+        'leaflet_edit' => [
+            'variables' => ['item' => NULL, 'item_attributes' => NULL, 'url' => NULL, 'image_style' => NULL],
+            'file' => 'leaflet_edit.field.inc',
+        ],
+    ];
+}

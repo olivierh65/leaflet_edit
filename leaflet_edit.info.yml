@@ -1,0 +1,7 @@
+name: 'leaflet_edit'
+type: module
+description: 'Leaflet map editor'
+core_version_requirement: 9.x
+package: 'Custom'
+dependencies:
+  - leaflet
