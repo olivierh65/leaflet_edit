@@ -17,7 +17,7 @@ use Drupal\file\Plugin\Field\FieldType\FileItem;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Drupal\file\Plugin\Field\FieldFormatter;
 
-/**
+/**s
  * Plugin implementation of the 'Geojson' field type.
  *
  * @FieldType(
@@ -37,11 +37,27 @@ class GeoJsonFile extends FileItem {
 * {@inheritdoc}
 */
 public static function defaultStorageSettings() {
-  $def=[
+  $settings=parent::defaultStorageSettings();
+
+  $settings['stroke'] = TRUE;
+  $settings['color'] = '#F00FE8';
+  $settings['weight'] = 2;
+  $settings['opacity'] =  1;
+  $settings['linecap'] = 'round';
+  $settings['linejoin'] = 'round';
+  $settings['dasharray'] = NULL;
+  $settings['dashoffset'] =  0;
+  $settings['fill'] = FALSE;
+  $settings['fill_color'] = '#C7A8A8';
+  $settings['fill_opacity'] =  0.2;
+  $settings['fillrule'] = 'evenodd';
+  return $settings;
+
+  /* $def=[
     'color' => '#CC00AA',
     'fill_color' => '#BB00AA',
   ] + parent::defaultStorageSettings();
-  return $def;
+  return $def; */
 }
   /**
    * {@inheritdoc}
@@ -54,11 +70,23 @@ public static function defaultStorageSettings() {
     $settings = parent::defaultFieldSettings();
 
     // Add our setting to show/hide the description field
-    $settings['field_description'] = 0;
+    $settings['description_field'] = TRUE;
 
     $settings['file_extensions'] = 'geojson';
-    $settings['color'] = '#CC00AA';
-    $settings['fill_color'] = '#BB00AA';
+
+    $settings['stroke'] = TRUE;
+  $settings['color'] = '#F00FE8';
+  $settings['weight'] = 2;
+  $settings['opacity'] =  1;
+  $settings['linecap'] = 'round';
+  $settings['linejoin'] = 'round';
+  $settings['dasharray'] = NULL;
+  $settings['dashoffset'] =  0;
+  $settings['fill'] = FALSE;
+  $settings['fill_color'] = '#C7A8A8';
+  $settings['fill_opacity'] =  0.2;
+  $settings['fillrule'] = 'evenodd';
+
 
     // unset($settings['description_field']);
     return $settings;
@@ -90,19 +118,18 @@ public static function defaultStorageSettings() {
       ->setLabel(new TranslatableMarkup('Height'))
       ->setDescription(new TranslatableMarkup('The height of the image in pixels.')); */
 
-    unset($properties['description']);
-
-    $properties['track_name'] = DataDefinition::create('string')
-      ->setLabel(t('Track Name'))
-      ->setDescription(t('Track name reported in  Leaflet map'));
-
-    $properties['color'] = DataDefinition::create('string')
-      ->setLabel(t('Color_'))
-      ->setDescription(t('Color_'));
-
-    $properties['fill_color'] = DataDefinition::create('string')
-      ->setLabel(t('Fill Color_'))
-      ->setDescription(t('Fill Color_'));
+    $properties['stroke'] = DataDefinition::create('boolean')->setLabel('stroke');
+    $properties['color'] = DataDefinition::create('string')->setLabel('color');
+    $properties['weight'] = DataDefinition::create('integer')->setLabel('weight');
+    $properties['opacity'] = DataDefinition::create('float')->setLabel('opacity');
+    $properties['linecap'] = DataDefinition::create('string')->setLabel('linecap');
+    $properties['linejoin'] = DataDefinition::create('string')->setLabel('linejoin');
+    $properties['dasharray'] = DataDefinition::create('string')->setLabel('dasharray');
+    $properties['dashoffset'] = DataDefinition::create('string')->setLabel('dashoffset');
+    $properties['fill'] = DataDefinition::create('boolean')->setLabel('fill');
+    $properties['fill_color'] = DataDefinition::create('string')->setLabel('fill_color');
+    $properties['fill_opacity'] = DataDefinition::create('float')->setLabel('fill_opacity');
+    $properties['fillrule'] = DataDefinition::create('string')->setLabel('fillrule');
     return $properties;
   }
 
@@ -110,17 +137,92 @@ public static function defaultStorageSettings() {
    * {@inheritdoc}
    */
   public static function schema(FieldStorageDefinitionInterface $field_definition) {
-    $schema=parent::schema($field_definition);
-    $schema['columns']['color'] = [
-      'type' => 'varchar',
-      'length' => '12',
-      'description' => 'Description text for the symbol.',
-    ];
-    $schema['columns']['fill_color'] = [
-      'type' => 'varchar',
-        'length' => '12',
-        'description' => 'Fill color (fieldtype).',
-    ];
+    $schema= [
+      'columns' => [
+        'target_id' => [
+          'description' => 'The ID of the file entity.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+        ],
+        'stroke' => [
+          'description' => 'stroke',
+          'type' => 'int',
+          'default' => 1,
+          'size' => 'tiny',
+        ],
+        'color' => [
+          'description' => 'color',
+          'type' => 'varchar',
+          'length' => 8,
+        ],
+        'weight' => [
+          'description' => 'weight.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+        ],
+        'opacity' => [
+          'description' => 'opacity.',
+          'type' => 'numeric',
+        ],
+        'linecap' => [
+          'description' => 'linecap',
+          'type' => 'varchar',
+          'length' => 8,
+          'not null' => FALSE,
+        ],
+        'linejoin' => [
+          'description' => 'linejoin',
+          'type' => 'varchar',
+          'length' => 12,
+        ],
+        'dasharray' => [
+          'description' => 'dasharray',
+          'type' => 'varchar',
+          'length' => 64,
+        ],
+        'dashoffset' => [
+          'description' => 'dashoffset',
+          'type' => 'varchar',
+          'length' => 64,
+        ],
+        'fill' => [
+          'description' => 'fill',
+          'type' => 'int',
+          'default' => 0,
+          'size' => 'tiny',
+        ],
+        'fill_color' => [
+          'description' => 'fill_color',
+          'type' => 'varchar',
+          'length' => 8,
+          'default' => '#C7A8A8'
+        ],
+        'fill_opacity' => [
+          'description' => 'fill_opacity.',
+          'type' => 'numeric',
+          'default' => 0.2,
+        ],
+        'fillrule' => [
+          'description' => 'fillrule',
+          'type' => 'varchar',
+          'length' => 8,
+          'default' => 'evenodd'
+        ],
+        'description' => [
+          'description' => 'A description of the file.',
+          'type' => 'text',
+        ],
+      ],
+      'indexes' => [
+        'target_id' => ['target_id'],
+      ],
+      'foreign keys' => [
+        'target_id' => [
+          'table' => 'file_managed',
+          'columns' => ['target_id' => 'fid'],
+        ],
+      ],
+    ] + parent::schema($field_definition);
     return $schema;
 
     /* return [
@@ -173,34 +275,128 @@ public static function defaultStorageSettings() {
     // Get the current settings
     $settings = $this->getSettings();
 
-    // Add the description field enabling checkbox
-    $element['field_description'] = [
-        '#type' => 'checkbox',
-        '#title' => t('<em>Description</em> field'),
-        '#default_value' => $settings['field_description'],
-        '#description' => t('Short description of the field that may be displayed.'),
-        '#weight' => 8,
-    ];
+    $element['description_field']['#default_value'] = TRUE;
 
-    $element['Style'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Style'),
-      '#weight' => 20,
-    ];
-    $element['Style']['color'] = [
-      '#type' => 'color',
-      '#title' => t('<em>Color</em> field'),
-      '#default_value' => $settings['color'],
-      '#description' => t('Color.'),
-      '#weight' => 8,
-    ];
-    $element['Style']['fill_color'] = [
-      '#type' => 'color',
-      '#title' => t('<em>Fill Color</em> field'),
-      '#default_value' => $settings['fill_color'],
-      '#description' => t('Fill Color.'),
-      '#weight' => 8,
-    ];
+        // Add the render array for our new field
+        $element['Style'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Style'),
+          '#open' => FALSE,
+          '#weight' => 20,
+        ];
+        $element['Style']['stroke'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t('<em>Stroke</em> field'),
+          '#default_value' => $settings['stroke'] ?? TRUE,
+          '#description' => $this->t('Whether to draw stroke along the path. Set it to false to disable borders on polygons or circles.'),
+          '#weight' => 1,
+        ];
+        $element['Style']['color'] = [
+          '#type' => 'color',
+          '#title' => $this->t('<em>Color</em> field'),
+          '#default_value' => $settings['color'] ?? '#F00FE8',
+          '#description' => $this->t('Stroke color.'),
+          '#weight' => 2,
+        ];
+        $element['Style']['weight'] = [
+          '#type' => 'number',
+          '#title' => $this->t('<em>Weight</em> field'),
+          '#default_value' => $settings['weight'] ?? 2,
+          '#description' => $this->t('Stroke width in pixels.'),
+          '#min' => 1,
+          '#step' => 1,
+          '#max' => 20,
+          '#weight' => 3,
+        ];
+        $element['Style']['opacity'] = [
+          '#type' => 'range',
+          '#title' => $this->t('<em>Opacity</em> field'),
+          '#default_value' => $settings['opacity'] ?? 1,
+          '#description' => $this->t('Stroke opacity.'),
+          '#min' => 0,
+          '#max' => 1,
+          '#step' => 0.1,
+          '#weight' => 4,
+        ];
+        $element['Style']['linecap'] = [
+          '#type' => 'select',
+          '#title' => $this->t('<em>LineCap</em> field'),
+          '#default_value' => $settings['linecap'] ?? 'round',
+          '#description' => $this->t('A string that defines shape to be used at the end of the stroke.'),
+          '#options' => [
+            'butt' => 'Butt : indicates that the stroke for each subpath does not extend beyond its two endpoints.',
+            'round' => 'Round : indicates that at the end of each subpath the stroke will be extended by a half circle with a diameter equal to the stroke width.',
+            'square' => 'Square : indicates that at the end of each subpath the stroke will be extended by a rectangle with a width equal to half the width of the stroke and a height equal to the width of the stroke.',
+          ],
+          '#weight' => 5,
+        ];
+        $element['Style']['linejoin'] = [
+          '#type' => 'select',
+          '#title' => $this->t('<em>LineJoin</em> field'),
+          '#default_value' => $settings['linejoin'] ?? 'round',
+          '#description' => $this->t('A string that defines shape to be used at the corners of the stroke.'),
+          '#options' => [
+            'arcs' => 'Arcs : indicates that an arcs corner is to be used to join path segments.',
+            'bevel' => 'Bevel : indicates that a bevelled corner is to be used to join path segments.',
+            'miter' => 'Miter : indicates that a sharp corner is to be used to join path segments.',
+            'miter-clip' => 'Miter-Clip : indicates that a sharp corner is to be used to join path segments.',
+            'round' => 'Round : indicates that a round corner is to be used to join path segments.',
+          ],
+          '#weight' => 6,
+        ];
+        $element['Style']['dasharray'] = [
+          '#type' => 'textfield',
+          '#title' => $this->t('<em>dashArray</em> field'),
+          '#default_value' => $settings['dasharray'] ?? NULL,
+          '#description' => $this->t('A string that defines the stroke <a href="https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-linejoin>dash pattern</a>. Doesn\'t work on Canvas-powered layers in some old browsers.'),
+          '#maxlength' => 64,
+          '#pattern' => '([0-9]+)(,[0-9]+)*',
+          '#weight' => 7,
+        ];
+        $element['Style']['dashoffset'] = [
+          '#type' => 'textfield',
+          '#title' => $this->t('<em>dashOffset</em> field'),
+          '#default_value' => $settings['dashoffset'] ?? 0,
+          '#description' => $this->t('A string that defines the <a href="https://developer.mozilla.org/docs/Web/SVG/Attribute/stroke-dashoffset">distance into the dash</a> pattern to start the dash.'),
+          '#maxlength' => 64,
+          '#pattern' => '([0-9]+)|([0-9]+%)',
+          '#weight' => 8,
+        ];
+        $element['Style']['fill'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t('<em>Fill</em> field'),
+          '#default_value' => $settings['fill'] ?? FALSE,
+          '#description' => $this->t('Whether to fill the path with color. Set it to false to disable filling on polygons or circle'),
+          '#weight' => 9,
+        ];
+        $element['Style']['fill_color'] = [
+          '#type' => 'color',
+          '#title' => $this->t('<em>Fill Color</em> field'),
+          '#default_value' => $settings['fill_color'] ?? '#C7A8A8',
+          '#description' => $this->t('Fill Color.'),
+          '#weight' => 10,
+        ];
+        $element['Style']['fill_opacity'] = [
+          '#type' => 'range',
+          '#title' => $this->t('<em>Fill Opacity</em> field'),
+          '#default_value' => $settings['fill_opacity'] ?? 0.2,
+          '#description' => $this->t('Stroke opacity.'),
+          '#min' => 0,
+          '#max' => 1,
+          '#step' => 0.1,
+          '#weight' => 11,
+        ];
+        $element['Style']['fillrule'] = [
+          '#type' => 'select',
+          '#title' => $this->t('<em>Fill Rule</em> field'),
+          '#default_value' => $settings['fillrule'] ?? 'evenodd',
+          '#description' => $this->t('A string that defines <a href="https://developer.mozilla.org/docs/Web/SVG/Attribute/fill-rule">how the inside of a shape</a> is determined.'),
+          '#options' => [
+            'nonzero ' => 'Nonzero : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction, and then examining the places where a segment of the shape crosses the ray',
+            'evenodd' => 'Evenodd : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.',
+          ],
+          '#weight' => 12,
+        ];
     /* $settings = $this->getSettings();
 
     // Add maximum and minimum resolution settings.
