@@ -929,6 +929,9 @@
                 this._layers[k].setStyle({"color": this._layers[k].feature.style['fill']});
               }
             } */
+            boucle='';
+            type='';
+            manif='-';
             if (this._layers[k].feature.properties) {
               for(k1 in this._layers[k].feature.properties) {
                 switch (k1) {

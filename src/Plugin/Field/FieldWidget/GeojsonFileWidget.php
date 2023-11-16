@@ -34,7 +34,7 @@ class GeojsonFileWidget extends FileWidget {
         $field_settings = $this->getFieldSettings();
 
         // Add the field setting for the description field to the array, so that the process function can access it to see if it is enabled
-        $element['#field_description'] = $field_settings['field_description'];
+        // $element['#field_description'] = $field_settings['field_description'];
 
         // Add the render array for our new field
         $element['Style'] = [
@@ -298,7 +298,7 @@ class GeojsonFileWidget extends FileWidget {
             // #access renders to page only under certain conditions
             // $item[fids] (Does it have an image specified)
             // $element[#field_description] (is the #field_description setting set to 1?)
-            '#access' => (bool) $item['fids'] && $element['#field_description'],
+            '#access' => (bool) $item['fids'] /* && $element['#field_description'] */,
             '#maxlength' => '512',
             '#weight' => '-10',
         );

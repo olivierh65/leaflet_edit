@@ -164,7 +164,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         $feature['description'] = $item->description;
         $feature['title'] = $entity->get('title')->getString('value');
         $style = [];
-        if (! empty($entity->get('field_leaflet_edit_couleur')->getString('color'))) {
+        /* if (! empty($entity->get('field_leaflet_edit_couleur')->getString('color'))) {
           $style['color'] = $entity->get('field_leaflet_edit_couleur')->getString('color');
         }
         if (! empty($entity->get('field_leaflet_edit_epaisseur')->getString('epaisseur'))) {
@@ -172,7 +172,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         }
         if (! empty($entity->get('field_leaflet_edit_opacite')->getString('opacite'))) {
           $style['opacity'] = $entity->get('field_leaflet_edit_opacite')->getString('opacite');
-        }
+        } */
         $feature['style'] = json_encode($style);
 
         $features[] = $feature;
