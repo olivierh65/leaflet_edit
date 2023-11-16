@@ -17,7 +17,7 @@ use Drupal\file\Plugin\Field\FieldType\FileItem;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Drupal\file\Plugin\Field\FieldFormatter;
 
-/**s
+/**
  * Plugin implementation of the 'Geojson' field type.
  *
  * @FieldType(
