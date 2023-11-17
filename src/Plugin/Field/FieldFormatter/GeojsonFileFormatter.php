@@ -24,9 +24,9 @@ class GeojsonFileFormatter extends \Drupal\file\Plugin\Field\FieldFormatter\Gene
         $elements = parent::viewElements($items, $langcode);
         $files = $this->getEntitiesToView($items, $langcode);
 
-        foreach ($elements as $delta => $entity) {
+        /* foreach ($elements as $delta => $entity) {
             $elements[$delta]['#theme'] = 'geojsonfile';
-        }
+        } */
 
         return $elements;
 

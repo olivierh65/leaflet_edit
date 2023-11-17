@@ -27,8 +27,6 @@ use Drupal\file\Plugin\Field\FieldFormatter;
  *   category = @Translation("Reference"),
  *   default_widget = "geojsonfile_widget",
  *   default_formatter = "geojsonfile_formatter",
- *   list_class = "\Drupal\file\Plugin\Field\FieldType\FileFieldItemList",
- *   constraints = {"ReferenceAccess" = {}, "FileValidation" = {}},
  * )
  */
 class GeoJsonFile extends FileItem {
@@ -72,7 +70,7 @@ public static function defaultStorageSettings() {
     // Add our setting to show/hide the description field
     $settings['description_field'] = TRUE;
 
-    $settings['file_extensions'] = 'geojson';
+    $settings['file_extensions'] = 'geojson,gpx';
 
     $settings['stroke'] = TRUE;
   $settings['color'] = '#F00FE8';
@@ -502,5 +500,5 @@ public static function defaultStorageSettings() {
  */
     return $element;
   }
-}
 
+}

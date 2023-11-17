@@ -36,6 +36,11 @@ class GeojsonFileWidget extends FileWidget {
         // Add the field setting for the description field to the array, so that the process function can access it to see if it is enabled
         // $element['#field_description'] = $field_settings['field_description'];
 
+        $element['track'] = [
+          '#type' => 'file',
+          '#title' => 'Fichier trace',
+        ];
+        
         // Add the render array for our new field
         $element['Style'] = [
             '#type' => 'details',
@@ -169,6 +174,10 @@ class GeojsonFileWidget extends FileWidget {
         $item = $element['#value'];
         $item['fids'] = $element['fids']['#value'];
 
+        $element['track'] = [
+          '#type' => 'file',
+          '#title' => 'Fichier trace',
+        ];
         // Add the render array for our new field
         $element['Style'] = [
             '#type' => 'details',
@@ -303,9 +312,27 @@ class GeojsonFileWidget extends FileWidget {
             '#weight' => '-10',
         );
 
+        $element['test'] = array (
+          '#title' => 'Test leaflet_style',
+          '#type' => 'leaflet_style',
+        );
+
         // Return the processed image as per Parents method
         return parent::process($element, $form_state, $form);
 
     }
 
+    protected function formMultipleElements(FieldItemListInterface $items, array &$form, FormStateInterface $form_state) {
+      $elements=parent::formMultipleElements($items,  $form,  $form_state);
+
+      $elements['#file_upload_title'] = $this->t('Add a track file');
+
+      return $elements;
+    }
+
+    public static function processMultiple($element, FormStateInterface $form_state, $form) {
+      $elements=parent::processMultiple($element, $form_state, $form);
+
+      return $element;
+    }
 }
