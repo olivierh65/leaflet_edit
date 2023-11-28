@@ -4,9 +4,8 @@ namespace Drupal\leaflet_edit\Element;
 
 use Drupal\Core\Render\Element;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Datetime\DrupalDateTime;
-use Drupal\Core\Datetime\Entity\DateFormat;
 use Drupal\Component\Utility\NestedArray;
+
 
 /**
  * Provides a time element.
@@ -20,21 +19,71 @@ class Style extends Element\FormElement {
     $class = get_class($this);
     return [
       '#input' => TRUE,
-      '#element_validate' => [
+      /* '#element_validate' => [
         [$class, 'validateStyle'],
-      ],
+      ], */
       '#process' => [
         [$class, 'processStyle'],
       ],
+      /* '#after_build' => [
+        [$class, 'afterBuild'],
+      ],
+      '#value_callback' => [
+        [$class, 'valueCallback'],
+      ], */
+      /* '#tree' => FALSE, */
     ];
   }
 
+
+  public static function valueCallback(&$element, $input, FormStateInterface $form_state) {
+    $a=$element;
+    return $element;
+  }
+
+  public static function afterBuild($element, FormStateInterface $form_state) {
+    $a=$element;
+    return $element;
+  }
+
   public static function processStyle(&$element, FormStateInterface $form_state, &$complete_form) {
+
+    $input_exists = FALSE;
+    $values = NestedArray::getValue($form_state->getValues(), $element['#parents'], $input_exists);
+
+    if (!$input_exists) {
+      return;
+    }
+
+    $field_element = NestedArray::getValue($complete_form, array_slice($element['#array_parents'], 0, -1));
+    $a=NestedArray::getValue($form_state->getValues(), $element['#parents']);
+    if(isset($a['Style'])) {
+      $item=$a['Style'];
+    }
+    else {
+      if(isset($field_element['#value'])) {
+        $item=$field_element['#value'];
+      }
+      else {
+        $item=[];
+      }
+    }
+    /* if (isset($field_element['#value'][$element['#type']]['Style'])) {
+      $item=$field_element['#value'][$element['#type']]['Style'];
+
+    }
+    else if (isset($field_element['Style'])) {
+      $item=$field_element['Style'];
+    }
+    else {
+      $item=$field_element['#value'];
+    } */
+
     // Add the render array for our new field
-        $element['Style'] = [
+         $element['Style'] = [
             '#type' => 'details',
-            '#title' => t('Style_'),
-            '#open' => TRUE,
+            '#title' => t('Style'),
+            '#open' => FALSE,
             '#weight' => 20,
           ];
           $element['Style']['stroke'] = [
@@ -156,5 +205,9 @@ class Style extends Element\FormElement {
 
   public static function validateStyle(&$element, FormStateInterface $form_state, &$complete_form) {
 
+  }
+
+  public function getPluginDefinition() {
+    return parent::getPluginDefinition();
   }
 }

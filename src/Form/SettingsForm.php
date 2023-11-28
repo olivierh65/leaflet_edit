@@ -62,10 +62,22 @@ class SettingsForm extends ConfigFormBase {
     global $base_url;
     $config = $this->configFactory->get('leaflet_edit.settings');
 
+    $form['nb_mapping'] = [
+      '#type' => 'number',
+      '#title' => t('Number of mapping attributes'),
+      '#default_value' => $config->get('nb_mapping') ?? 2,
+      '#description' => t('Define number of attribute mapping.'),
+      '#min' => 1,
+      '#max' => 20,
+      '#step' => 1,
+      '#weight' => 1,
+    ];
+
     $form['plugins'] = [
       '#type' => 'details',
       '#title' => $this->t('Leaflet Edit Settings'),
       '#open' => true,
+      '#weight' => 2,
     ];
     // Feature Control
       $form['plugins']['feature_control'] = [
@@ -212,6 +224,7 @@ class SettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
     $this->config('leaflet_edit.settings')
+      ->set('nb_mapping', $form_state->getValue('nb_mapping'))
       ->set('feature_control_control', $form_state->getValue('feature_control_control'))
       ->set('feature_control_position', $form_state->getValue('feature_control_position'))
       ->set('styleeditor_control', $form_state->getValue('styleeditor_control'))
