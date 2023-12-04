@@ -34,30 +34,30 @@ use Drupal\file\Plugin\Field\FieldFormatter;
 class GeoJsonFile extends FileItem {
 
   /**
-* {@inheritdoc}
-*/
-public static function defaultStorageSettings() {
-  $settings=parent::defaultStorageSettings();
+   * {@inheritdoc}
+   */
+  public static function defaultStorageSettings() {
+    $settings = parent::defaultStorageSettings();
 
-  $settings['stroke'] = TRUE;
-  $settings['color'] = '#F00FE8';
-  $settings['weight'] = 2;
-  $settings['opacity'] =  1;
-  $settings['linecap'] = 'round';
-  $settings['linejoin'] = 'round';
-  $settings['dasharray'] = NULL;
-  $settings['dashoffset'] =  0;
-  $settings['fill'] = FALSE;
-  $settings['fill_color'] = '#C7A8A8';
-  $settings['fill_opacity'] =  0.2;
-  $settings['fillrule'] = 'evenodd';
-  return $settings;
-  /* $def=[
+    $settings['stroke'] = TRUE;
+    $settings['color'] = '#F00FE8';
+    $settings['weight'] = 2;
+    $settings['opacity'] =  1;
+    $settings['linecap'] = 'round';
+    $settings['linejoin'] = 'round';
+    $settings['dasharray'] = NULL;
+    $settings['dashoffset'] =  0;
+    $settings['fill'] = FALSE;
+    $settings['fill_color'] = '#C7A8A8';
+    $settings['fill_opacity'] =  0.2;
+    $settings['fillrule'] = 'evenodd';
+    return $settings;
+    /* $def=[
     'color' => '#CC00AA',
     'fill_color' => '#BB00AA',
   ] + parent::defaultStorageSettings();
   return $def; */
-}
+  }
 
   /**
    * {@inheritdoc}
@@ -75,24 +75,24 @@ public static function defaultStorageSettings() {
     $settings['file_extensions'] = 'geojson,gpx';
 
     $settings['stroke'] = TRUE;
-  $settings['color'] = '#F00FE8';
-  $settings['weight'] = 2;
-  $settings['opacity'] =  1;
-  $settings['linecap'] = 'round';
-  $settings['linejoin'] = 'round';
-  $settings['dasharray'] = NULL;
-  $settings['dashoffset'] =  0;
-  $settings['fill'] = FALSE;
-  $settings['fill_color'] = '#C7A8A8';
-  $settings['fill_opacity'] =  0.2;
-  $settings['fillrule'] = 'evenodd';
+    $settings['color'] = '#F00FE8';
+    $settings['weight'] = 2;
+    $settings['opacity'] =  1;
+    $settings['linecap'] = 'round';
+    $settings['linejoin'] = 'round';
+    $settings['dasharray'] = NULL;
+    $settings['dashoffset'] =  0;
+    $settings['fill'] = FALSE;
+    $settings['fill_color'] = '#C7A8A8';
+    $settings['fill_opacity'] =  0.2;
+    $settings['fillrule'] = 'evenodd';
 
 
     // unset($settings['description_field']);
     return $settings;
   }
 
-    /**
+  /**
    * {@inheritdoc}
    */
   public static function propertyDefinitions(FieldStorageDefinitionInterface $field_definition) {
@@ -137,7 +137,7 @@ public static function defaultStorageSettings() {
    * {@inheritdoc}
    */
   public static function schema(FieldStorageDefinitionInterface $field_definition) {
-    $schema= [
+    $schema = [
       'columns' => [
         'target_id' => [
           'description' => 'The ID of the file entity.',
@@ -212,29 +212,19 @@ public static function defaultStorageSettings() {
           'length' => 8,
           'default' => 'evenodd'
         ],
-        'style_serialized' => [
-          'type' => 'text',
-          'size' => 'normal', // tiny | small | normal | medium | big
-          'description' => 'store style as serialized string.',
+        'NbMap' => [
+          'type' => 'int',
+          'size' => 'tiny',
+          'description' => 'Number of mapping fields',
         ],
         'Mapping' => [
-            'type' => 'text',
-            'size' => 'normal', // tiny | small | normal | medium | big
-            'description' => 'store styls maps.',
+          'type' => 'text',
+          'size' => 'normal', // tiny | small | normal | medium | big
+          'description' => 'store styls maps.',
         ],
       ],
-      /* 'indexes' => [
-        'target_id' => ['target_id'],
-      ],
-      'foreign keys' => [
-        'target_id' => [
-          'table' => 'file_managed',
-          'columns' => ['target_id' => 'fid'],
-        ],
-      ], */
     ] + parent::schema($field_definition);
     return $schema;
-
   }
 
   /**
@@ -249,18 +239,18 @@ public static function defaultStorageSettings() {
 
     $element['description_field']['#default_value'] = TRUE;
 
-        // Add the render array for our new field
-        $element['leaflet_style'] = array (
-          '#title' => 'Test leaflet_style',
-          '#type' => 'leaflet_style',
-          '#weight' => 20,
-        );
+    // Add the render array for our new field
+    $element['leaflet_style'] = array(
+      '#title' => 'Test leaflet_style',
+      '#type' => 'leaflet_style',
+      '#weight' => 20,
+    );
 
-        $element['leaflet_style_mapping'] = array (
-          '#title' => 'Style Mapping',
-          '#type' => 'leaflet_style_mapping',
-          '#weight' => 21,
-        );
+    $element['leaflet_style_mapping'] = array(
+      '#title' => 'Style Mapping',
+      '#type' => 'leaflet_style_mapping',
+      '#weight' => 21,
+    );
 
     return $element;
   }
@@ -268,14 +258,12 @@ public static function defaultStorageSettings() {
   public function preSave() {
     foreach ($this->values['leaflet_style']['Style'] as $key => $value) {
       $this->values[$key] = $value;
-  }
-  $this->values['Mapping'] = serialize($this->values['leaflet_style_mapping']['Mapping']);
+    }
+    if (isset($this->values['Mapping']['NbMap'])) {
+      $this->values['NbMap'] = $this->values['Mapping']['NbMap'];
+    }
+
+    $this->values['Mapping'] = serialize($this->values['leaflet_style_mapping']['Mapping']);
     return parent::preSave();
   }
-
-  public function submitForm(array&$form, FormStateInterface $form_state){
-    parent::submitForm($form, $form_state);
-  }
-
 }
-
