@@ -2,17 +2,18 @@
 
 namespace Drupal\leaflet_edit\Element;
 
-use Drupal\Core\Render\Element;
+use Drupal\Core\Render\Element\File;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Component\Utility\NestedArray;
-
+use Drupal\file\Element\ManagedFile;
+use Drupal\Core\Render\Element\FormElement;
 
 /**
  * Provides a time element.
  *
  * @FormElement("leaflet_style")
  */
-class Style extends Element\FormElement {
+class Style extends FormElement {
 
   public function getInfo() {
 
@@ -40,39 +41,28 @@ class Style extends Element\FormElement {
     }
 
 
-    if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
+/*     if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
       // Don't display Style until a file is selected
       return $element;
-    }
-
-    $element['file'] = [
-      '#type' => 'managed_file_plus',
-      '#title' => t('Fichier trace'),
-      '#weight' => 19,
-    ];
+    } */
 
     // Add the render array for our new field
-    $element['Style'] = [
-      '#type' => 'details',
-      '#title' => t('Style'),
-      '#open' => FALSE,
-      '#weight' => 20,
-    ];
-    $element['Style']['stroke'] = [
+
+    $element['stroke'] = [
       '#type' => 'checkbox',
       '#title' => t('<em>Stroke</em> field'),
       '#default_value' => isset($item['stroke']) ? $item['stroke'] : TRUE,
       '#description' => t('Whether to draw stroke along the path. Set it to false to disable borders on polygons or circles.'),
       '#weight' => 1,
     ];
-    $element['Style']['color'] = [
+    $element['color'] = [
       '#type' => 'color',
       '#title' => t('<em>Color</em> field'),
       '#default_value' => isset($item['color']) ? $item['color'] : '#F00FE8',
       '#description' => t('Stroke color.'),
       '#weight' => 2,
     ];
-    $element['Style']['weight'] = [
+    $element['weight'] = [
       '#type' => 'number',
       '#title' => t('<em>Weight</em> field'),
       '#default_value' => isset($item['weight']) ? $item['weight'] : 2,
@@ -82,7 +72,7 @@ class Style extends Element\FormElement {
       '#max' => 20,
       '#weight' => 3,
     ];
-    $element['Style']['opacity'] = [
+    $element['opacity'] = [
       '#type' => 'range',
       '#title' => t('<em>Opacity</em> field'),
       '#default_value' => isset($item['opacity']) ? $item['opacity'] : 1,
@@ -92,7 +82,7 @@ class Style extends Element\FormElement {
       '#step' => 0.1,
       '#weight' => 4,
     ];
-    $element['Style']['linecap'] = [
+    $element['linecap'] = [
       '#type' => 'select',
       '#title' => t('<em>LineCap</em> field'),
       '#default_value' => isset($item['linecap']) ? $item['linecap'] : 'round',
@@ -104,7 +94,7 @@ class Style extends Element\FormElement {
       ],
       '#weight' => 5,
     ];
-    $element['Style']['linejoin'] = [
+    $element['linejoin'] = [
       '#type' => 'select',
       '#title' => t('<em>LineJoin</em> field'),
       '#default_value' => isset($item['linejoin']) ? $item['linejoin'] : 'round',
@@ -118,7 +108,7 @@ class Style extends Element\FormElement {
       ],
       '#weight' => 6,
     ];
-    $element['Style']['dasharray'] = [
+    $element['dasharray'] = [
       '#type' => 'textfield',
       '#title' => t('<em>dashArray</em> field'),
       '#default_value' => isset($item['dasharray']) ? $item['dasharray'] : NULL,
@@ -127,7 +117,7 @@ class Style extends Element\FormElement {
       '#pattern' => '([0-9]+)(,[0-9]+)*',
       '#weight' => 7,
     ];
-    $element['Style']['dashoffset'] = [
+    $element['dashoffset'] = [
       '#type' => 'textfield',
       '#title' => t('<em>dashOffset</em> field'),
       '#default_value' => isset($item['dashoffset']) ? $item['dashoffset'] : 0,
@@ -136,21 +126,21 @@ class Style extends Element\FormElement {
       '#pattern' => '([0-9]+)|([0-9]+%)',
       '#weight' => 8,
     ];
-    $element['Style']['fill'] = [
+    $element['fill'] = [
       '#type' => 'checkbox',
       '#title' => t('<em>Fill</em> field'),
       '#default_value' => isset($item['fill']) ? $item['fill'] : FALSE,
       '#description' => t('Whether to fill the path with color. Set it to false to disable filling on polygons or circle'),
       '#weight' => 9,
     ];
-    $element['Style']['fill_color'] = [
+    $element['fill_color'] = [
       '#type' => 'color',
       '#title' => t('<em>Fill Color</em> field'),
       '#default_value' => isset($item['fill_color']) ? $item['fill_color'] : '#C7A8A8',
       '#description' => t('Fill Color.'),
       '#weight' => 10,
     ];
-    $element['Style']['fill_opacity'] = [
+    $element['fill_opacity'] = [
       '#type' => 'range',
       '#title' => t('<em>Fill Opacity</em> field'),
       '#default_value' => isset($item['fill_opacity']) ? $item['fill_opacity'] : 0.2,
@@ -160,7 +150,7 @@ class Style extends Element\FormElement {
       '#step' => 0.1,
       '#weight' => 11,
     ];
-    $element['Style']['fillrule'] = [
+    $element['fillrule'] = [
       '#type' => 'select',
       '#title' => t('<em>Fill Rule</em> field'),
       '#default_value' => isset($item['fillrule']) ? $item['fillrule'] : 'evenodd',

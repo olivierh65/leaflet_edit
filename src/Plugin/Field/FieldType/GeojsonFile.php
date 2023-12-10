@@ -12,6 +12,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StreamWrapper\StreamWrapperInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\TypedData\DataDefinition;
+use Drupal\file\Element\ManagedFile;
 use Drupal\file\Entity\File;
 use Drupal\file\Plugin\Field\FieldType\FileItem;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
@@ -31,7 +32,7 @@ use Drupal\file\Plugin\Field\FieldFormatter;
  *   constraints = {"ReferenceAccess" = {}, "FileValidation" = {}},
  * )
  */
-class GeoJsonFile extends FileItem {
+class GeoJsonFile extends File {
 
   /**
    * {@inheritdoc}
@@ -230,7 +231,7 @@ class GeoJsonFile extends FileItem {
   /**
    * {@inheritdoc}
    */
-  public function fieldSettingsForm(array $form, FormStateInterface $form_state) {
+/*   public function fieldSettingsForm(array $form, FormStateInterface $form_state) {
     // Get base form from FileItem.
     $element = parent::fieldSettingsForm($form, $form_state);
 
@@ -253,7 +254,7 @@ class GeoJsonFile extends FileItem {
     );
 
     return $element;
-  }
+  } */
 
   public function preSave() {
     foreach ($this->values['leaflet_style']['Style'] as $key => $value) {
