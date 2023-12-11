@@ -52,7 +52,7 @@ class Style extends FormElement {
       '#type' => 'checkbox',
       '#title' => t('<em>Stroke</em> field'),
       '#default_value' => isset($item['stroke']) ? $item['stroke'] : TRUE,
-      '#description' => t('Whether to draw stroke along the path. Set it to false to disable borders on polygons or circles.'),
+      '#description' => t('Whether to draw stroke along the path.<br>Set it to false to disable borders on polygons or circles.'),
       '#weight' => 1,
     ];
     $element['color'] = [
@@ -86,11 +86,14 @@ class Style extends FormElement {
       '#type' => 'select',
       '#title' => t('<em>LineCap</em> field'),
       '#default_value' => isset($item['linecap']) ? $item['linecap'] : 'round',
-      '#description' => t('A string that defines shape to be used at the end of the stroke.'),
+      '#description' => t('A string that defines shape to be used at the end of the stroke.' .
+        '<br>Butt : indicates that the stroke for each subpath does not extend beyond its two endpoints.' .
+        '<br>Round : indicates that at the end of each subpath the stroke will be extended by a half circle with a diameter equal to the stroke width.' .
+        '<br>Square : indicates that at the end of each subpath the stroke will be extended by a rectangle with a width equal to half the width of the stroke and a height equal to the width of the stroke.'),
       '#options' => [
-        'butt' => 'Butt : indicates that the stroke for each subpath does not extend beyond its two endpoints.',
-        'round' => 'Round : indicates that at the end of each subpath the stroke will be extended by a half circle with a diameter equal to the stroke width.',
-        'square' => 'Square : indicates that at the end of each subpath the stroke will be extended by a rectangle with a width equal to half the width of the stroke and a height equal to the width of the stroke.',
+        'butt' => 'Butt',
+        'round' => 'Round',
+        'square' => 'Square',
       ],
       '#weight' => 5,
     ];
@@ -98,13 +101,18 @@ class Style extends FormElement {
       '#type' => 'select',
       '#title' => t('<em>LineJoin</em> field'),
       '#default_value' => isset($item['linejoin']) ? $item['linejoin'] : 'round',
-      '#description' => t('A string that defines shape to be used at the corners of the stroke.'),
+      '#description' => t('A string that defines shape to be used at the corners of the stroke.' .
+        '<br>Arcs : indicates that an arcs corner is to be used to join path segments.' .
+        '<br>Bevel : indicates that a bevelled corner is to be used to join path segments.' .
+        '<br>Miter : indicates that a sharp corner is to be used to join path segments.' .
+        '<br>Miter-Clip : indicates that a sharp corner is to be used to join path segments.' .
+        '<br>Round : indicates that a round corner is to be used to join path segments.'),
       '#options' => [
-        'arcs' => 'Arcs : indicates that an arcs corner is to be used to join path segments.',
-        'bevel' => 'Bevel : indicates that a bevelled corner is to be used to join path segments.',
-        'miter' => 'Miter : indicates that a sharp corner is to be used to join path segments.',
-        'miter-clip' => 'Miter-Clip : indicates that a sharp corner is to be used to join path segments.',
-        'round' => 'Round : indicates that a round corner is to be used to join path segments.',
+        'arcs' => 'Arcs',
+        'bevel' => 'Bevel',
+        'miter' => 'Miter',
+        'miter-clip' => 'Miter-Clip',
+        'round' => 'Round',
       ],
       '#weight' => 6,
     ];
@@ -154,10 +162,12 @@ class Style extends FormElement {
       '#type' => 'select',
       '#title' => t('<em>Fill Rule</em> field'),
       '#default_value' => isset($item['fillrule']) ? $item['fillrule'] : 'evenodd',
-      '#description' => t('A string that defines <a href="https://developer.mozilla.org/docs/Web/SVG/Attribute/fill-rule">how the inside of a shape</a> is determined.'),
+      '#description' => t('A string that defines <a href="https://developer.mozilla.org/docs/Web/SVG/Attribute/fill-rule">how the inside of a shape</a> is determined.' .
+      '<br>Nonzero : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction, and then examining the places where a segment of the shape crosses the ray' .
+      '<br>Evenodd : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.'),
       '#options' => [
-        'nonzero ' => 'Nonzero : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction, and then examining the places where a segment of the shape crosses the ray',
-        'evenodd' => 'Evenodd : determines the "insideness" of a point in the shape by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.',
+        'nonzero ' => 'Nonzero',
+        'evenodd' => 'Evenodd',
       ],
       '#weight' => 12,
     ];

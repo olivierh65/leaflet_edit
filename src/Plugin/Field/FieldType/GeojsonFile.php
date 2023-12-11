@@ -32,7 +32,7 @@ use Drupal\file\Plugin\Field\FieldFormatter;
  *   constraints = {"ReferenceAccess" = {}, "FileValidation" = {}},
  * )
  */
-class GeoJsonFile extends File {
+class GeoJsonFile extends FileItem {
 
   /**
    * {@inheritdoc}
@@ -257,14 +257,13 @@ class GeoJsonFile extends File {
   } */
 
   public function preSave() {
-    foreach ($this->values['leaflet_style']['Style'] as $key => $value) {
+    return parent::preSave();
+
+    foreach ($this->values['style']['leaflet_style'] as $key => $value) {
       $this->values[$key] = $value;
     }
-    if (isset($this->values['Mapping']['NbMap'])) {
-      $this->values['NbMap'] = $this->values['Mapping']['NbMap'];
-    }
 
-    $this->values['Mapping'] = serialize($this->values['leaflet_style_mapping']['Mapping']);
+    $this->values['mapping'] = serialize($this->values['mapping']['attribut']);
     return parent::preSave();
   }
 }

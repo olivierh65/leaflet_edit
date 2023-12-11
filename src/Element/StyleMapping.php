@@ -34,42 +34,25 @@ class StyleMapping extends FormElement {
       return;
     }
 
-    if (isset($field_element['#value']['Mapping'])) {
-      $maps = unserialize($field_element['#value']['Mapping']);
-      if (!$maps) {
-        # If can't be deserialized, generate empty mappings
-        $maps = ['map1' => ""];
-        for ($i = 2; $i <= ($config->get('nb_mapping') ?? 2); $i++) {
-          $maps['map' . $i] = "";
-        }
-      } else if (count($maps) > $config->get('nb_mapping')) {
-        // array_splice($maps, $config->get('nb_mapping') - count($maps));
-      }
-    } else {
-      $maps = ['map1' => ""];
-      for ($i = 2; $i <= ($element['#value']['Mapping']['NbMap'] ?? $config->get('nb_mapping') ?? 2); $i++) {
-        $maps['map' . $i] = "";
-      }
-    }
 
-    if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
+    /* if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
       // Don't display Style until a file is selected
       return $element;
-    }
+    } */
 
 
       $element['Attribute'] = [
         '#type' => 'textfield',
-        '#title' => t('Map ' . $i),
+        '#title' => t('Attribute'),
         '#default_value' => $item['Attribute'] ?? NULL,
-        '#description' => t('Parameter ' . $i),
+        '#description' => t('Parameter '),
         '#maxlength' => 64,
         '#weight' => 1,
       ];
       $element['Style'] = [
         '#type' => 'leaflet_style',
         '#title' => t('Style Mapping'),
-
+        '#weight' => 2,
       ];
 
     return $element;
