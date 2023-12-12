@@ -29,11 +29,16 @@ class StyleMapping extends FormElement {
     $input_exists = FALSE;
     $config = \Drupal::config('leaflet_edit.settings');
 
-    $field_element = NestedArray::getValue($complete_form, array_slice($element['#array_parents'], 0, -1),$input_exists);
+    $field_element = NestedArray::getValue($form_state->getValues(), $element['#parents'], $input_exists);
     if (!$input_exists) {
       return;
     }
 
+    if (isset($field_element)) {
+      $item = $field_element;
+    } else {
+      $item = [];
+    }
 
     /* if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
       // Don't display Style until a file is selected

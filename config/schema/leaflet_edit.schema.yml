@@ -1,13 +1,13 @@
 # Schema for the configuration files of the File module.
 
-field.leaflet_edit:
+field.value.leaflet_edit:
   style:
     type: sequence
     label: Leaflet Style
     mapping:
       style_color:
         type: string
-        label: 'Path colr'
+        label: 'Path color'
   style_map:
     type: sequence
     label: Style and attribute mapping
@@ -15,6 +15,9 @@ field.leaflet_edit:
       mapping_color:
         type: string
         label: 'Mapping Path colr'
-
-
+      query:
+        type: sequence
+        label: 'URL query key value pairs'
+        sequence:
+          type: string
 

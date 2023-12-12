@@ -131,8 +131,8 @@ class GeoJsonFile extends FileItem {
     $properties['fill_color'] = DataDefinition::create('string')->setLabel('fill_color');
     $properties['fill_opacity'] = DataDefinition::create('float')->setLabel('fill_opacity');
     $properties['fillrule'] = DataDefinition::create('string')->setLabel('fillrule');
-    $properties['mapping'] = DataDefinition::create('string')->setLabel('mapping');
-    $properties['style'] = DataDefinition::create('string')->setLabel('style');
+    $properties['mappings'] = DataDefinition::create('string')->setLabel('mapping');
+    $properties['styles'] = DataDefinition::create('string')->setLabel('style');
     return $properties;
   }
 
@@ -215,13 +215,13 @@ class GeoJsonFile extends FileItem {
           'length' => 8,
           'default' => 'evenodd'
         ],
-        'mapping' => [
+        'mappings' => [
           'type' => 'blob',
           'size' => 'big', // tiny | small | normal | medium | big
           'description' => 'store styls maps.',
           'serialize' => FALSE,
         ],
-        'style' => [
+        'styles' => [
           'type' => 'blob',
           'size' => 'big', // tiny | small | normal | medium | big
           'description' => 'store styls maps.',
@@ -261,7 +261,7 @@ class GeoJsonFile extends FileItem {
   } */
 
   public function preSave() {
-    // return parent::preSave();
+    return parent::preSave();
 
     foreach ($this->values['style']['leaflet_style'] as $key => $value) {
       $this->values[$key] = $value;

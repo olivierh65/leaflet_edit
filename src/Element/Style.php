@@ -34,8 +34,8 @@ class Style extends FormElement {
     if (!$input_exists) {
       return;
     }
-    if (isset($field_element['#value'])) {
-      $item = $field_element['#value'];
+    if (isset($field_element)) {
+      $item = $field_element;
     } else {
       $item = [];
     }

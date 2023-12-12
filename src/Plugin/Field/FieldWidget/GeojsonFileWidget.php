@@ -60,6 +60,14 @@ class GeojsonFileWidget extends FileWidget {
     // Add the field setting for the description field to the array, so that the process function can access it to see if it is enabled
     // $element['#field_description'] = $field_settings['field_description'];
 
+    if(isset($element['#default_value']['mappings'])) {
+      $element['#default_value']['mapping']=unserialize($element['#default_value']['mappings']);
+      $form_state->setValue([$element['#field_name'],$delta,'mapping'], unserialize($element['#default_value']['mappings']));
+    }
+    if(isset($element['#default_value']['styles'])) {
+      $element['#default_value']['style']=unserialize($element['#default_value']['styles']);
+      $form_state->setValue([$element['#field_name'],$delta,'style'], unserialize($element['#default_value']['styles']));
+    }
     $element['style'] = [
       '#title' => 'Global style',
       '#type' => 'details',
@@ -232,7 +240,18 @@ class GeojsonFileWidget extends FileWidget {
         unset($values[$key]['my_other_value']);
       }
     }
+    foreach ($values as $key => $value) {
+      if (isset($value['style'])) {
+        $values[$key]['styles'] = serialize($value['style']);
+        unset($values[$key]['style']);
 
-    return $values;
+      }
+      if (isset($value['mapping'])) {
+        $values[$key]['mappings'] = serialize($value['mapping']);
+        unset($values[$key]['mapping']);
+      }
+    }
+
+    return parent::massageFormValues($values, $form, $form_state);
   }
 }
