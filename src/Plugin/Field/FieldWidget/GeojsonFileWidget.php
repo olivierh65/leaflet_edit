@@ -6,6 +6,8 @@ use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Component\Utility\NestedArray;
+use GuzzleHttp\Psr7\Request as Psr7Request;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Provides the field widget for Symbol field.
@@ -34,46 +36,27 @@ class GeojsonFileWidget extends FileWidget {
     // Get the field settings
     $field_settings = $this->getFieldSettings();
 
-    if ($form_state->getTriggeringElement() !== null) {
-      if ($form_state->getTriggeringElement()['#type']) {
-        $field_element = NestedArray::getValue($form_state->getValues(), array_slice($form_state->getTriggeringElement()['#parents'], 0, 3), $input_exists);
-      } else {
-        $field_element = NestedArray::getValue($form_state->getValues(), array_slice($form_state->getTriggeringElement()['#parents'], 0, 3), $input_exists);
-      }
-      $num_names = $field_element['mapping']['nb_attribut'] ?? 1;
-      if (!$num_names) {
-        $num_names = 1;
-      }
+    $item_name=$items->getDataDefinition()->getName();
 
+    $field=$form_state->getValue($element['#field_name'])[$element['#delta']];
+    if ($field) {
+      $num_names=$field['mapping']['nb_attribut'] ?? 1;
+    }
+    else {
+      $num_names = 1;
+    }
 
-      // $num_names=$element['#default_value']['mapping']['attribut']['count'] ?? count($element['#default_value']['mapping']['attribut']) ?? 1;
-      if (isset($element['#default_value']['fids']) && $element[0]['#delta'] == $delta) {
-        $file_selected = (count($element['#default_value']['fids']) > 0);
-      }
+    $num_names = $form_state->get([$element['#field_name'],$delta,'mapping','nb_attribut']) ?? 1;
+
+    $input_exists = false;
+    /* if ($form_state->getTriggeringElement()) {
+      $field_element = NestedArray::getValue($form_state->getValues(), array_slice($form_state->getTriggeringElement()['#parents'], 0, 3), $input_exists);
+    }
+    if (is_array($field_element) && isset($field_element['nb_attribut'])) {
+      $num_names = $field_element['nb_attribut'];
     } else {
       $num_names = 1;
-      if (isset($element['#default_value']['fids'])) {
-        $file_selected = count($element['#default_value']['fids']) > 0;
-      }
-    }
-
-    $a=$items->first()->getValue('mapping');
-    if (isset($a['mapping']['nb_attribut'])) {
-      $num_names=$a['mapping']['nb_attribut'] ?? 1;
-    }
-    else {
-      $num_names = 1;
-    }
-
-    $c=$form_state->getValue($element['#field_name'])[$delta];
-    $num_names=$c['mapping']['nb_attribut'] ?? 1;
-
-    if(isset($field_element['nb_attribut'])) {
-      $num_names=$field_element['nb_attribut'];
-    }
-    else {
-      $num_names = 1;
-    }
+    } */
     // Add the field setting for the description field to the array, so that the process function can access it to see if it is enabled
     // $element['#field_description'] = $field_settings['field_description'];
 
@@ -83,7 +66,7 @@ class GeojsonFileWidget extends FileWidget {
       '#open' => false,
       // hide until a file is selected
       //'#access' => $file_selected ?? false,
-      '#weight' => 19,
+      '#weight' => 199,
     ];
 
     $element['style']['leaflet_style'] = [
@@ -103,7 +86,7 @@ class GeojsonFileWidget extends FileWidget {
       '#suffix' => '</div>',
       // hide until a file is selected
       //'#access' => $file_selected ?? false,
-      '#weight' => 20,
+      '#weight' => 200,
     ];
 
     // $num_names = ($element['mapping']['attribut']['count']) ?? 1;
@@ -123,14 +106,16 @@ class GeojsonFileWidget extends FileWidget {
         '#weight' => 1,
       );
     }
-    $element['mapping']['attribut']['count'] = $i;
-    $element['mapping']['nb_attribut'] = $i;
+
+    // save number of attributs mapping
+    $form_state->setValue([$element['#field_name'],$element['#delta'],'mapping','nb_attribut'], $i);
 
     $element['mapping']['actions'] = [
       '#type' => 'actions',
     ];
     $class = get_class($this);
-    $element['mapping']['actions']['add_name' . $delta] = [
+    # $element['mapping']['actions']['add_name' . $delta] = [
+      $element['mapping']['actions']['add_name'] = [
       '#type' => 'submit',
       '#value' => $this->t('Add one more'),
       '#submit' => [$class . '::addOne'],
@@ -141,7 +126,8 @@ class GeojsonFileWidget extends FileWidget {
     ];
     // If there is more than one name, add the remove button.
     if ($num_names > 1) {
-      $element['mapping']['actions']['remove_name' . $delta] = [
+      # $element['mapping']['actions']['remove_name' . $delta] = [
+        $element['mapping']['actions']['remove_name'] = [
         '#type' => 'submit',
         '#value' => $this->t('Remove one'),
         '#submit' => [$class . '::removeCallback'],
@@ -186,12 +172,13 @@ class GeojsonFileWidget extends FileWidget {
    *
    * Selects and returns the fieldset with the names in it.
    */
-  public static function addmoreCallback(array &$form, FormStateInterface $form_state) {
+  public static function addmoreCallback(array &$form, FormStateInterface $form_state, Request $request) {
     // return $form['mapping'];
     $input_exists = FALSE;
-    $field_element = NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#parents'], 0, -2), $input_exists);
-    return $form['field_test_geojsonfile']['widget'][0]['mapping'];
-    // return $field_element;
+    $field_element = NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#array_parents'], 0, 4), $input_exists);
+    //$field_element = NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#array_parents'], 0, 3), $input_exists);
+    // return $form['field_test_geojsonfile']['widget'][0]['mapping'];
+    return $field_element;
   }
 
   /**
@@ -200,46 +187,19 @@ class GeojsonFileWidget extends FileWidget {
    * Increments the max counter and causes a rebuild.
    */
   public static function addOne(array &$form, FormStateInterface $form_state) {
-    $name_field = $form_state->get('num_names');
+
     $input_exists = FALSE;
-    $field_element = NestedArray::getValue($form_state->getValues(), array_slice($form_state->getTriggeringElement()['#parents'], 0, 3), $input_exists);
-    $name_field = $field_element['attribut']['count'] ?? 1;
-    if ($name_field == 0) {
-      $name_field = 1;
-    }
-    $name_field=count($field_element['attribut']);
+    // Use getTriggeringElement() to determine delta
+    $parent=array_slice($form_state->getTriggeringElement()['#parents'], 0, 3);
+    $nb_attribut_array=$parent;
+    $nb_attribut_array[]='nb_attribut';
+
+    $name_field = $form_state->get($nb_attribut_array) ?? 1;
+
+    // $name_field = count($field_element['attribut']);
     $add_button = $name_field + 1;
-    $form_state->set('num_names', $add_button);
+    $form_state->set($nb_attribut_array, $add_button);
 
-    $c = array_slice($form_state->getTriggeringElement()['#parents'], 0, 3);
-    array_push($c, 'nb_attribut');
-    NestedArray::setValue($form_state->GetValues(), $c, $add_button);
-
-/*     $field_element['attribut']['count'] = $add_button;
-    $c = array_slice($form_state->getTriggeringElement()['#parents'], 0, -2);
-    array_push($c, 'attribut', 'count');
-    NestedArray::setValue($form_state->getValues(), $c, $add_button);
-
-    $c = array_slice($form_state->getTriggeringElement()['#parents'], 0, -2);
-    array_push($c, 'nb_attribut');
-    NestedArray::setValue($form_state->getValues(), $c, $add_button);
-
-
-    $field=NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#array_parents'], 0, 3));
-    if (isset($field['#default_value']['mapping']['nb_attribut'])) {
-      $name_field=$field['#default_value']['mapping']['nb_attribut'];
-    }
-    else {
-      $name_field=1;
-    }
-    $add_button = $name_field + 1;
-    $c = array_slice($form_state->getTriggeringElement()['#array_parents'], 0, -2);
-    array_push($c, 'attribut', 'count');
-    NestedArray::setValue($form, $c, $add_button);
-
-    $c = array_slice($form_state->getTriggeringElement()['#array_parents'], 0, -2);
-    array_push($c, 'nb_attribut');
-    NestedArray::setValue($form, $c, $add_button);
     // Since our buildForm() method relies on the value of 'num_names' to
     // generate 'name' form elements, we have to tell the form to rebuild. If we
     // don't do this, the form builder will not call buildForm(). */
