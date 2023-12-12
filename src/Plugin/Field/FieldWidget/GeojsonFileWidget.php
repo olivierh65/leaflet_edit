@@ -222,4 +222,17 @@ class GeojsonFileWidget extends FileWidget {
     // don't do this, the form builder will not call buildForm().
     $form_state->setRebuild();
   }
+
+  public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
+    foreach ($values as $key => $value) {
+      if (empty($value['my_first_value'])) {
+        unset($values[$key]['my_first_value']);
+      }
+      if (empty($value['my_other_value'])) {
+        unset($values[$key]['my_other_value']);
+      }
+    }
+
+    return $values;
+  }
 }

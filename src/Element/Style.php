@@ -30,7 +30,7 @@ class Style extends FormElement {
 
     $input_exists = FALSE;
 
-    $field_element = NestedArray::getValue($complete_form, array_slice($element['#array_parents'], 0, -1), $input_exists);
+    $field_element = NestedArray::getValue($form_state->getValues(), $element['#parents'], $input_exists);
     if (!$input_exists) {
       return;
     }
