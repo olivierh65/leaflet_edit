@@ -40,30 +40,24 @@ class GeojsonFileWidget extends FileWidget {
 
     $field=$form_state->getValue($element['#field_name'])[$element['#delta']];
     if ($field) {
-      $num_names=$field['mapping']['nb_attribut'] ?? 1;
+      $num_names=$field['_nb_attribut'] ?? 1;
     }
     else {
       $num_names = 1;
     }
 
-    $num_names = $form_state->get([$element['#field_name'],$delta,'mapping','nb_attribut']) ?? 1;
+    $num_names = $form_state->getValue([$element['#field_name'],$delta,'nb_attribut']) ?? 1;
 
     $input_exists = false;
-    /* if ($form_state->getTriggeringElement()) {
-      $field_element = NestedArray::getValue($form_state->getValues(), array_slice($form_state->getTriggeringElement()['#parents'], 0, 3), $input_exists);
-    }
-    if (is_array($field_element) && isset($field_element['nb_attribut'])) {
-      $num_names = $field_element['nb_attribut'];
-    } else {
-      $num_names = 1;
-    } */
-    // Add the field setting for the description field to the array, so that the process function can access it to see if it is enabled
-    // $element['#field_description'] = $field_settings['field_description'];
 
     if(isset($element['#default_value']['mappings'])) {
       $element['#default_value']['mapping']=unserialize($element['#default_value']['mappings']);
       $form_state->setValue([$element['#field_name'],$delta,'mapping'], unserialize($element['#default_value']['mappings']));
+      // $form_state->setValue([$element['#field_name'],$delta,'mapping','attribut','_nb_attribut'], $num_names);
     }
+    $num_names = $form_state->getValue([$element['#field_name'],$delta,'mapping','_nb_attribut']) ?? 1;
+    $form_state->setValue([$element['#field_name'],$delta,'mapping','_nb_attribut'], $num_names);
+
     if(isset($element['#default_value']['styles'])) {
       $element['#default_value']['style']=unserialize($element['#default_value']['styles']);
       $form_state->setValue([$element['#field_name'],$delta,'style'], unserialize($element['#default_value']['styles']));
@@ -74,7 +68,7 @@ class GeojsonFileWidget extends FileWidget {
       '#open' => false,
       // hide until a file is selected
       //'#access' => $file_selected ?? false,
-      '#weight' => 199,
+      '#weight' => 19,
     ];
 
     $element['style']['leaflet_style'] = [
@@ -94,7 +88,7 @@ class GeojsonFileWidget extends FileWidget {
       '#suffix' => '</div>',
       // hide until a file is selected
       //'#access' => $file_selected ?? false,
-      '#weight' => 200,
+      '#weight' => 20,
     ];
 
     // $num_names = ($element['mapping']['attribut']['count']) ?? 1;
@@ -106,6 +100,7 @@ class GeojsonFileWidget extends FileWidget {
         '#type' => 'details',
         '#open' => false,
         '#weight' => $i,
+        '#cardinality' => 10,
       ];
 
       $element['mapping']['attribut'][$i]['leaflet_style_mapping'] = array(
@@ -114,9 +109,12 @@ class GeojsonFileWidget extends FileWidget {
         '#weight' => 1,
       );
     }
-
+    $element['mapping']['_nb_attribut'] = [
+      '#type' => 'value',
+      '#value' => $i,
+    ];
     // save number of attributs mapping
-    $form_state->setValue([$element['#field_name'],$element['#delta'],'mapping','nb_attribut'], $i);
+    $form_state->setValue([$element['#field_name'],$element['#delta'],'mapping','_nb_attribut'], $i);
 
     $element['mapping']['actions'] = [
       '#type' => 'actions',
@@ -184,8 +182,6 @@ class GeojsonFileWidget extends FileWidget {
     // return $form['mapping'];
     $input_exists = FALSE;
     $field_element = NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#array_parents'], 0, 4), $input_exists);
-    //$field_element = NestedArray::getValue($form, array_slice($form_state->getTriggeringElement()['#array_parents'], 0, 3), $input_exists);
-    // return $form['field_test_geojsonfile']['widget'][0]['mapping'];
     return $field_element;
   }
 
@@ -200,13 +196,13 @@ class GeojsonFileWidget extends FileWidget {
     // Use getTriggeringElement() to determine delta
     $parent=array_slice($form_state->getTriggeringElement()['#parents'], 0, 3);
     $nb_attribut_array=$parent;
-    $nb_attribut_array[]='nb_attribut';
+    $nb_attribut_array[]='_nb_attribut';
 
-    $name_field = $form_state->get($nb_attribut_array) ?? 1;
+    $name_field = $form_state->getValue($nb_attribut_array) ?? 1;
 
     // $name_field = count($field_element['attribut']);
     $add_button = $name_field + 1;
-    $form_state->set($nb_attribut_array, $add_button);
+    $form_state->setValue($nb_attribut_array, $add_button);
 
     // Since our buildForm() method relies on the value of 'num_names' to
     // generate 'name' form elements, we have to tell the form to rebuild. If we
@@ -220,10 +216,16 @@ class GeojsonFileWidget extends FileWidget {
    * Decrements the max counter and causes a form rebuild.
    */
   public static function removeCallback(array &$form, FormStateInterface $form_state) {
-    $name_field = $form_state->get('num_names');
+    $parent=array_slice($form_state->getTriggeringElement()['#parents'], 0, 3);
+    $nb_attribut_array=$parent;
+    $nb_attribut_array[]='_nb_attribut';
+
+    $name_field = $form_state->getValue($nb_attribut_array) ?? 1;
+
     if ($name_field > 1) {
       $remove_button = $name_field - 1;
-      $form_state->set('num_names', $remove_button);
+      $form_state->setValue($nb_attribut_array, $remove_button);
+
     }
     // Since our buildForm() method relies on the value of 'num_names' to
     // generate 'name' form elements, we have to tell the form to rebuild. If we
@@ -232,17 +234,13 @@ class GeojsonFileWidget extends FileWidget {
   }
 
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
-    foreach ($values as $key => $value) {
-      if (empty($value['my_first_value'])) {
-        unset($values[$key]['my_first_value']);
-      }
-      if (empty($value['my_other_value'])) {
-        unset($values[$key]['my_other_value']);
-      }
-    }
+
     foreach ($values as $key => $value) {
       if (isset($value['style'])) {
         $values[$key]['styles'] = serialize($value['style']);
+        foreach ($value['style']['leaflet_style'] as $param_key => $param_value) {
+          $values[$key][$param_key]=$param_value;
+        }
         unset($values[$key]['style']);
 
       }
@@ -252,6 +250,7 @@ class GeojsonFileWidget extends FileWidget {
       }
     }
 
-    return parent::massageFormValues($values, $form, $form_state);
+    return $values;
+    //return parent::massageFormValues($values, $form, $form_state);
   }
 }

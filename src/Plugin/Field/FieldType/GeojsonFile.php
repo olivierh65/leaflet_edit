@@ -232,32 +232,28 @@ class GeoJsonFile extends FileItem {
     return $schema;
   }
 
-  /**
-   * {@inheritdoc}
+    /**
+   * Determines whether the item holds an unsaved entity.
+   *
+   * This is notably used for "autocreate" widgets, and more generally to
+   * support referencing freshly created entities (they will get saved
+   * automatically as the hosting entity gets saved).
+   *
+   * @return bool
+   *   TRUE if the item holds an unsaved entity.
    */
-/*   public function fieldSettingsForm(array $form, FormStateInterface $form_state) {
-    // Get base form from FileItem.
-    $element = parent::fieldSettingsForm($form, $form_state);
+  public function hasNewEntity() {
+    return true;
+  }
 
-    // Get the current settings
-    $settings = $this->getSettings();
-
-    $element['description_field']['#default_value'] = TRUE;
-
-    // Add the render array for our new field
-    $element['leaflet_style'] = array(
-      '#title' => 'Test leaflet_style',
-      '#type' => 'leaflet_style',
-      '#weight' => 20,
-    );
-
-    $element['leaflet_style_mapping'] = array(
-      '#title' => 'Style Mapping',
-      '#type' => 'leaflet_style_mapping',
-      '#weight' => 21,
-    );
-
-    return $element;
+  /* public function isEmpty() {
+    // return !$this->isEmpty() && $this->target_id === NULL && $this->entity->isNew();
+    if (isset($this->values['mappings'])) {
+      return false;
+    }
+    else {
+      return true;
+    }
   } */
 
   public function preSave() {
