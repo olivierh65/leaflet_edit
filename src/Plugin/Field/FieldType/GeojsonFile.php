@@ -99,26 +99,6 @@ class GeoJsonFile extends FileItem {
   public static function propertyDefinitions(FieldStorageDefinitionInterface $field_definition) {
     $properties = parent::propertyDefinitions($field_definition);
 
-
-    /* unset($properties['display']);
-    unset($properties['description']);
-
-    $properties['alt'] = DataDefinition::create('string')
-      ->setLabel(new TranslatableMarkup('Alternative text'))
-      ->setDescription(new TranslatableMarkup("Alternative image text, for the image's 'alt' attribute."));
-
-    $properties['title'] = DataDefinition::create('string')
-      ->setLabel(new TranslatableMarkup('Title'))
-      ->setDescription(new TranslatableMarkup("Image title text, for the image's 'title' attribute."));
-
-    $properties['width'] = DataDefinition::create('integer')
-      ->setLabel(new TranslatableMarkup('Width'))
-      ->setDescription(new TranslatableMarkup('The width of the image in pixels.'));
-
-    $properties['height'] = DataDefinition::create('integer')
-      ->setLabel(new TranslatableMarkup('Height'))
-      ->setDescription(new TranslatableMarkup('The height of the image in pixels.')); */
-
     $properties['stroke'] = DataDefinition::create('boolean')->setLabel('stroke');
     $properties['color'] = DataDefinition::create('string')->setLabel('color');
     $properties['weight'] = DataDefinition::create('integer')->setLabel('weight');
@@ -232,31 +212,8 @@ class GeoJsonFile extends FileItem {
     return $schema;
   }
 
-    /**
-   * Determines whether the item holds an unsaved entity.
-   *
-   * This is notably used for "autocreate" widgets, and more generally to
-   * support referencing freshly created entities (they will get saved
-   * automatically as the hosting entity gets saved).
-   *
-   * @return bool
-   *   TRUE if the item holds an unsaved entity.
-   */
-  public function hasNewEntity() {
-    return true;
-  }
 
-  /* public function isEmpty() {
-    // return !$this->isEmpty() && $this->target_id === NULL && $this->entity->isNew();
-    if (isset($this->values['mappings'])) {
-      return false;
-    }
-    else {
-      return true;
-    }
-  } */
-
-  public function preSave() {
+   public function preSave() {
     return parent::preSave();
 
     foreach ($this->values['style']['leaflet_style'] as $key => $value) {
@@ -265,5 +222,5 @@ class GeoJsonFile extends FileItem {
 
     $this->values['mapping'] = serialize($this->values['mapping']['attribut']);
     return parent::preSave();
-  }
+  } 
 }

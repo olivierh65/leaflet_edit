@@ -38,30 +38,30 @@ class GeojsonFileWidget extends FileWidget {
 
     $item_name=$items->getDataDefinition()->getName();
 
-    $field=$form_state->getValue($element['#field_name'])[$element['#delta']];
-    if ($field) {
-      $num_names=$field['_nb_attribut'] ?? 1;
-    }
-    else {
-      $num_names = 1;
-    }
+    $input_exists = false;
+    $attribut=$form_state->getValue([$element['#field_name'],$delta,'mapping','attribut'], $input_exists);
 
-    $num_names = $form_state->getValue([$element['#field_name'],$delta,'nb_attribut']) ?? 1;
+    if(isset($element['#default_value']['mappings']) && $attribut === false) {
+      // $element['#default_value']['mapping']=unserialize($element['#default_value']['mappings']);
+      $input_exists = false;
+      $nb_attribut=$form_state->getValue([$element['#field_name'],$delta,'mapping','_nb_attribut'],$input_exists);
+      $form_state->setValue([$element['#field_name'],$delta,'mapping'], unserialize($element['#default_value']['mappings']));
+      if ($input_exists) {
+        // restaore orevius value
+        $form_state->setValue([$element['#field_name'],$delta,'mapping','_nb_attribut'], $nb_attribut);
+      }
+    }
+    // $num_names = $form_state->getValue([$element['#field_name'],$delta,'mapping','_nb_attribut']) ?? 1;
+    // $form_state->setValue([$element['#field_name'],$delta,'mapping','_nb_attribut'], $num_names);
+    $num_names = $form_state->getValue([$element['#field_name'],$delta,'mapping','_nb_attribut'],$input_exists);
 
     $input_exists = false;
-
-    if(isset($element['#default_value']['mappings'])) {
-      $element['#default_value']['mapping']=unserialize($element['#default_value']['mappings']);
-      $form_state->setValue([$element['#field_name'],$delta,'mapping'], unserialize($element['#default_value']['mappings']));
-      // $form_state->setValue([$element['#field_name'],$delta,'mapping','attribut','_nb_attribut'], $num_names);
-    }
-    $num_names = $form_state->getValue([$element['#field_name'],$delta,'mapping','_nb_attribut']) ?? 1;
-    $form_state->setValue([$element['#field_name'],$delta,'mapping','_nb_attribut'], $num_names);
-
-    if(isset($element['#default_value']['styles'])) {
-      $element['#default_value']['style']=unserialize($element['#default_value']['styles']);
+    $style=$form_state->getValue([$element['#field_name'],$delta,'style'], $input_exists);
+    if(isset($element['#default_value']['styles']) && $style === false) {
+      // $element['#default_value']['style']=unserialize($element['#default_value']['styles']);
       $form_state->setValue([$element['#field_name'],$delta,'style'], unserialize($element['#default_value']['styles']));
     }
+
     $element['style'] = [
       '#title' => 'Global style',
       '#type' => 'details',
@@ -75,16 +75,13 @@ class GeojsonFileWidget extends FileWidget {
       '#title' => 'Test leaflet_style',
       '#type' => 'leaflet_style',
       '#weight' => 1,
-      /* '#process' => [
-            [get_class($this), 'setValues']
-          ], */
     ];
 
     $element['mapping'] = [
       '#title' => 'Attribute style',
       '#type' => 'details',
       '#open' => false,
-      '#prefix' => '<div id="names-fieldset-wrapper' . $delta . '">',
+      '#prefix' => '<div id="mapping-fieldset-wrapper' . $delta . '">',
       '#suffix' => '</div>',
       // hide until a file is selected
       //'#access' => $file_selected ?? false,
@@ -100,17 +97,19 @@ class GeojsonFileWidget extends FileWidget {
         '#type' => 'details',
         '#open' => false,
         '#weight' => $i,
-        '#cardinality' => 10,
       ];
 
       $element['mapping']['attribut'][$i]['leaflet_style_mapping'] = array(
         '#title' => 'Style Mapping',
         '#type' => 'leaflet_style_mapping',
+        '#description' => 'Mapping ' . $delta . ':' . $i,
+        '#cardinality' => 10,
         '#weight' => 1,
       );
     }
     $element['mapping']['_nb_attribut'] = [
       '#type' => 'value',
+      '#description' => 'number of attributs for delta ' . $delta,
       '#value' => $i,
     ];
     // save number of attributs mapping
@@ -121,25 +120,27 @@ class GeojsonFileWidget extends FileWidget {
     ];
     $class = get_class($this);
     # $element['mapping']['actions']['add_name' . $delta] = [
-      $element['mapping']['actions']['add_name'] = [
+    $element['mapping']['actions']['add_name'] = [
       '#type' => 'submit',
       '#value' => $this->t('Add one more'),
-      '#submit' => [$class . '::addOne'],
+      '#submit' => [ [$this, 'addOne'] ],
+      '#description' => 'Add ' . $delta,
+      '#name' => 'add_' . $delta,
       '#ajax' => [
         'callback' => $class . '::addmoreCallback',
-        'wrapper' => 'names-fieldset-wrapper' . $delta,
+        'wrapper' => 'mapping-fieldset-wrapper' . $delta,
       ],
     ];
     // If there is more than one name, add the remove button.
     if ($num_names > 1) {
       # $element['mapping']['actions']['remove_name' . $delta] = [
-        $element['mapping']['actions']['remove_name'] = [
+      $element['mapping']['actions']['remove_name'] = [
         '#type' => 'submit',
         '#value' => $this->t('Remove one'),
         '#submit' => [$class . '::removeCallback'],
         '#ajax' => [
           'callback' => $class . '::addmoreCallback',
-          'wrapper' => 'names-fieldset-wrapper' . $delta,
+          'wrapper' => 'mapping-fieldset-wrapper' . $delta,
         ],
       ];
     }
@@ -148,30 +149,6 @@ class GeojsonFileWidget extends FileWidget {
     return $element;
   }
 
-  /* public static function setValues($element, FormStateInterface $form_state, $form) {
-      $a=$element;
-
-    } */
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function process($element, FormStateInterface $form_state, $form) {
-
-    $item = $element['#value'];
-
-    /* $element['leaflet_style'] = array (
-          '#title' => 'Test leaflet_style',
-          '#type' => 'leaflet_style',
-          '#weight' => 20,
-        ); */
-
-    // Return the processed image as per Parents method
-    return parent::process($element, $form_state, $form);
-  }
-  /* public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
-      return $values;
-    } */
 
   /**
    * Callback for both ajax-enabled buttons.
@@ -235,22 +212,24 @@ class GeojsonFileWidget extends FileWidget {
 
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
 
-    foreach ($values as $key => $value) {
+    $v=parent::massageFormValues($values, $form, $form_state);
+
+    foreach ($v as $key => $value) {
       if (isset($value['style'])) {
-        $values[$key]['styles'] = serialize($value['style']);
+        $v[$key]['styles'] = serialize($value['style']);
         foreach ($value['style']['leaflet_style'] as $param_key => $param_value) {
-          $values[$key][$param_key]=$param_value;
+          $v[$key][$param_key]=$param_value;
         }
         unset($values[$key]['style']);
 
       }
       if (isset($value['mapping'])) {
-        $values[$key]['mappings'] = serialize($value['mapping']);
+        $v[$key]['mappings'] = serialize($value['mapping']);
         unset($values[$key]['mapping']);
       }
     }
 
-    return $values;
+    return $v;
     //return parent::massageFormValues($values, $form, $form_state);
   }
 }
