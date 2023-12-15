@@ -41,13 +41,6 @@ class Style extends FormElement {
     }
 
 
-/*     if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
-      // Don't display Style until a file is selected
-      return $element;
-    } */
-
-    // Add the render array for our new field
-
     $element['stroke'] = [
       '#type' => 'checkbox',
       '#title' => t('<em>Stroke</em> field'),
