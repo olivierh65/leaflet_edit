@@ -213,7 +213,7 @@ class GeoJsonFile extends FileItem {
   }
 
 
-   public function preSave() {
+/*    public function preSave() {
     return parent::preSave();
 
     foreach ($this->values['style']['leaflet_style'] as $key => $value) {
@@ -222,5 +222,5 @@ class GeoJsonFile extends FileItem {
 
     $this->values['mapping'] = serialize($this->values['mapping']['attribut']);
     return parent::preSave();
-  } 
+  }  */
 }
