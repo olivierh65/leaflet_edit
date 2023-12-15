@@ -40,6 +40,7 @@ class StyleMapping extends FormElement {
       $item = [];
     }
 
+
     /* if (isset($field_element['#value']['fids']) && count($field_element['#value']['fids'])===0) {
       // Don't display Style until a file is selected
       return $element;
