@@ -8,13 +8,8 @@ use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Component\Utility\NestedArray;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use Symfony\Component\HttpFoundation\Request;
-use Drupal\Core\Field\FieldDefinitionInterface;
-use Drupal\Core\Render\ElementInfoManagerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Security\TrustedCallbackInterface;
-use Drupal\Core\Url;
-use Drupal\plupload_widget\Plugin\Field\FieldWidget\FileWidget;
-
 
 /**
  * Provides the field widget for Symbol field.
@@ -30,7 +25,7 @@ use Drupal\plupload_widget\Plugin\Field\FieldWidget\FileWidget;
  */
 class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
 
-    /**
+  /**
    * {@inheritdoc}
    */
   public static function trustedCallbacks() {
@@ -38,6 +33,7 @@ class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
       'managedFile',
     ];
   }
+
 
   /**
    * {@inheritdoc}
@@ -55,9 +51,8 @@ class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
  */
     if (isset($element['#default_value']['fids'])) {
       $file_selected = count($element['#default_value']['fids']) > 0;
-    }
-    else {
-      $file_selected=false;
+    } else {
+      $file_selected = false;
     }
 
     $num_names = $form_state->getValue([$element['#field_name'], $delta, 'mapping', '_nb_attribut']);
@@ -263,52 +258,37 @@ class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
     return $a['leaflet_style'];
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public static function process($element, FormStateInterface $form_state, $form) {
+
+    $element['#pre_render'][] = [static::class, 'managedFile'];
+
+    $element['replace_button'] = $element['upload_button'];
+    $element['replace_button']['#value'] = t('Replace');
+    $element['replace_button']['#weight'] = -5;
+    unset($element['replace_button']['#attributes']);
+    $element['replace_button']['#attributes']['title'] = 'Select a file, then click Replace button';
+    $element['replace_button']['#attributes']['class'][] = 'button--extrasmall';
+    // $element['replace_button']['#ajax']['event'] = 'fileUpload';
+
+
+
+    return parent::process($element, $form_state, $form);
+  }
 
   public static function managedFile($element) {
 
-$element['#multiple']=true;
-    return $element;
-
-
-
-
-        $element['upload']['#access'] = true;
-        $element['upload_button']['#access'] = true;
-
-        $upload_progress_key = mt_rand();
-
-        // Add the upload progress callback.
-      $element['upload_button']['#ajax']['progress']['url'] = Url::fromRoute('file.ajax_progress', ['key' => $upload_progress_key]);
-
-      // Set a custom submit event so we can modify the upload progress
-      // identifier element before the form gets submitted.
-      $element['upload_button']['#ajax']['event'] = 'fileUpload';
-
-        $element['remove_button']['#access'] = true;
-
+    if (!isset($element['remove_button']['#access']) || $element['remove_button']['#access'] !== false) {
+      $element['upload']['#access']=true;
+      $element['replace_button']['#access']=true;
+    }
+    else {
+      // $element['upload']['#access']=false;
+      $element['upload']['#description'] = '';
+      $element['replace_button']['#access']=false;
+    }
     return $element;
   }
-
-       /**
-     * {@inheritdoc}
-     */
-    public static function process($element, FormStateInterface $form_state, $form) {
-
-      $item = $element['#value'];
-      // Return as per Parents method
-      $element['#pre_render'][] = [static::class, 'managedFile'];
-
-      $element['#multiple']=true;
-
-      if(count($element['#files']) > 0) {
-        $element['style']['#access'] = true;
-        $element['mapping']['#access'] = true;
-      }
-      $element['#upload_validators'] = [
-        'file_validate_extensions' => ['gpx gepjson'],
-      ];
-      $element['#plupload_settings']['max_file_count'] = 2;
-
-      return parent::process($element, $form_state, $form);
-    }
 }
