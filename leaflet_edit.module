@@ -36,3 +36,24 @@ function leaflet_edit_theme() {
         ],
     ];
 }
+
+
+/* function leaflet_edit_field_widget_complete_form_alter(&$element, &$form_state, $context) {
+  echo "\n YOUR_THEME_field_widget_form_alter";
+  echo "\n element: ";
+  print_r($element);
+
+  echo "\n widget type: ";
+  print_r($context['instance']['widget']['type']);
+} */
+
+/**
+ * Implements hook_field_widget_info_alter().
+ */
+/* function leaflet_edit_field_widget_info_alter(array &$info) {
+  // Allows using the 'uri' widget for the 'file_uri' field type, which uses it
+  // as the default widget.
+  // @see \Drupal\file\Plugin\Field\FieldType\FileUriItem
+  $info['uri']['field_types'][] = 'file_uri';
+}
+ */

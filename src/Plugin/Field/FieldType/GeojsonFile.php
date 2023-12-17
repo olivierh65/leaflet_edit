@@ -74,6 +74,7 @@ class GeoJsonFile extends FileItem {
     $settings['description_field'] = TRUE;
 
     $settings['file_extensions'] = 'geojson,gpx';
+    $settings['multiple'] = true;
 
     $settings['stroke'] = TRUE;
     $settings['color'] = '#F00FE8';
@@ -223,4 +224,6 @@ class GeoJsonFile extends FileItem {
     $this->values['mapping'] = serialize($this->values['mapping']['attribut']);
     return parent::preSave();
   }  */
+
+
 }

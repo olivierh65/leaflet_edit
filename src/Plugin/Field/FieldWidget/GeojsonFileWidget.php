@@ -2,12 +2,19 @@
 
 namespace Drupal\leaflet_edit\Plugin\Field\FieldWidget;
 
-use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
+// use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Component\Utility\NestedArray;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use Symfony\Component\HttpFoundation\Request;
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Render\ElementInfoManagerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Security\TrustedCallbackInterface;
+use Drupal\Core\Url;
+use Drupal\plupload_widget\Plugin\Field\FieldWidget\FileWidget;
+
 
 /**
  * Provides the field widget for Symbol field.
@@ -21,7 +28,16 @@ use Symfony\Component\HttpFoundation\Request;
  *   }
  * )
  */
-class GeojsonFileWidget extends FileWidget {
+class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
+
+    /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    return [
+      'managedFile',
+    ];
+  }
 
   /**
    * {@inheritdoc}
@@ -32,6 +48,11 @@ class GeojsonFileWidget extends FileWidget {
 
     // Get the parents form elements
     $element = parent::formElement($items, $delta, $element, $form, $form_state);
+    $elelent['#multiple']=true;
+    /* $element['#upload_validators'] = [
+      'file_validate_extensions' => ['gpx gepjson'],
+    ];
+ */
     if (isset($element['#default_value']['fids'])) {
       $file_selected = count($element['#default_value']['fids']) > 0;
     }
@@ -220,8 +241,13 @@ class GeojsonFileWidget extends FileWidget {
     $data = array_slice($element['#parents'], 0, 2);
 
     $data[] = 'mappings';
-    $a = unserialize($form_state->getValue($data));
-    return $a['attribut'][array_slice($element['#parents'], 4, 1)[0]]['leaflet_style_mapping'];
+    if ($form_state->getValue($data)) {
+      $a = unserialize($form_state->getValue($data));
+      return $a['attribut'][array_slice($element['#parents'], 4, 1)[0]]['leaflet_style_mapping'];
+    }
+    else {
+      return [];
+    }
   }
 
   public static function styleUnserialize($element, $input, $form_state) {
@@ -237,4 +263,52 @@ class GeojsonFileWidget extends FileWidget {
     return $a['leaflet_style'];
   }
 
+
+  public static function managedFile($element) {
+
+$element['#multiple']=true;
+    return $element;
+
+
+
+
+        $element['upload']['#access'] = true;
+        $element['upload_button']['#access'] = true;
+
+        $upload_progress_key = mt_rand();
+
+        // Add the upload progress callback.
+      $element['upload_button']['#ajax']['progress']['url'] = Url::fromRoute('file.ajax_progress', ['key' => $upload_progress_key]);
+
+      // Set a custom submit event so we can modify the upload progress
+      // identifier element before the form gets submitted.
+      $element['upload_button']['#ajax']['event'] = 'fileUpload';
+
+        $element['remove_button']['#access'] = true;
+
+    return $element;
+  }
+
+       /**
+     * {@inheritdoc}
+     */
+    public static function process($element, FormStateInterface $form_state, $form) {
+
+      $item = $element['#value'];
+      // Return as per Parents method
+      $element['#pre_render'][] = [static::class, 'managedFile'];
+
+      $element['#multiple']=true;
+
+      if(count($element['#files']) > 0) {
+        $element['style']['#access'] = true;
+        $element['mapping']['#access'] = true;
+      }
+      $element['#upload_validators'] = [
+        'file_validate_extensions' => ['gpx gepjson'],
+      ];
+      $element['#plupload_settings']['max_file_count'] = 2;
+
+      return parent::process($element, $form_state, $form);
+    }
 }
