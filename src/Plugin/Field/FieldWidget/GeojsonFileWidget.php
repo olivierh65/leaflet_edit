@@ -34,9 +34,8 @@ class GeojsonFileWidget extends FileWidget {
     $element = parent::formElement($items, $delta, $element, $form, $form_state);
     if (isset($element['#default_value']['fids'])) {
       $file_selected = count($element['#default_value']['fids']) > 0;
-    }
-    else {
-      $file_selected=false;
+    } else {
+      $file_selected = false;
     }
 
     $num_names = $form_state->getValue([$element['#field_name'], $delta, 'mapping', '_nb_attribut']);
@@ -237,4 +236,13 @@ class GeojsonFileWidget extends FileWidget {
     return $a['leaflet_style'];
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public static function process($element, FormStateInterface $form_state, $form) {
+    $element['#multiple'] = true;
+
+
+    return parent::process($element, $form_state, $form);
+  }
 }
