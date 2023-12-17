@@ -156,6 +156,8 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     // foreach ($items as $delta => $item) {
     for ($i = 0; $i < $items->count(); $i++) {
       $item=$items->get($i);
+      $item_style['style']=unserialize($item->getValue()['styles']);
+      $item_mapping['mapping']=unserialize($item->getValue()['mappings']);
       if (!empty($item->target_id)) {
         $feature['type'] = 'url';
         $feature['url'] = $this->leafletService->leafletProcessGeofieldFileUrl($item->target_id, $entity);
@@ -173,7 +175,8 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         if (! empty($entity->get('field_leaflet_edit_opacite')->getString('opacite'))) {
           $style['opacity'] = $entity->get('field_leaflet_edit_opacite')->getString('opacite');
         } */
-        $feature['style'] = json_encode($style);
+        $feature['style'] = json_encode($item_style['style']['leaflet_style']);
+        $feature['mapping'] = json_encode($item_style['mapping']['attribut']);
 
         $features[] = $feature;
       }
