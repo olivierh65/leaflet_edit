@@ -8,6 +8,8 @@ use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Component\Utility\NestedArray;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use Symfony\Component\HttpFoundation\Request;
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Security\TrustedCallbackInterface;
 
 /**
  * Provides the field widget for Symbol field.
@@ -21,7 +23,17 @@ use Symfony\Component\HttpFoundation\Request;
  *   }
  * )
  */
-class GeojsonFileWidget extends FileWidget {
+class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function trustedCallbacks() {
+    return [
+      'managedFile',
+    ];
+  }
+
 
   /**
    * {@inheritdoc}
@@ -240,9 +252,33 @@ class GeojsonFileWidget extends FileWidget {
    * {@inheritdoc}
    */
   public static function process($element, FormStateInterface $form_state, $form) {
-    $element['#multiple'] = true;
+
+    $element['#pre_render'][] = [static::class, 'managedFile'];
+
+    $element['replace_button'] = $element['upload_button'];
+    $element['replace_button']['#value'] = t('Replace');
+    $element['replace_button']['#weight'] = -5;
+    unset($element['replace_button']['#attributes']);
+    $element['replace_button']['#attributes']['title'] = 'Select a file, then click Replace button';
+    $element['replace_button']['#attributes']['class'][] = 'button--extrasmall';
+    // $element['replace_button']['#ajax']['event'] = 'fileUpload';
+
 
 
     return parent::process($element, $form_state, $form);
+  }
+
+  public static function managedFile($element) {
+
+    if (!isset($element['remove_button']['#access']) || $element['remove_button']['#access'] !== false) {
+      $element['upload']['#access']=true;
+      $element['replace_button']['#access']=true;
+    }
+    else {
+      // $element['upload']['#access']=false;
+      $element['upload']['#description'] = '';
+      $element['replace_button']['#access']=false;
+    }
+    return $element;
   }
 }
