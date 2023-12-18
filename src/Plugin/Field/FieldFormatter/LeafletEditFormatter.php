@@ -176,7 +176,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
           $style['opacity'] = $entity->get('field_leaflet_edit_opacite')->getString('opacite');
         } */
         $feature['style'] = json_encode($item_style['style']['leaflet_style']);
-        $feature['mapping'] = json_encode($item_style['mapping']['attribut']);
+        $feature['mapping'] = json_encode($item_mapping['mapping']['attribut']);
 
         $features[] = $feature;
       }

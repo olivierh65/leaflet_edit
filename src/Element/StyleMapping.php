@@ -41,13 +41,32 @@ class StyleMapping extends FormElement {
     }
 
       $element['Attribute'] = [
+        '#type' => 'fieldset',
+        '#attributes' => [
+          'style' => [
+            'display: inline;'
+          ]
+        ]
+      ];
+      $element['Attribute']['attribut'] = [
         '#type' => 'textfield',
-        '#title' => t('Attribute'),
-        '#default_value' => $item['Attribute'] ?? NULL,
+        '#title' => t('Attribut Name'),
+        '#default_value' => $item['Attribute']['attribut'] ?? NULL,
         '#description' => t('Parameter '),
         '#maxlength' => 64,
+        '#size' => 12,
         '#weight' => 1,
       ];
+      $element['Attribute']['value'] = [
+        '#type' => 'textfield',
+        '#title' => t('Attribut Value'),
+        '#default_value' => $item['Attribute']['value'] ?? NULL,
+        '#description' => t('Parameter '),
+        '#maxlength' => 64,
+        '#size' => 12,
+        '#weight' => 2,
+      ];
+
       $element['Style'] = [
         '#type' => 'leaflet_style',
         '#title' => t('Style Mapping'),

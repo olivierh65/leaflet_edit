@@ -2,7 +2,7 @@
 
 namespace Drupal\leaflet_edit\Plugin\Field\FieldWidget;
 
-// use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
+use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Component\Utility\NestedArray;
