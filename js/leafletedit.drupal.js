@@ -7,6 +7,72 @@
     map = Drupal.Leaflet[mapid];
 
     ////
+    if (map.lMap.zoomControl) {
+      // Remove existing zoomControl
+      map.lMap.zoomControl.remove();
+    }
+    var menu_outils = new L.cascadeButtons(
+      [
+        {
+          icon: "fa-solid fa-bars",
+          title: "Menu outils",
+          items: [
+            {
+              icon: "fa-regular fa-floppy-disk",
+              title: "Save",
+              command: () => {
+                button_save(this);
+              },
+            },
+            {
+              icon: "fa-solid fa-file-export",
+              title: "Export to GPX",
+              command: () => {
+                console.log("hola");
+              },
+            },
+            {
+              icon: "fas fa-globe",
+              title: "Pas utilisé",
+              command: () => {
+                console.log("hola");
+              },
+            },
+          ],
+        },
+      ],
+      { position: "topleft", direction: "horizontal" }
+    ).addTo(map.lMap);
+
+    function close_menu(e) {
+      Array.from(e.getElementsByTagName("button")).forEach((child, index) => {
+        if (index !== 0) child.classList.toggle("hidden");
+      });
+      mainButton = e.getElementsByTagName("button").item(0);
+      const isAriaExpanded = JSON.parse(
+        mainButton.getAttribute("aria-expanded")
+      );
+      mainButton.setAttribute("aria-expanded", !isAriaExpanded);
+    }
+
+    function button_save(e) {
+      close_menu(menu_outils.getContainer());
+      a = menu_outils;
+      L.control
+        .window(map.lMap, {
+          title: "Hello world!",
+          content: "This is my first control window.",
+          modal: true,
+        })
+        .prompt({
+          callback: function () {
+            alert("This is called after OK click!");
+          },
+          buttonCancel: "Annuler",
+          buttonOK: "Sauver",
+        })
+        .show();
+    }
 
     /// Init StyleEditor
     console.log("event  style editor");
@@ -32,13 +98,13 @@
       console.error("Notification : " + error);
     }
 
-    /// Init Toolbar
-    /* A sub-action which completes as soon as it is activated.
-     * Sub-actions receive their parent action as an argument to
-     * their `initialize` function. We save a reference to this
-     * parent action so we can disable it as soon as the sub-action
-     * completes.
-     */
+    /* /// Init Toolbar
+    // /* A sub-action which completes as soon as it is activated.
+    //  * Sub-actions receive their parent action as an argument to
+    //  * their `initialize` function. We save a reference to this
+    //  * parent action so we can disable it as soon as the sub-action
+    //  * completes.
+    //  *
     try {
       var ImmediateSubAction = L.Toolbar2.Action.extend({
         initialize: function (map, myAction) {
@@ -50,6 +116,47 @@
           this.myAction.disable();
         },
       });
+
+      self.createPane("selsauve");
+      $(".leaflet-selsauve-pane").select2({
+        allowClear: true,
+        width: "20em",
+      });
+      var Menu = ImmediateSubAction.extend({
+        options: {
+          toolbarIcon: {
+            html: "Menu",
+            tooltip: "Menu sauvegarde",
+          },
+        },
+        addHooks: function () {
+          ImmediateSubAction.prototype.addHooks.call(this);
+          // alert("Ouverture menu");
+          $(".leaflet-selsauve-pane").val(null).trigger("change");
+          drupalSettings[mapid].features_url.forEach(function add(feature) {
+            var opt = new Option(feature.description, feature.id, false, false);
+            $(".leaflet-selsauve-pane").append(opt);
+          });
+          $(".leaflet-selsauve-pane").trigger("change");
+          // $(".leaflet-selsauve-pane").select2("open");
+          L.control
+            .window(map.lMap, {
+              title: "Hello world!",
+              content: "This is my first control window.",
+              modal: true,
+            })
+            .prompt({
+              callback: function () {
+                alert("This is called after OK click!");
+              },
+              buttonCancel: "Annuler",
+              buttonOK: "Sauver",
+            })
+            .show();
+          // alert("Fermeture menu");
+        },
+      });
+
       var World = ImmediateSubAction.extend({
         options: {
           toolbarIcon: {
@@ -77,7 +184,8 @@
       var Cancel = ImmediateSubAction.extend({
         options: {
           toolbarIcon: {
-            html: '<i class="fa fa-times"></i>',
+            // html: '<i class="fa fa-times"></i>',
+            html: "Cancel",
             tooltip: "Cancel",
           },
         },
@@ -87,13 +195,13 @@
           toolbarIcon: {
             className: "fa fa-eye",
           },
-          /* Use L.Toolbar2 for sub-toolbars. A sub-toolbar is,
-           * by definition, contained inside another toolbar, so it
-           * doesn't need the additional styling and behavior of a
-           * L.Toolbar2.Control or L.Toolbar2.Popup.
-           */
+          // * Use L.Toolbar2 for sub-toolbars. A sub-toolbar is,
+          // * by definition, contained inside another toolbar, so it
+          // * doesn't need the additional styling and behavior of a
+          // * L.Toolbar2.Control or L.Toolbar2.Popup.
+          // *
           subToolbar: new L.Toolbar2({
-            actions: [World, Eiffel, Cancel],
+            actions: [Menu, World, Eiffel, Cancel],
           }),
         },
       });
@@ -104,6 +212,24 @@
     } catch (error) {
       console.error("Toolbar : " + error);
     }
+ */
+
+    // Dialog
+    var dialog = new L.control.dialog({
+      size: [300, 300],
+      minSize: [100, 100],
+      maxSize: [350, 350],
+      anchor: [50, 50],
+      position: "topleft",
+      initOpen: false,
+    });
+    dialog
+      .setContent("<p>Hello! Welcome to your nice new dialog box!</p>")
+      .addTo(map.lMap);
+
+    // leaflet.control-window
+    //var win =  L.control.window(map.lMap,{title:'Hello world!',content:'This is my first control window.'})
+    //       .show();
 
     // full  screen
     var fullScreen = new L.control.fullscreen({
@@ -249,26 +375,30 @@
             this._layers[k].setStyle({ color: "red", weight: 5 });
           }
 
-          mappings=JSON.parse(this._layers[k].defaultOptions.mapping);
+          mappings = JSON.parse(this._layers[k].defaultOptions.mapping);
           if (mappings && this._layers[k].feature.properties) {
-            for (let i=0; i < mappings.length; i++) {
-              attrib=mappings[i].leaflet_style_mapping.Attribute.attribut;
-              console.log('Attrib: ' + attrib);
+            for (let i = 0; i < mappings.length; i++) {
+              attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
+              console.log("Attrib: " + attrib);
               if (attrib && attrib.length > 0) {
                 attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
-                console.log('Attrib value: ' + attrib_val);
+                console.log("Attrib value: " + attrib_val);
                 if (attrib in this._layers[k].feature.properties) {
-                  if (this._layers[k].feature.properties[attrib] == attrib_val) {
-                    console.log('Set Style ' + mappings[i].leaflet_style_mapping.Style);
-                    this._layers[k].setStyle(mappings[i].leaflet_style_mapping.Style);
+                  if (
+                    this._layers[k].feature.properties[attrib] == attrib_val
+                  ) {
+                    console.log(
+                      "Set Style " + mappings[i].leaflet_style_mapping.Style
+                    );
+                    this._layers[k].setStyle(
+                      mappings[i].leaflet_style_mapping.Style
+                    );
                     this._layers[k].bindTooltip(attrib_val, {
                       sticky: true,
                     });
                   }
-
                 }
               }
-
             }
           }
         }

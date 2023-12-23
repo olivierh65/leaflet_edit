@@ -21,3 +21,19 @@ leaflet_edit.ajaxaddremoveelements:
     _title: 'AJAX add and remove elements'
   requirements:
     _permission: 'access content'
+
+leaflet_edit.default_controller_hello:
+  path: '/leaflet_edit/uptest'
+  defaults:
+    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::hello'
+    _title: 'uptest'
+  requirements:
+    _permission: 'access content'
+
+leaflet_edit.default_controller_upload:
+  path: '/leaflet_edit/uptest-save'
+  defaults:
+    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::saveFile'
+    _title: 'Save'
+  requirements:
+    _permission: 'access content'

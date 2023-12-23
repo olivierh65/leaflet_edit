@@ -85,6 +85,7 @@ leaflet-styleeditor:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
+
 leaflet-styleeditor-drupal:
   version: VERSION
   js:
@@ -152,3 +153,64 @@ leaflet-fullscreen:
   dependencies:
     - leaflet/leaflet-drupal
     - core/drupalSettings
+
+leaflet-contextmenu:
+  version: 1.0
+  js:
+    js/Leaflet.contextmenu/dist/leaflet.contextmenu.js: {}
+  css:
+    component:
+      js/Leaflet.contextmenu/dist/leaflet.contextmenu.min.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+
+select2.min:
+  remote: https://github.com/select2/select2
+  license:
+      name: MIT
+      url: https://github.com/select2/select2/blob/master/LICENSE.md
+      gpl-compatible: true
+  js:
+    /libraries/select2/dist/js/select2.min.js: { minified: true }
+  css:
+    component:
+      /libraries/select2/dist/css/select2.min.css: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once
+
+leaflet.Dialog:
+  version: 1.0
+  js:
+    js/leaflet.Dialog/Leaflet.Dialog.js: {}
+  css:
+    component:
+      js/leaflet.Dialog/Leaflet.Dialog.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+
+leaflet.control-window:
+  version: 1.0
+  js:
+    js/leaflet-control-window/src/L.Control.Window.js: {}
+  css:
+    component:
+      js/leaflet-control-window/src/L.Control.Window.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+
+leaflet.cascadebuttons:
+  version: 1.0
+  js:
+    js/leaflet.cascadeButtons/src/L.cascadeButtons.js: {}
+  css:
+    component:
+      js/leaflet.cascadeButtons/src/L.cascadeButtons.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+

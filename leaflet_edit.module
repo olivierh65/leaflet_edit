@@ -12,7 +12,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
  */
 function leaflet_edit_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
-    // Main module help for the leaflet_edit module.
+      // Main module help for the leaflet_edit module.
     case 'help.page.leaflet_edit':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
@@ -28,14 +28,19 @@ function leaflet_edit_help($route_name, RouteMatchInterface $route_match) {
  */
 function leaflet_edit_theme() {
 
-    return [
-        // Theme functions in extended_image.field.inc
-        'leaflet_edit' => [
-            'variables' => ['item' => NULL, 'item_attributes' => NULL, 'url' => NULL, 'image_style' => NULL],
-            'file' => 'leaflet_edit.field.inc',
-        ],
-    ];
+  return [
+    // Theme functions to add menu
+    'leaflet_edit' => [
+      'variables' => [
+        'parent' => NULL,
+        'map_id' => NULL,
+        'height' => '400px',
+        'map' => [],
+      ],
+    ],
+  ];
 }
+
 
 
 /* function leaflet_edit_field_widget_complete_form_alter(&$element, &$form_state, $context) {

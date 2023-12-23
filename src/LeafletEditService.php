@@ -125,6 +125,23 @@ class LeafletEditService extends LeafletService {
     $attached_libraries[] =  'leaflet_edit/leaflet.ajax';
     // $attached_libraries[] =  'leaflet/general';
 
+    // Context Menu
+    // $attached_libraries[] = 'leaflet_edit/leaflet-contextmenu';
+
+    // Select2 
+    $attached_libraries[] =  'leaflet_edit/select2.min';
+
+    // Dialog
+    $attached_libraries[] =  'leaflet_edit/leaflet.Dialog';
+
+    // Control window
+    $attached_libraries[] =  'leaflet_edit/leaflet.control-window';
+
+    //CascadeButtons
+    $attached_libraries[] =  'leaflet_edit/leaflet.cascadebuttons';
+
+
+
     // now add url features
     $settings[$map_id] = [
       'mapid' => $map_id,

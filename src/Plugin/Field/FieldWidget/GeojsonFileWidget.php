@@ -268,6 +268,7 @@ class GeojsonFileWidget extends FileWidget implements TrustedCallbackInterface {
     $element['replace_button'] = $element['upload_button'];
     $element['replace_button']['#value'] = t('Replace');
     $element['replace_button']['#weight'] = -5;
+    $element['replace_button']['#empty_option'] = t('Select Replace File');
     unset($element['replace_button']['#attributes']);
     $element['replace_button']['#attributes']['title'] = 'Select a file, then click Replace button';
     $element['replace_button']['#attributes']['class'][] = 'button--extrasmall';

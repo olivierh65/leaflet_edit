@@ -1,0 +1,22 @@
+{#
+/**
+ * @file
+ * Default theme implementation to add menu
+ *
+ * @ingroup themeable
+ */
+#}
+
+{#
+first add leaflet map 
+#}
+
+<div id="{{ map_id }}" style="min-width: 150px; {% if height is not empty %}height: {{ height }}{% endif %}"></div>
+
+<div id="toolbar" class="panels-container center-leaflet leaflet-control">
+            <div id="load" class="panels custom-button">Load GPX</div>
+            <div id="manual" class="panels custom-button">New GPX</div>
+            <div id="export" class="panels custom-button">Export</div>
+            <div id="clear" class="panels custom-button">Clear all</div>
+        </div>
+        
