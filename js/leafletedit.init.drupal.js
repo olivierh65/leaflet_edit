@@ -7,6 +7,10 @@
     map = Drupal.Leaflet[mapid];
 
     ////
+    // track contetmenu relatedTarget
+    evtMenuShow ();
+    ////
+
     if (map.lMap.zoomControl) {
       // Remove existing zoomControl
       map.lMap.zoomControl.remove();
@@ -84,6 +88,8 @@
     );
     // }
 
+
+
     /// Init Notifications
     try {
       var notification = L.control
@@ -98,122 +104,7 @@
       console.error("Notification : " + error);
     }
 
-    /* /// Init Toolbar
-    // /* A sub-action which completes as soon as it is activated.
-    //  * Sub-actions receive their parent action as an argument to
-    //  * their `initialize` function. We save a reference to this
-    //  * parent action so we can disable it as soon as the sub-action
-    //  * completes.
-    //  *
-    try {
-      var ImmediateSubAction = L.Toolbar2.Action.extend({
-        initialize: function (map, myAction) {
-          this.map = map;
-          this.myAction = myAction;
-          L.Toolbar2.Action.prototype.initialize.call(this);
-        },
-        addHooks: function () {
-          this.myAction.disable();
-        },
-      });
-
-      self.createPane("selsauve");
-      $(".leaflet-selsauve-pane").select2({
-        allowClear: true,
-        width: "20em",
-      });
-      var Menu = ImmediateSubAction.extend({
-        options: {
-          toolbarIcon: {
-            html: "Menu",
-            tooltip: "Menu sauvegarde",
-          },
-        },
-        addHooks: function () {
-          ImmediateSubAction.prototype.addHooks.call(this);
-          // alert("Ouverture menu");
-          $(".leaflet-selsauve-pane").val(null).trigger("change");
-          drupalSettings[mapid].features_url.forEach(function add(feature) {
-            var opt = new Option(feature.description, feature.id, false, false);
-            $(".leaflet-selsauve-pane").append(opt);
-          });
-          $(".leaflet-selsauve-pane").trigger("change");
-          // $(".leaflet-selsauve-pane").select2("open");
-          L.control
-            .window(map.lMap, {
-              title: "Hello world!",
-              content: "This is my first control window.",
-              modal: true,
-            })
-            .prompt({
-              callback: function () {
-                alert("This is called after OK click!");
-              },
-              buttonCancel: "Annuler",
-              buttonOK: "Sauver",
-            })
-            .show();
-          // alert("Fermeture menu");
-        },
-      });
-
-      var World = ImmediateSubAction.extend({
-        options: {
-          toolbarIcon: {
-            html: "World",
-            tooltip: "See the whole world",
-          },
-        },
-        addHooks: function () {
-          this.map.setView([0, 0], 0);
-          ImmediateSubAction.prototype.addHooks.call(this);
-        },
-      });
-      var Eiffel = ImmediateSubAction.extend({
-        options: {
-          toolbarIcon: {
-            html: "Eiffel Tower",
-            tooltip: "Go to the Eiffel Tower",
-          },
-        },
-        addHooks: function () {
-          this.map.setView([48.85815, 2.2942], 19);
-          ImmediateSubAction.prototype.addHooks.call(this);
-        },
-      });
-      var Cancel = ImmediateSubAction.extend({
-        options: {
-          toolbarIcon: {
-            // html: '<i class="fa fa-times"></i>',
-            html: "Cancel",
-            tooltip: "Cancel",
-          },
-        },
-      });
-      var MyCustomAction = L.Toolbar2.Action.extend({
-        options: {
-          toolbarIcon: {
-            className: "fa fa-eye",
-          },
-          // * Use L.Toolbar2 for sub-toolbars. A sub-toolbar is,
-          // * by definition, contained inside another toolbar, so it
-          // * doesn't need the additional styling and behavior of a
-          // * L.Toolbar2.Control or L.Toolbar2.Popup.
-          // *
-          subToolbar: new L.Toolbar2({
-            actions: [Menu, World, Eiffel, Cancel],
-          }),
-        },
-      });
-      new L.Toolbar2.Control({
-        position: "topleft",
-        actions: [MyCustomAction],
-      }).addTo(map.lMap);
-    } catch (error) {
-      console.error("Toolbar : " + error);
-    }
- */
-
+   
     // Dialog
     var dialog = new L.control.dialog({
       size: [300, 300],
@@ -334,37 +225,24 @@
       return style;
     }
 
-    drupalSettings[mapid].features_url.forEach(function add(feature) {
-      /*
-      $.ajax({url: feature.url})
-        .done(function(data, feature) {
-          lay= new L.GeoJSON(data, {style: feature.style});
-          if (map.bounds ) {
-            map.bounds.extend(lay.getBounds());
-          }
-          else {
-            map.bounds=lay.getBounds();
-          }
-          self.fitBounds(map.bounds);
- */
-      /* lay.addEventListener('pm:edit', function() {
-            console.log('pm:edit');
-            // e.target.updated = true;
-          }); */
-      /* lay.on('pm:edit', function(e) {
-            console.log(e);
-            e.target.updated = true;
-          }); */
-      // panel_traces.addBaseLayer({'layer': lay}, feature.titre, 'Traces_');
-      /////  });
+    // Extend selection area
+    const canvasRenderer = L.canvas({
+      tolerance: 5
+    });
 
+    drupalSettings[mapid].features_url.forEach(function add(feature) {
       lay = new L.GeoJSON.AJAX(feature.url, {
         // "default_style": feature.style,
         // "onEachFeature": oneach_style,
         style: feature.style,
         mapping: feature.mapping,
+        renderer: canvasRenderer,
       }).on("data:loaded", function () {
         for (k in this._layers) {
+          // Add context menu
+          this._layers[k].bindContextMenu(defineContextMenu());
+          // Add hide event to close popup
+          this._layers[k]._map.contextmenu.addHooks();
           // set global settings
           if (this._layers[k].defaultOptions.style) {
             console.log(this._layers[k].defaultOptions.style);
@@ -411,12 +289,13 @@
         self.fitBounds(map.bounds);
       });
 
-      lay.on("pm:edit", function (e) {
-        console.log(e);
-        e.target.updated = true;
+      lay.on("pm:edit", function(e) {
+         evtFeatureEdit(e);
       });
       // panel.addOverlay({ 'layer': lay }, feature.title, 'Traces');
-
+      lay.on("pm:update", function(e) {
+        evtFeatureUpdate(e);
+      });
       over_trace.push({ layer: lay, name: feature.description, active: true });
     });
 

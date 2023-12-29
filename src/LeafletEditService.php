@@ -126,7 +126,7 @@ class LeafletEditService extends LeafletService {
     // $attached_libraries[] =  'leaflet/general';
 
     // Context Menu
-    // $attached_libraries[] = 'leaflet_edit/leaflet-contextmenu';
+    $attached_libraries[] = 'leaflet_edit/leaflet-contextmenu';
 
     // Select2 
     $attached_libraries[] =  'leaflet_edit/select2.min';

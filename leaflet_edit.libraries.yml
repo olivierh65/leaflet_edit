@@ -1,7 +1,8 @@
 leaflet-edit:
   version: 0.1
   js:
-    js/leafletedit.drupal.js: {}
+    js/leafletedit.init.drupal.js: {}
+    js/leafletedit.menu.drupal.js: {}
   dependencies:
     - leaflet/leaflet
     - core/jquery
