@@ -12,17 +12,18 @@ function evtMenuShow() {
 
 function evtContextShow(e) {
   console.log(e);
+  if (! e.relatedTarget) {
+    return;
+  }
   if (e.relatedTarget.updated) {
     e.contextmenu.setDisabled(5, false);
-  }
-  else {
+  } else {
     e.contextmenu.setDisabled(5, true);
   }
-  if ( e.relatedTarget.pm.enabled()) {
+  if (e.relatedTarget.pm.enabled()) {
     e.contextmenu.setDisabled(2, true);
     e.contextmenu.setDisabled(3, false);
-  }
-  else {
+  } else {
     e.contextmenu.setDisabled(2, false);
     e.contextmenu.setDisabled(3, true);
   }
@@ -65,15 +66,35 @@ function defineContextMenu() {
   return context_menu;
 }
 
-function evtFeatureEdit (e) {
-    console.log(e);
+function evtLayerEdit(e) {
+  console.log(e);
 }
 
-function evtFeatureUpdate (e) {
-    console.log(e);
-    e.layer.updated = true;
+function evtLayerUpdate(e) {
+  console.log(e);
+  e.layer.updated = true;
 }
 // var map1 = L.map('map', context_menu);
+
+function evtFeatureClick(e) {
+  console.log(e);
+  if (e.sourceTarget.pm.enabled()) {
+    // do nothing if feature is in edit mode
+    return;
+  }
+  if (e.sourceTarget.selected) {
+    // already selected
+    e.sourceTarget.selected = false;
+    restoreStyle(e.sourceTarget);
+  } else {
+    if (!e.sourceTarget.orig_style) {
+      //save style only if not already saved
+      saveStyle(e.sourceTarget);
+    }
+    e.sourceTarget.setStyle({ color: "darkpurple", weight: 10, opacity: 1, dashArray: '10' });
+    e.sourceTarget.selected = true;
+  }
+}
 
 function showCoordinates(e) {
   alert(e.latlng);
@@ -81,9 +102,16 @@ function showCoordinates(e) {
 
 function editLayer(e) {
   // saveStyle(this.ref_context_menu);
-  saveStyle(e.relatedTarget);
+  if (!e.relatedTarget.orig_style) {
+    //save style only if not already saved
+    saveStyle(e.relatedTarget);
+  }
+  if (e.relatedTarget.selected) {
+    // deselect feature
+    e.relatedTarget.selected = false;
+  }
   // this.ref_context_menu.setStyle({color: 'yellow'});
-  e.relatedTarget.setStyle({ color: "yellow" });
+  e.relatedTarget.setStyle({ color: "darkred", weight: 5, opacity: 1, dashArray: '20' });
   // this.ref_context_menu.pm.enable({
 
   e.relatedTarget.pm.enable({
@@ -130,26 +158,26 @@ function removeValidation(obj) {
 }
 
 function saveStyle(feature) {
-  feature.edit_style = {
+  feature.orig_style = {
     stroke: feature.options["stroke"],
     color: feature.options["color"],
     weight: feature.options["weight"],
     opacity: feature.options["opacity"],
-    linecap: feature.options["linecap"],
-    linejoin: feature.options["linejoin"],
-    dasharray: feature.options["dasharray"],
-    dashoffset: feature.options["dashoffset"],
-    fill_color: feature.options["fill_color"],
-    fill_opacity: feature.options["fill_opacity"],
-    fillrule: feature.options["fillrule"],
+    lineCap: feature.options["lineCap"],
+    lineJoin: feature.options["lineJoin"],
+    dashArray: feature.options["dashArray"],
+    dashOffset: feature.options["dashOffset"],
+    fillColor: feature.options["fillColor"],
+    fillOpacity: feature.options["fillOpacity"],
+    fillRule: feature.options["fillRule"],
     fill: feature.options["fill"],
   };
 }
 
 function restoreStyle(feature) {
-  feature.setStyle(feature.edit_style);
-  feature.edit_style = undefined;
-  delete feature.edit_style;
+  feature.setStyle(feature.orig_style);
+  feature.orig_style = undefined;
+  delete feature.orig_style;
 }
 
 function saveEntity(e) {
@@ -162,10 +190,10 @@ async function exportGPX(e) {
   try {
     fileHandle = await getNewFileHandle();
   } catch (ex) {
-    if (ex.name === 'AbortError') {
+    if (ex.name === "AbortError") {
       return;
     }
-    const msg = 'An error occured trying to open the file.';
+    const msg = "An error occured trying to open the file.";
     console.error(msg, ex);
     alert(msg);
     return;
@@ -173,22 +201,23 @@ async function exportGPX(e) {
   try {
     await writeFile(fileHandle, togpx(e.relatedTarget.toGeoJSON()));
   } catch (ex) {
-    const msg = 'Unable to save file.';
+    const msg = "Unable to save file.";
     console.error(msg, ex);
     alert(msg);
     return;
   }
-
 }
 
 async function getNewFileHandle() {
   const options = {
-    types: [{
-      description: 'GPX documents',
-      accept: {
-        'text/plain': ['.gpx'],
+    types: [
+      {
+        description: "GPX documents",
+        accept: {
+          "text/plain": [".gpx"],
+        },
       },
-    }],
+    ],
   };
   const handle = await window.showSaveFilePicker(options);
   return handle;

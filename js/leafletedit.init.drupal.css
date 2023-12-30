@@ -1,0 +1,4 @@
+input.leaflet-panel-layers-selector[type="checkbox"] {
+    width: var(--sp1);
+    height: var(--sp1);
+}

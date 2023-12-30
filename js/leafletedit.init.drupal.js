@@ -238,43 +238,52 @@
         mapping: feature.mapping,
         renderer: canvasRenderer,
       }).on("data:loaded", function () {
-        for (k in this._layers) {
+        for (feat in this._layers) {
           // Add context menu
-          this._layers[k].bindContextMenu(defineContextMenu());
+          this._layers[feat].bindContextMenu(defineContextMenu());
           // Add hide event to close popup
-          this._layers[k]._map.contextmenu.addHooks();
-          this._layers[k]._map.on('contextmenu.show', function (e) {
+          this._layers[feat]._map.contextmenu.addHooks();
+          this._layers[feat]._map.on('contextmenu.show', function (e) {
             evtContextShow(e);
           });
+
+          this._layers[feat].on("click", function (e) {
+            evtFeatureClick(e);
+          });
+          // add variables
+          this._layers[feat].selected=false;
+          this._layers[feat].updated=false;
+
           // set global settings
-          if (this._layers[k].defaultOptions.style) {
-            console.log(this._layers[k].defaultOptions.style);
-            this._layers[k].setStyle(
-              JSON.parse(this._layers[k].defaultOptions.style)
+          if (this._layers[feat].defaultOptions.style) {
+            console.log("Style global");
+            this._layers[feat].setStyle(
+              JSON.parse(this._layers[feat].defaultOptions.style)
             );
           } else {
-            this._layers[k].setStyle({ color: "red", weight: 5 });
+            console.log("Pas de Style global!!!");
+            this._layers[feat].setStyle({ color: "red", weight: 5 });
           }
 
-          mappings = JSON.parse(this._layers[k].defaultOptions.mapping);
-          if (mappings && this._layers[k].feature.properties) {
+          mappings = JSON.parse(this._layers[feat].defaultOptions.mapping);
+          if (mappings && this._layers[feat].feature.properties) {
             for (let i = 0; i < mappings.length; i++) {
               attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
               console.log("Attrib: " + attrib);
               if (attrib && attrib.length > 0) {
                 attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
                 console.log("Attrib value: " + attrib_val);
-                if (attrib in this._layers[k].feature.properties) {
+                if (attrib in this._layers[feat].feature.properties) {
                   if (
-                    this._layers[k].feature.properties[attrib] == attrib_val
+                    this._layers[feat].feature.properties[attrib] == attrib_val
                   ) {
                     console.log(
                       "Set Style " + mappings[i].leaflet_style_mapping.Style
                     );
-                    this._layers[k].setStyle(
+                    this._layers[feat].setStyle(
                       mappings[i].leaflet_style_mapping.Style
                     );
-                    this._layers[k].bindTooltip(attrib_val, {
+                    this._layers[feat].bindTooltip(attrib_val, {
                       sticky: true,
                     });
                   }
@@ -293,11 +302,10 @@
       });
 
       lay.on("pm:edit", function(e) {
-         evtFeatureEdit(e);
+         evtLayerEdit(e);
       });
-      // panel.addOverlay({ 'layer': lay }, feature.title, 'Traces');
       lay.on("pm:update", function(e) {
-        evtFeatureUpdate(e);
+        evtLayerUpdate(e);
       });
 
       over_trace.push({ layer: lay, name: feature.description, active: true });

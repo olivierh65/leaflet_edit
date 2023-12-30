@@ -3,6 +3,9 @@ leaflet-edit:
   js:
     js/leafletedit.init.drupal.js: {}
     js/leafletedit.menu.drupal.js: {}
+  css:
+    component:
+      js/leafletedit.init.drupal.css: {}
   dependencies:
     - leaflet/leaflet
     - core/jquery
