@@ -143,6 +143,12 @@ class LeafletEditService extends LeafletService {
     //togpx
     $attached_libraries[] =  'leaflet_edit/togpx';
 
+    // leaflet-distance-markers
+    $attached_libraries[] =  'leaflet_edit/leaflet-distance-markers';
+    // leaflet.GeometryUtil
+    $attached_libraries[] =  'leaflet_edit/leaflet.GeometryUtil';
+
+
     // now add url features
     $settings[$map_id] = [
       'mapid' => $map_id,

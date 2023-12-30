@@ -96,6 +96,17 @@ function evtFeatureClick(e) {
   }
 }
 
+function evtLayerMouseover(e) {
+  console.log(e);
+  e.sourceTarget.addDistanceMarkers();
+}
+
+function evtLayerMouseout(e) {
+  console.log(e);
+  e.sourceTarget.removeDistanceMarkers();
+}
+
+
 function showCoordinates(e) {
   alert(e.latlng);
 }
@@ -111,7 +122,7 @@ function editLayer(e) {
     e.relatedTarget.selected = false;
   }
   // this.ref_context_menu.setStyle({color: 'yellow'});
-  e.relatedTarget.setStyle({ color: "darkred", weight: 5, opacity: 1, dashArray: '20' });
+  e.relatedTarget.setStyle({ color: "#666", weight: 5, opacity: 0.7, fillOpacity: 0.7, dashArray: '10 10' });
   // this.ref_context_menu.pm.enable({
 
   e.relatedTarget.pm.enable({

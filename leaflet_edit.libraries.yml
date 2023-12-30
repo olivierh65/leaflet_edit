@@ -225,3 +225,22 @@ togpx:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
+
+leaflet-distance-markers:
+  version: 1.0
+  js:
+    js/leaflet-distance-markers/leaflet-distance-marker.js: {}
+  css:
+    component:
+      js/leaflet-distance-markers/leaflet-distance-marker.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+
+leaflet.GeometryUtil:
+  version: 1.0
+  js:
+    js/leaflet.GeometryUtil/src/leaflet.geometryutil.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings

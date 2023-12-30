@@ -1,8 +1,12 @@
 .dist-marker {
-	font-size: 9px;
-	border: 1px solid #777;
-	border-radius: 10px;
+	font: 1em Arial, sans-serif;
+	border: 1px solid #000;
+	border-radius: 50%;
 	text-align: center;
 	color: #000;
 	background: #fff;
+	font-weight: bold;
+	width: 1.8em;
+  	height: 1.8em;
+	padding: 0.25em;
 }

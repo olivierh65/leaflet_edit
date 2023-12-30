@@ -237,6 +237,7 @@
         style: feature.style,
         mapping: feature.mapping,
         renderer: canvasRenderer,
+        distanceMarkers: { lazy: true, iconSize: null, showAll: 14, distance: 5000 },
       }).on("data:loaded", function () {
         for (feat in this._layers) {
           // Add context menu
@@ -306,6 +307,12 @@
       });
       lay.on("pm:update", function(e) {
         evtLayerUpdate(e);
+      });
+      lay.on('mouseover', function(e) {
+        evtLayerMouseover(e);
+      });
+      lay.on('mouseout', function (e) {
+        evtLayerMouseout(e);
       });
 
       over_trace.push({ layer: lay, name: feature.description, active: true });

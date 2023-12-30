@@ -38,10 +38,22 @@ L.DistanceMarkers = L.LayerGroup.extend({
 		// Get line coords as an array
 		var coords = line;
 		if (typeof line.getLatLngs == 'function') {
-			coords = line.getLatLngs();
+			////////////////////
+			//// flatten array returned
+			coords = line.getLatLngs().flat();
 		}
 		// Get accumulated line lengths as well as overall length
-		var accumulated = L.GeometryUtil.accumulatedLengths(line);
+		var total = 0,
+            lengths = [0];
+		for (var i=0; i<coords.length-1; i++) {
+				total += coords[i].distanceTo(coords[i+1]);
+				lengths.push(total);
+			}
+		/////////////////////
+		//// L.GeometryUtil.accumulatedLengths don't work with array returned by line.getLatLngs()
+		//// ==> use flat array
+		// var accumulated = L.GeometryUtil.accumulatedLengths(line);
+		var accumulated = lengths;
 		var length = accumulated.length > 0 ? accumulated[accumulated.length - 1] : 0;
 		// Position in accumulated line length array
 		var j = 0;
