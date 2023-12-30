@@ -243,6 +243,9 @@
           this._layers[k].bindContextMenu(defineContextMenu());
           // Add hide event to close popup
           this._layers[k]._map.contextmenu.addHooks();
+          this._layers[k]._map.on('contextmenu.show', function (e) {
+            evtContextShow(e);
+          });
           // set global settings
           if (this._layers[k].defaultOptions.style) {
             console.log(this._layers[k].defaultOptions.style);
@@ -296,6 +299,7 @@
       lay.on("pm:update", function(e) {
         evtFeatureUpdate(e);
       });
+
       over_trace.push({ layer: lay, name: feature.description, active: true });
     });
 

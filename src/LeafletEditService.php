@@ -140,7 +140,8 @@ class LeafletEditService extends LeafletService {
     //CascadeButtons
     $attached_libraries[] =  'leaflet_edit/leaflet.cascadebuttons';
 
-
+    //togpx
+    $attached_libraries[] =  'leaflet_edit/togpx';
 
     // now add url features
     $settings[$map_id] = [

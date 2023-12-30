@@ -215,3 +215,10 @@ leaflet.cascadebuttons:
     - leaflet/leaflet
     - core/drupalSettings
 
+togpx:
+  version: 1.0
+  js:
+    js/togpx/togpx.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
