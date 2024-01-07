@@ -2,3 +2,12 @@ input.leaflet-panel-layers-selector[type="checkbox"] {
     width: var(--sp1);
     height: var(--sp1);
 }
+
+input.leaflet-panel-layers-selector[type="radio"] {
+    width: 1em;
+    height: 1em;
+}
+
+.leaflet-panel-layers-title {
+    padding-left: 3px;
+}

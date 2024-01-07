@@ -136,10 +136,16 @@ L.Polyline.include({
 		}
 	},
 
-	removeDistanceMarkers: function () {
+	removeDistanceMarkers: function (map) {
 		if (this._map && this._distanceMarkers) {
 			this._map.removeLayer(this._distanceMarkers);
 		}
+	},
+
+	updateDistanceMarkers: function (map) {
+		var opts = this.options.distanceMarkers || {};
+		this._map.removeLayer(this._distanceMarkers);
+		this._distanceMarkers = new L.DistanceMarkers(this, map, opts);
 	},
 
 	onAdd: function (map) {

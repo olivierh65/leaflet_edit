@@ -12,7 +12,7 @@ function evtMenuShow() {
 
 function evtContextShow(e) {
   console.log(e);
-  if (! e.relatedTarget) {
+  if (!e.relatedTarget) {
     return;
   }
   if (e.relatedTarget.updated) {
@@ -68,6 +68,10 @@ function defineContextMenu() {
 
 function evtLayerEdit(e) {
   console.log(e);
+  // update distanceMarkers on each change
+  if (e.layer.updateDistanceMarkers) {
+    e.layer.updateDistanceMarkers(map.lMap);
+  }
 }
 
 function evtLayerUpdate(e) {
@@ -75,9 +79,12 @@ function evtLayerUpdate(e) {
   e.layer.updated = true;
 }
 // var map1 = L.map('map', context_menu);
-
 function evtFeatureClick(e) {
   console.log(e);
+}
+function evtFeatureDblClick(e) {
+  console.log(e);
+  map.lMap.notification.info("Info", "double click");
   if (e.sourceTarget.pm.enabled()) {
     // do nothing if feature is in edit mode
     return;
@@ -91,7 +98,12 @@ function evtFeatureClick(e) {
       //save style only if not already saved
       saveStyle(e.sourceTarget);
     }
-    e.sourceTarget.setStyle({ color: "darkpurple", weight: 10, opacity: 1, dashArray: '10' });
+    e.sourceTarget.setStyle({
+      color: "darkpurple",
+      weight: 10,
+      opacity: 1,
+      dashArray: "10",
+    });
     e.sourceTarget.selected = true;
   }
 }
@@ -106,6 +118,15 @@ function evtLayerMouseout(e) {
   e.sourceTarget.removeDistanceMarkers();
 }
 
+function evtFeatureTooltipopen(e) {
+  console.log(e);
+  e.sourceTarget.addDistanceMarkers();
+}
+
+function evtFeatureTooltipclose(e) {
+  console.log(e);
+  e.sourceTarget.removeDistanceMarkers();
+}
 
 function showCoordinates(e) {
   alert(e.latlng);
@@ -122,7 +143,13 @@ function editLayer(e) {
     e.relatedTarget.selected = false;
   }
   // this.ref_context_menu.setStyle({color: 'yellow'});
-  e.relatedTarget.setStyle({ color: "#666", weight: 5, opacity: 0.7, fillOpacity: 0.7, dashArray: '10 10' });
+  e.relatedTarget.setStyle({
+    color: "#666",
+    weight: 5,
+    opacity: 0.7,
+    fillOpacity: 0.7,
+    dashArray: "10 10",
+  });
   // this.ref_context_menu.pm.enable({
 
   e.relatedTarget.pm.enable({
@@ -193,6 +220,29 @@ function restoreStyle(feature) {
 
 function saveEntity(e) {
   console.log("Save");
+
+  var fd = new FormData();
+  fd.append('fid',e.relatedTarget.defaultOptions.leafletEdit.fid)
+  fd.append('nid', e.relatedTarget.defaultOptions.leafletEdit.nid);
+  fd.append('geojson', JSON.stringify(e.relatedTarget.toGeoJSON()));
+
+  jQuery.ajax({
+    url: '/leaflet_edit/uptest-save',
+    type: 'post',
+    data: fd,
+    contentType: false,
+    processData: false,
+    success: function(response){
+      let result = response.success;
+      if (result){
+        alert('yay!');
+      }
+      else {
+        let msg = response.message;
+        alert('file not uploaded: ' + msg);
+      }
+    },
+  });
 }
 
 async function exportGPX(e) {

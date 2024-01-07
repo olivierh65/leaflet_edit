@@ -6,10 +6,26 @@
     mapid = initial.id;
     map = Drupal.Leaflet[mapid];
 
+
+    // Workaround for https://github.com/elmarquis/Leaflet.GestureHandling/issues/75
+    if (map.lMap.gestureHandling) {
+      map.lMap.whenReady(() => map.lMap.gestureHandling?._handleMouseOver?.());
+      if (isMobile() == false) {
+        //Disable on desktop
+        map.lMap.gestureHandling?.disable();
+        map.lMap.doubleClickZoom.disable(); 
+      }
+    }
     ////
     // track contetmenu relatedTarget
     evtMenuShow ();
     ////
+
+    function isMobile() {
+      try{ document.createEvent("TouchEvent"); return true; }
+      catch(e){ return false; }
+    }
+
 
     if (map.lMap.zoomControl) {
       // Remove existing zoomControl
@@ -92,7 +108,7 @@
 
     /// Init Notifications
     try {
-      var notification = L.control
+      map.lMap.notification = L.control
         .notifications({
           timeout: 3000,
           position: "topright",
@@ -238,11 +254,12 @@
         mapping: feature.mapping,
         renderer: canvasRenderer,
         distanceMarkers: { lazy: true, iconSize: null, showAll: 14, distance: 5000 },
+        leafletEdit: { nid: feature.entity, fid: feature.id},
       }).on("data:loaded", function () {
         for (feat in this._layers) {
           // Add context menu
           this._layers[feat].bindContextMenu(defineContextMenu());
-          // Add hide event to close popup
+          // Add hide event to close popup menu
           this._layers[feat]._map.contextmenu.addHooks();
           this._layers[feat]._map.on('contextmenu.show', function (e) {
             evtContextShow(e);
@@ -250,6 +267,18 @@
 
           this._layers[feat].on("click", function (e) {
             evtFeatureClick(e);
+          });
+          this._layers[feat].on("dblclick", function (e) {
+            evtFeatureDblClick(e);
+          });
+          this._layers[feat].on("doubletap", function (e) {
+            evtFeatureDblClick(e);
+          });
+          this._layers[feat].on("tooltipopen", function (e) {
+            evtFeatureTooltipopen(e);
+          });
+          this._layers[feat].on("tooltipclose", function (e) {
+            evtFeatureTooltipclose(e);
           });
           // add variables
           this._layers[feat].selected=false;
