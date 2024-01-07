@@ -1,6 +1,7 @@
 langcode: en
 status: true
 dependencies:
+  enforced:
   config:
     - field.storage.node.field_leafletedit_geojsonfile
     - node.type.leaflet_edit
@@ -10,7 +11,7 @@ id: node.leaflet_edit.field_leafletedit_geojsonfile
 field_name: field_leafletedit_geojsonfile
 entity_type: node
 bundle: leaflet_edit
-label: 'Geojson file'
+label: 'Geojson File'
 description: 'Store Geojson file and styles'
 required: false
 translatable: false

@@ -1,8 +1,7 @@
 langcode: en
 status: true
 dependencies:
-  module:
-    - menu_ui
+  enforced:
 name: 'Leaflet Map Editor'
 type: leaflet_edit
 description: 'Content used to store geojson files, which can be viewed, edited and saved from a <em>Leaflet</em> map.'

@@ -2,10 +2,10 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.storage.node.field_leaflet_edit_modification
+    - field.storage.node.field_leafletedit_modification
     - node.type.leaflet_edit
-id: node.leaflet_edit.field_leaflet_edit_modification
-field_name: field_leaflet_edit_modification
+id: node.leaflet_edit.field_leafletedit_modification
+field_name: field_leafletedit_modification
 entity_type: node
 bundle: leaflet_edit
 label: Modifications

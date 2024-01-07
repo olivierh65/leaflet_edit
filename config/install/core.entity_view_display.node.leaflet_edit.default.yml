@@ -2,9 +2,9 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.field.node.leaflet_edit.field_leaflet_edit_description
-    - field.field.node.leaflet_edit.field_leaflet_edit_modification
+    - field.field.node.leaflet_edit.field_leafletedit_description
     - field.field.node.leaflet_edit.field_leafletedit_geojsonfile
+    - field.field.node.leaflet_edit.field_leafletedit_modification
     - node.type.leaflet_edit
   module:
     - ds
@@ -15,21 +15,13 @@ targetEntityType: node
 bundle: leaflet_edit
 mode: default
 content:
-  field_leaflet_edit_description:
+  field_leafletedit_description:
     type: string
     label: above
     settings:
       link_to_entity: false
     third_party_settings: {  }
     weight: 101
-    region: content
-  field_leaflet_edit_modification:
-    type: string
-    label: above
-    settings:
-      link_to_entity: false
-    third_party_settings: {  }
-    weight: 102
     region: content
   field_leafletedit_geojsonfile:
     type: leaflet_edit_formatter
@@ -38,7 +30,7 @@ content:
       leaflet_map: ''
       height: '400'
       height_unit: px
-      gesture_handling: '1'
+      gesture_handling: '0'
       map_position:
         center:
           lat: '0'
@@ -156,6 +148,14 @@ content:
             prefix: ''
             suffix: ''
     weight: 104
+    region: content
+  field_leafletedit_modification:
+    type: string
+    label: above
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    weight: 102
     region: content
   links:
     settings: {  }

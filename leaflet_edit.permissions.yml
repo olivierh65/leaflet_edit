@@ -1,0 +1,9 @@
+Edit track:
+  title: 'Allow track editing'
+  description: 'Allow user to edit tracks in Leaflet map'
+Save track:
+  title: 'Allow track saving'
+  description: 'Allow user to save tracks in Leaflet map'
+Export Gpx:
+  title: 'Allow track export to GPX'
+  description: 'Allow user to export tracks in Leaflet map'

@@ -1,3 +1,11 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - basic_auth
+    - leaflet_edit
+    - serialization
+    - user
 id: get_geojson
 plugin_id: get_geojson
 status: true

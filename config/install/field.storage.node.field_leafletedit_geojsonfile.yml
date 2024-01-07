@@ -1,0 +1,36 @@
+langcode: en
+status: true
+dependencies:
+  enforced:
+  module:
+    - file
+    - leaflet_edit
+    - node
+id: node.field_leafletedit_geojsonfile
+field_name: field_leafletedit_geojsonfile
+entity_type: node
+type: geojsonfile_field
+settings:
+  display_field: 0
+  display_default: 0
+  uri_scheme: public
+  target_type: file
+  stroke: true
+  color: '#F00FE8'
+  weight: 2
+  opacity: 1
+  linecap: round
+  linejoin: round
+  dasharray: null
+  dashoffset: 0
+  fill: false
+  fill_color: '#C7A8A8'
+  fill_opacity: 0.2
+  fillrule: evenodd
+module: leaflet_edit
+locked: false
+cardinality: 5
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

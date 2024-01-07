@@ -3,9 +3,9 @@ status: true
 dependencies:
   config:
     - core.entity_view_mode.node.teaser
-    - field.field.node.leaflet_edit.field_leaflet_edit_description
-    - field.field.node.leaflet_edit.field_leaflet_edit_modification
+    - field.field.node.leaflet_edit.field_leafletedit_description
     - field.field.node.leaflet_edit.field_leafletedit_geojsonfile
+    - field.field.node.leaflet_edit.field_leafletedit_modification
     - node.type.leaflet_edit
   module:
     - user
@@ -24,7 +24,7 @@ hidden:
   entity_print_view_pdf: true
   entity_print_view_word_docx: true
   field_ext_image: true
-  field_leaflet_edit_description: true
-  field_leaflet_edit_modification: true
-  field_test_geojsonfile: true
+  field_leafletedit_description: true
+  field_leafletedit_geojsonfile: true
+  field_leafletedit_modification: true
   langcode: true
