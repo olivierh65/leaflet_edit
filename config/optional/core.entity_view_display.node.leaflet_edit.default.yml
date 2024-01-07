@@ -1,6 +1,7 @@
 langcode: en
 status: true
 dependencies:
+  enforced:
   config:
     - field.field.node.leaflet_edit.field_leafletedit_description
     - field.field.node.leaflet_edit.field_leafletedit_geojsonfile

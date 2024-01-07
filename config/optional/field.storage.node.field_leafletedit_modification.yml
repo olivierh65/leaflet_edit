@@ -4,8 +4,8 @@ dependencies:
   enforced:
   module:
     - node
-id: node.field_leafletedit_description
-field_name: field_leafletedit_description
+id: node.field_leafletedit_modification
+field_name: field_leafletedit_modification
 entity_type: node
 type: string
 settings:

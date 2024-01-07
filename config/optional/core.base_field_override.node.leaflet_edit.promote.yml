@@ -1,6 +1,9 @@
 langcode: en
 status: true
 dependencies:
+  enforced:
+  module:
+    - leaflet_edit
   config:
     - node.type.leaflet_edit
 id: node.leaflet_edit.promote

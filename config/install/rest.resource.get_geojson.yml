@@ -8,7 +8,6 @@ dependencies:
     - user
 id: get_geojson
 plugin_id: get_geojson
-status: true
 granularity: resource
 configuration:
   methods:

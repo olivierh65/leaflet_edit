@@ -6,3 +6,4 @@ package: 'Custom'
 dependencies:
   - leaflet
   - fontawesome
+  - geojsonfile_field

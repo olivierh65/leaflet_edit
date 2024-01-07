@@ -6,22 +6,6 @@ leaflet_edit.settings:
   requirements:
     _permission: 'administer site configuration'
 
-leaflet_edit.ajax_addmore:
-  path: '/leaflet_edit/ajax-addmore'
-  defaults:
-    _controller:  '\Drupal\leaflet_edit\Plugin\Field\FieldWidget\GeojsonFileWidget::addmoreCallback'
-    _title: 'Add-more button'
-  requirements:
-    _permission: 'access content'
-
-leaflet_edit.ajaxaddremoveelements:
-  path: '/leaflet_edit/ajaxaddremoveelements'
-  defaults:
-    _controller:  '\Drupal\leaflet_edit\Plugin\Field\FieldWidget\GeojsonFileWidget::removeCallback'
-    _title: 'AJAX add and remove elements'
-  requirements:
-    _permission: 'access content'
-
 leaflet_edit.default_controller_hello:
   path: '/leaflet_edit/uptest'
   defaults:

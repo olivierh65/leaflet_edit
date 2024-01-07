@@ -1,6 +1,7 @@
 langcode: en
 status: true
 dependencies:
+  enforced:
   config:
     - core.entity_view_mode.node.teaser
     - field.field.node.leaflet_edit.field_leafletedit_description

@@ -1,6 +1,7 @@
 langcode: en
 status: true
 dependencies:
+  enforced:
   config:
     - field.storage.node.field_leafletedit_modification
     - node.type.leaflet_edit
