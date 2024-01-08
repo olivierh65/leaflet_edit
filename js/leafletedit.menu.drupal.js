@@ -226,13 +226,17 @@ function saveEntity(e) {
   fd.append('nid', e.relatedTarget.defaultOptions.leafletEdit.nid);
   fd.append('geojson', JSON.stringify(e.relatedTarget.toGeoJSON()));
 
+  var rsave= [];
+  
   jQuery.ajax({
     url: '/leaflet_edit/uptest-save',
     type: 'post',
     data: fd,
     contentType: false,
     processData: false,
+    async: false,
     success: function(response){
+      rsave=response;
       let result = response.success;
       if (result){
         alert('yay!');
@@ -243,6 +247,9 @@ function saveEntity(e) {
       }
     },
   });
+  if (rsave.success) {
+    e.relatedTarget.defaultOptions.leafletEdit.fid=rsave.fid;
+  }
 }
 
 async function exportGPX(e) {

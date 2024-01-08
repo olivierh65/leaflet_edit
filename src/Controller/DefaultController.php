@@ -45,7 +45,7 @@ class DefaultController extends ControllerBase {
 
         if (isset($fid)) {
             // Check that this fid is attached to this nid
-            $chk = \Drupal::entityQuery('node')->condition('nid', $nid)->condition('field_test_geojsonfile.target_id', $fid)->accessCheck(FALSE)->execute();
+            $chk = \Drupal::entityQuery('node')->condition('nid', $nid)->condition('field_leafletedit_geojsonfile.target_id', $fid)->accessCheck(FALSE)->execute();
 
             if (count($chk) != 1) {
                 return $this->makeUploadErrorResponse('fid and nid mismatch');
@@ -53,7 +53,7 @@ class DefaultController extends ControllerBase {
         }
 
         //Get node field metadata.
-        $nodeFieldMetadata = $this->getFileFieldMetaData('leaflet_edit', 'field_test_geojsonfile');
+        $nodeFieldMetadata = $this->getFileFieldMetaData('leaflet_edit', 'field_leafletedit_geojsonfile');
         if (!$nodeFieldMetadata) {
             return $this->makeUploadErrorResponse('Problem loading file field metadata.');
         }
@@ -64,7 +64,7 @@ class DefaultController extends ControllerBase {
         } */
         //Check cardinality.
         /** @var \Drupal\file\Plugin\Field\FieldType\FileFieldItemList $fieldValueInNode */
-        $fieldValueInNode = $node->get('field_test_geojsonfile');
+        $fieldValueInNode = $node->get('field_leafletedit_geojsonfile');
         $fieldAttachedFileItemList = $fieldValueInNode->getValue();
         $nodeFileFieldNumAttachments = count($fieldAttachedFileItemList);
         $allowedCardinality = $nodeFieldMetadata['cardinality'];
@@ -93,9 +93,9 @@ class DefaultController extends ControllerBase {
         if (isset($fid)) {
             // update node
             $updated = false;
-            for ($i = 0; $i < $node->field_test_geojsonfile->count(); $i++) {
-                if ($fid == $node->field_test_geojsonfile->get($i)->get('target_id')->getValue()) {
-                    $node->field_test_geojsonfile->get($i)->get('target_id')->setValue($savedFile->id());
+            for ($i = 0; $i < $node->field_leafletedit_geojsonfile->count(); $i++) {
+                if ($fid == $node->field_leafletedit_geojsonfile->get($i)->get('target_id')->getValue()) {
+                    $node->field_leafletedit_geojsonfile->get($i)->get('target_id')->setValue($savedFile->id());
                     $updated = true;
                     break;
                 }
@@ -105,7 +105,7 @@ class DefaultController extends ControllerBase {
             }
         } else {
             //Attach to the node.
-            $node->field_test_geojsonfile[] = [
+            $node->field_leafletedit_geojsonfile[] = [
                 'target_id' => $savedFile->id(),
             ];
         }
@@ -113,6 +113,7 @@ class DefaultController extends ControllerBase {
         $node->save();
         return new JsonResponse([
             'success' => TRUE,
+            'fid' => $savedFile->id(),
         ]);
     }
 

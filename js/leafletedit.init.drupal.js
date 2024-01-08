@@ -6,14 +6,14 @@
     mapid = initial.id;
     map = Drupal.Leaflet[mapid];
 
+    map.lMap.doubleClickZoom.disable();
 
     // Workaround for https://github.com/elmarquis/Leaflet.GestureHandling/issues/75
     if (map.lMap.gestureHandling) {
       map.lMap.whenReady(() => map.lMap.gestureHandling?._handleMouseOver?.());
       if (isMobile() == false) {
         //Disable on desktop
-        map.lMap.gestureHandling?.disable();
-        map.lMap.doubleClickZoom.disable(); 
+        map.lMap.gestureHandling?.disable(); 
       }
     }
     ////
@@ -254,7 +254,11 @@
         mapping: feature.mapping,
         renderer: canvasRenderer,
         distanceMarkers: { lazy: true, iconSize: null, showAll: 14, distance: 5000 },
-        leafletEdit: { nid: feature.entity, fid: feature.id},
+        leafletEdit: {
+          nid: feature.entity, 
+          fid: feature.id,
+          description: feature.description
+        },
       }).on("data:loaded", function () {
         for (feat in this._layers) {
           // Add context menu
@@ -293,6 +297,14 @@
           } else {
             console.log("Pas de Style global!!!");
             this._layers[feat].setStyle({ color: "red", weight: 5 });
+          }
+          // set global popup name
+          if (this._layers[feat].defaultOptions.leafletEdit.description) {
+            this._layers[feat].bindTooltip(this._layers[feat].defaultOptions.leafletEdit.description, {
+              sticky: true,
+            });
+          } else {
+            console.log("Pas de description");
           }
 
           mappings = JSON.parse(this._layers[feat].defaultOptions.mapping);
