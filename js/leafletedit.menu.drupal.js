@@ -130,12 +130,12 @@ function evtFeatureDblClick(e) {
 }
 
 function evtLayerMouseover(e) {
-  console.log(e);
+  console.log('Mouseover: ' + e);
   // e.sourceTarget.addDistanceMarkers();
 }
 
 function evtLayerMouseout(e) {
-  console.log(e);
+  console.log('Mouseout: ' +e);
   // e.sourceTarget.removeDistanceMarkers();
 }
 
@@ -147,6 +147,33 @@ function evtFeatureTooltipopen(e) {
 function evtFeatureTooltipclose(e) {
   console.log(e);
   e.sourceTarget.removeDistanceMarkers();
+}
+
+function evtFeatureVertexadded(e) {
+  console.log('Vertexadded: ' + e);
+}
+
+function evtFeatureVertexremoved(e) {
+  console.log('Vertexremoved: ' + e);
+}
+
+function evtFeatureVertexclick(e) {
+  console.log('Vertexclick: ' + e);
+}
+
+function evtFeatureSnapdrag(e) {
+  console.log('Snapdrag: ' + e);
+}
+
+function evtFeatureMarkerdragStart(e) {
+  console.log('MarkerdragStart: ' + e);
+  // disable map dragging when moving vertex
+  map.lMap.dragging=false;
+}
+
+function evtFeatureMarkerdragEnd(e) {
+  console.log('MarkerdragEnd: ' + e);
+  map.lMap.dragging=true;
 }
 
 function showCoordinates(e) {

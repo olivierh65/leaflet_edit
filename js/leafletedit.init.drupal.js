@@ -11,20 +11,15 @@
     // Workaround for https://github.com/elmarquis/Leaflet.GestureHandling/issues/75
     if (map.lMap.gestureHandling) {
       map.lMap.whenReady(() => map.lMap.gestureHandling?._handleMouseOver?.());
-      if (isMobile() == false) {
+      if (L.Browser.mobile == false) {
         //Disable on desktop
-        map.lMap.gestureHandling?.disable(); 
+        map.lMap.gestureHandling?.disable();
       }
     }
     ////
     // track contetmenu relatedTarget
-    evtMenuShow ();
+    evtMenuShow();
     ////
-
-    function isMobile() {
-      try{ document.createEvent("TouchEvent"); return true; }
-      catch(e){ return false; }
-    }
 
 
     if (map.lMap.zoomControl) {
@@ -104,8 +99,6 @@
     );
     // }
 
-
-
     /// Init Notifications
     try {
       map.lMap.notification = L.control
@@ -120,7 +113,6 @@
       console.error("Notification : " + error);
     }
 
-   
     // Dialog
     var dialog = new L.control.dialog({
       size: [300, 300],
@@ -243,7 +235,7 @@
 
     // Extend selection area
     const canvasRenderer = L.canvas({
-      tolerance: 5
+      tolerance: 5,
     });
 
     drupalSettings[mapid].features_url.forEach(function add(feature) {
@@ -253,11 +245,16 @@
         style: feature.style,
         mapping: feature.mapping,
         renderer: canvasRenderer,
-        distanceMarkers: { lazy: true, iconSize: null, showAll: 14, distance: 5000 },
+        distanceMarkers: {
+          lazy: true,
+          iconSize: null,
+          showAll: 14,
+          distance: 5000,
+        },
         leafletEdit: {
-          nid: feature.entity, 
+          nid: feature.entity,
           fid: feature.id,
-          description: feature.description
+          description: feature.description,
         },
       }).on("data:loaded", function () {
         for (feat in this._layers) {
@@ -265,7 +262,7 @@
           this._layers[feat].bindContextMenu(defineContextMenu());
           // Add hide event to close popup menu
           this._layers[feat]._map.contextmenu.addHooks();
-          this._layers[feat]._map.on('contextmenu.show', function (e) {
+          this._layers[feat]._map.on("contextmenu.show", function (e) {
             evtContextShow(e);
           });
 
@@ -284,9 +281,28 @@
           this._layers[feat].on("tooltipclose", function (e) {
             evtFeatureTooltipclose(e);
           });
+          this._layers[feat].on("pm:vertexadded", function (e) {
+            evtFeatureVertexadded(e);
+          });
+          this._layers[feat].on("pm:vertexremoved", function (e) {
+            evtFeatureVertexremoved(e);
+          });
+          this._layers[feat].on("pm:vertexclick", function (e) {
+            evtFeatureVertexclick(e);
+          });
+          this._layers[feat].on("pm:snapdrag", function (e) {
+            evtFeatureSnapdrag(e);
+          });
+          this._layers[feat].on("pm:markerdragstart", function (e) {
+            evtFeatureMarkerdragStart(e);
+          });
+          this._layers[feat].on("pm:markerdragend", function (e) {
+            evtFeatureMarkerdragEnd(e);
+          });
+
           // add variables
-          this._layers[feat].selected=false;
-          this._layers[feat].updated=false;
+          this._layers[feat].selected = false;
+          this._layers[feat].updated = false;
 
           // set global settings
           if (this._layers[feat].defaultOptions.style) {
@@ -300,9 +316,12 @@
           }
           // set global popup name
           if (this._layers[feat].defaultOptions.leafletEdit.description) {
-            this._layers[feat].bindTooltip(this._layers[feat].defaultOptions.leafletEdit.description, {
-              sticky: true,
-            });
+            this._layers[feat].bindTooltip(
+              this._layers[feat].defaultOptions.leafletEdit.description,
+              {
+                sticky: true,
+              }
+            );
           } else {
             console.log("Pas de description");
           }
@@ -343,16 +362,16 @@
         self.fitBounds(map.bounds);
       });
 
-      lay.on("pm:edit", function(e) {
-         evtLayerEdit(e);
+      lay.on("pm:edit", function (e) {
+        evtLayerEdit(e);
       });
-      lay.on("pm:update", function(e) {
+      lay.on("pm:update", function (e) {
         evtLayerUpdate(e);
       });
-      lay.on('mouseover', function(e) {
+      lay.on("mouseover", function (e) {
         evtLayerMouseover(e);
       });
-      lay.on('mouseout', function (e) {
+      lay.on("mouseout", function (e) {
         evtLayerMouseout(e);
       });
 
