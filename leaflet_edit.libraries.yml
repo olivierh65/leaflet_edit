@@ -244,3 +244,11 @@ leaflet.GeometryUtil:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
+
+leaflet.turf:
+  version: 1.0
+  js:
+    js/turf/turf.min.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings

@@ -148,6 +148,8 @@ class LeafletEditService extends LeafletService {
     // leaflet.GeometryUtil
     $attached_libraries[] =  'leaflet_edit/leaflet.GeometryUtil';
 
+    // turf
+    $attached_libraries[] =  'leaflet_edit/leaflet.turf';
 
     // now add url features
     $settings[$map_id] = [

@@ -10,57 +10,78 @@ function evtMenuShow() {
   });
 }
 
+const MENU = {
+  showcoord: 0,
+  sep1: 1,
+  editlayer: 2,
+  finedit: 3,
+  sep2: 4,
+  save: 5,
+  exportgpx: 6,
+  sep3: 7,
+  simplify: 8,
+}
+
+
 function evtContextShow(e) {
   console.log(e);
   if (!e.relatedTarget) {
     return;
   }
   if (e.relatedTarget.updated) {
-    e.contextmenu.setDisabled(5, false);
+    e.contextmenu.setDisabled(MENU.save, false);
   } else {
-    e.contextmenu.setDisabled(5, true);
+    e.contextmenu.setDisabled(MENU.save, true);
   }
   if (e.relatedTarget.pm.enabled()) {
-    e.contextmenu.setDisabled(2, true);
-    e.contextmenu.setDisabled(3, false);
+    e.contextmenu.setDisabled(MENU.editlayer, true);
+    e.contextmenu.setDisabled(MENU.finedit, false);
   } else {
-    e.contextmenu.setDisabled(2, false);
-    e.contextmenu.setDisabled(3, true);
+    e.contextmenu.setDisabled(MENU.editlayer, false);
+    e.contextmenu.setDisabled(MENU.finedit, true);
   }
 }
 
 function defineContextMenu() {
-  let context_menu = {
-    contextmenu: true,
-    contextmenuWidth: 140,
-    contextmenuItems: [
-      {
+    let menu = [];
+    menu[MENU.showcoord]={
         text: "Show coordinates",
         callback: showCoordinates,
-      },
-      "-",
-      {
+      };
+    menu[MENU.sep1]="-";
+    menu[MENU.editlayer]={
         text: "Edit layer",
         iconCls: "fa-regular fa-pen-to-square",
         callback: editLayer,
-      },
-      {
+      };
+    menu[MENU.finedit]={
         text: "Fin Edit layer",
         iconCls: "fa-regular fa-arrow-up-right-from-square",
         callback: finEditLayer,
-      },
-      "-",
-      {
-        text: "Save",
-        iconCls: "fa-regular fa-floppy-disk",
-        callback: saveEntity,
-      },
-      {
-        text: "Export to GPX",
-        iconCls: "fa-solid fa-file-export",
-        callback: exportGPX,
-      },
-    ],
+      };
+      menu[MENU.sep2]="-";
+      menu[MENU.save]={
+          text: "Save",
+          iconCls: "fa-regular fa-floppy-disk",
+          callback: saveEntity,
+        };
+      menu[MENU.exportgpx]={
+          text: "Export to GPX",
+          iconCls: "fa-solid fa-file-export",
+          callback: exportGPX,
+        };
+      menu[MENU.sep3]="-";
+      menu[MENU.simplify]={
+          text: "Simplify",
+          iconCls: "fa-solid fa-minimize",
+          callback: simplify,
+        };
+
+
+  let context_menu = {
+    contextmenu: true,
+    contextmenuWidth: 140,
+    contextmenuItems: menu,
   };
 
   return context_menu;
@@ -110,12 +131,12 @@ function evtFeatureDblClick(e) {
 
 function evtLayerMouseover(e) {
   console.log(e);
-  e.sourceTarget.addDistanceMarkers();
+  // e.sourceTarget.addDistanceMarkers();
 }
 
 function evtLayerMouseout(e) {
   console.log(e);
-  e.sourceTarget.removeDistanceMarkers();
+  // e.sourceTarget.removeDistanceMarkers();
 }
 
 function evtFeatureTooltipopen(e) {
@@ -248,7 +269,12 @@ function saveEntity(e) {
     },
   });
   if (rsave.success) {
+    map.lMap.notification.success("Save", "Saved (" + 
+    e.relatedTarget.defaultOptions.leafletEdit.fid +
+    "=>" +
+    rsave.fid + ")");
     e.relatedTarget.defaultOptions.leafletEdit.fid=rsave.fid;
+    e.relatedTarget.pm.updated=false;
   }
 }
 
@@ -309,4 +335,25 @@ async function writeFile(fileHandle, contents) {
   await writable.write(contents);
   // Close the file and write the contents to disk.
   await writable.close();
+}
+
+function simplify(e) {
+  console.log("Simplify");
+
+  a=turf.simplify(e.relatedTarget.toGeoJSON(),{tolerance: 0.0001, highQuality: true});
+  // e.relatedTarget.feature.geometry=a.geometry;
+  // e.relatedTarget.feature.bbox=a.bbox;
+
+  b=L.geoJSON(a);
+  if (b.getLayers().length == 1) {
+    before=e.relatedTarget.getLatLngs();
+    before_elem=before[before.length-1].length;
+    e.relatedTarget.setLatLngs(b.getLayers()[0].getLatLngs());
+    map.lMap.notification.success("Simplify", "Path simplified (" +
+      before_elem + " => " + e.relatedTarget.getLatLngs()[before.length-1].length + ")");
+  }
+  else {
+    map.lMap.notification.warning("Simplify", "not simplified, number of layers " +
+    b.getLayers().length );
+  }
 }
