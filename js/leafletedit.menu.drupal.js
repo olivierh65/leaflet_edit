@@ -167,12 +167,14 @@ function evtFeatureSnapdrag(e) {
 
 function evtFeatureMarkerdragStart(e) {
   console.log('MarkerdragStart: ' + e);
+  map.lMap.notification.info("Info", "DragStart");
   // disable map dragging when moving vertex
   map.lMap.dragging=false;
 }
 
 function evtFeatureMarkerdragEnd(e) {
   console.log('MarkerdragEnd: ' + e);
+  map.lMap.notification.info("Info", "DragEnd");
   map.lMap.dragging=true;
 }
 
