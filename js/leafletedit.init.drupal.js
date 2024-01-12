@@ -21,11 +21,14 @@
     evtMenuShow();
     ////
 
-
     if (map.lMap.zoomControl) {
       // Remove existing zoomControl
       map.lMap.zoomControl.remove();
     }
+
+    // Add Geoman Custom buttons
+    addGeomanCustom()
+
     var menu_outils = new L.cascadeButtons(
       [
         {
@@ -235,7 +238,7 @@
 
     // Extend selection area
     const canvasRenderer = L.canvas({
-      tolerance: 5,
+      tolerance: 10,
     });
 
     drupalSettings[mapid].features_url.forEach(function add(feature) {

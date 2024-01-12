@@ -20,8 +20,7 @@ const MENU = {
   exportgpx: 6,
   sep3: 7,
   simplify: 8,
-}
-
+};
 
 function evtContextShow(e) {
   console.log(e);
@@ -43,40 +42,39 @@ function evtContextShow(e) {
 }
 
 function defineContextMenu() {
-    let menu = [];
-    menu[MENU.showcoord]={
-        text: "Show coordinates",
-        callback: showCoordinates,
-      };
-    menu[MENU.sep1]="-";
-    menu[MENU.editlayer]={
-        text: "Edit layer",
-        iconCls: "fa-regular fa-pen-to-square",
-        callback: editLayer,
-      };
-    menu[MENU.finedit]={
-        text: "Fin Edit layer",
-        iconCls: "fa-regular fa-arrow-up-right-from-square",
-        callback: finEditLayer,
-      };
-      menu[MENU.sep2]="-";
-      menu[MENU.save]={
-          text: "Save",
-          iconCls: "fa-regular fa-floppy-disk",
-          callback: saveEntity,
-        };
-      menu[MENU.exportgpx]={
-          text: "Export to GPX",
-          iconCls: "fa-solid fa-file-export",
-          callback: exportGPX,
-        };
-      menu[MENU.sep3]="-";
-      menu[MENU.simplify]={
-          text: "Simplify",
-          iconCls: "fa-solid fa-minimize",
-          callback: simplify,
-        };
-
+  let menu = [];
+  menu[MENU.showcoord] = {
+    text: "Show coordinates",
+    callback: showCoordinates,
+  };
+  menu[MENU.sep1] = "-";
+  menu[MENU.editlayer] = {
+    text: "Edit layer",
+    iconCls: "fa-regular fa-pen-to-square",
+    callback: editLayer,
+  };
+  menu[MENU.finedit] = {
+    text: "Fin Edit layer",
+    iconCls: "fa-regular fa-arrow-up-right-from-square",
+    callback: finEditLayer,
+  };
+  menu[MENU.sep2] = "-";
+  menu[MENU.save] = {
+    text: "Save",
+    iconCls: "fa-regular fa-floppy-disk",
+    callback: saveEntity,
+  };
+  menu[MENU.exportgpx] = {
+    text: "Export to GPX",
+    iconCls: "fa-solid fa-file-export",
+    callback: exportGPX,
+  };
+  menu[MENU.sep3] = "-";
+  menu[MENU.simplify] = {
+    text: "Simplify",
+    iconCls: "fa-solid fa-minimize",
+    callback: simplify,
+  };
 
   let context_menu = {
     contextmenu: true,
@@ -130,12 +128,12 @@ function evtFeatureDblClick(e) {
 }
 
 function evtLayerMouseover(e) {
-  console.log('Mouseover: ' + e);
+  console.log("Mouseover: " + e);
   // e.sourceTarget.addDistanceMarkers();
 }
 
 function evtLayerMouseout(e) {
-  console.log('Mouseout: ' +e);
+  console.log("Mouseout: " + e);
   // e.sourceTarget.removeDistanceMarkers();
 }
 
@@ -150,32 +148,32 @@ function evtFeatureTooltipclose(e) {
 }
 
 function evtFeatureVertexadded(e) {
-  console.log('Vertexadded: ' + e);
+  console.log("Vertexadded: " + e);
 }
 
 function evtFeatureVertexremoved(e) {
-  console.log('Vertexremoved: ' + e);
+  console.log("Vertexremoved: " + e);
 }
 
 function evtFeatureVertexclick(e) {
-  console.log('Vertexclick: ' + e);
+  console.log("Vertexclick: " + e);
 }
 
 function evtFeatureSnapdrag(e) {
-  console.log('Snapdrag: ' + e);
+  console.log("Snapdrag: " + e);
 }
 
 function evtFeatureMarkerdragStart(e) {
-  console.log('MarkerdragStart: ' + e);
+  console.log("MarkerdragStart: " + e);
   map.lMap.notification.info("Info", "DragStart");
   // disable map dragging when moving vertex
-  map.lMap.dragging=false;
+  map.lMap.dragging._enabled = false;
 }
 
 function evtFeatureMarkerdragEnd(e) {
-  console.log('MarkerdragEnd: ' + e);
+  console.log("MarkerdragEnd: " + e);
   map.lMap.notification.info("Info", "DragEnd");
-  map.lMap.dragging=true;
+  map.lMap.dragging._enabled = true;
 }
 
 function showCoordinates(e) {
@@ -184,6 +182,14 @@ function showCoordinates(e) {
 
 function editLayer(e) {
   // saveStyle(this.ref_context_menu);
+  if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
+    jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit = e;
+    jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit_orig =
+      e.relatedTarget.getLatLngs();
+    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", false);
+    jQuery(".leaflet_edit-edit").trigger("click");
+  }
+
   if (!e.relatedTarget.orig_style) {
     //save style only if not already saved
     saveStyle(e.relatedTarget);
@@ -223,6 +229,15 @@ function finEditLayer(e) {
     allowSelfIntersection: false,
     allowEditing: false,
   });
+  if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
+    ref=jQuery(".leaflet_edit-edit").parents("a")[0];
+    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
+    jQuery(".leaflet_edit-edit").trigger("click");
+    ref._layer_edit = null;
+    delete ref._layer_edit;
+    ref._layer_edit_orig;
+    delete ref._layer_edit_orig;
+  }
 }
 
 function evtMenuShow() {
@@ -272,38 +287,41 @@ function saveEntity(e) {
   console.log("Save");
 
   var fd = new FormData();
-  fd.append('fid',e.relatedTarget.defaultOptions.leafletEdit.fid)
-  fd.append('nid', e.relatedTarget.defaultOptions.leafletEdit.nid);
-  fd.append('geojson', JSON.stringify(e.relatedTarget.toGeoJSON()));
+  fd.append("fid", e.relatedTarget.defaultOptions.leafletEdit.fid);
+  fd.append("nid", e.relatedTarget.defaultOptions.leafletEdit.nid);
+  fd.append("geojson", JSON.stringify(e.relatedTarget.toGeoJSON()));
 
-  var rsave= [];
-  
+  var rsave = [];
+
   jQuery.ajax({
-    url: '/leaflet_edit/uptest-save',
-    type: 'post',
+    url: "/leaflet_edit/uptest-save",
+    type: "post",
     data: fd,
     contentType: false,
     processData: false,
     async: false,
-    success: function(response){
-      rsave=response;
+    success: function (response) {
+      rsave = response;
       let result = response.success;
-      if (result){
-        alert('yay!');
-      }
-      else {
+      if (result) {
+        alert("yay!");
+      } else {
         let msg = response.message;
-        alert('file not uploaded: ' + msg);
+        alert("file not uploaded: " + msg);
       }
     },
   });
   if (rsave.success) {
-    map.lMap.notification.success("Save", "Saved (" + 
-    e.relatedTarget.defaultOptions.leafletEdit.fid +
-    "=>" +
-    rsave.fid + ")");
-    e.relatedTarget.defaultOptions.leafletEdit.fid=rsave.fid;
-    e.relatedTarget.pm.updated=false;
+    map.lMap.notification.success(
+      "Save",
+      "Saved (" +
+        e.relatedTarget.defaultOptions.leafletEdit.fid +
+        "=>" +
+        rsave.fid +
+        ")"
+    );
+    e.relatedTarget.defaultOptions.leafletEdit.fid = rsave.fid;
+    e.relatedTarget.pm.updated = false;
   }
 }
 
@@ -369,20 +387,88 @@ async function writeFile(fileHandle, contents) {
 function simplify(e) {
   console.log("Simplify");
 
-  a=turf.simplify(e.relatedTarget.toGeoJSON(),{tolerance: 0.0001, highQuality: true});
+  a = turf.simplify(e.relatedTarget.toGeoJSON(), {
+    tolerance: 0.0001,
+    highQuality: true,
+  });
   // e.relatedTarget.feature.geometry=a.geometry;
   // e.relatedTarget.feature.bbox=a.bbox;
 
-  b=L.geoJSON(a);
+  b = L.geoJSON(a);
   if (b.getLayers().length == 1) {
-    before=e.relatedTarget.getLatLngs();
-    before_elem=before[before.length-1].length;
+    before = e.relatedTarget.getLatLngs();
+    before_elem = before[before.length - 1].length;
     e.relatedTarget.setLatLngs(b.getLayers()[0].getLatLngs());
-    map.lMap.notification.success("Simplify", "Path simplified (" +
-      before_elem + " => " + e.relatedTarget.getLatLngs()[before.length-1].length + ")");
+    map.lMap.notification.success(
+      "Simplify",
+      "Path simplified (" +
+        before_elem +
+        " => " +
+        e.relatedTarget.getLatLngs()[before.length - 1].length +
+        ")"
+    );
+  } else {
+    map.lMap.notification.warning(
+      "Simplify",
+      "not simplified, number of layers " + b.getLayers().length
+    );
   }
-  else {
-    map.lMap.notification.warning("Simplify", "not simplified, number of layers " +
-    b.getLayers().length );
+}
+
+/////////////////////////
+// Geoman custo
+////////////////////////
+function __GeomancancelEdit(e) {
+  console.log(e);
+  ref = jQuery(".leaflet_edit-edit").parents("a")[0];
+  if (ref._layer_edit) {
+    ref._layer_edit.relatedTarget.setLatLngs(ref._layer_edit_orig);
+    finEditLayer(ref._layer_edit);
   }
+}
+
+function __GeomanfinishEdit(e) {
+  console.log(e);
+  ref = jQuery(".leaflet_edit-edit").parents("a")[0];
+  if (ref._layer_edit) {
+    ref._layer_edit.relatedTarget.setLatLngs(ref._layer_edit_orig);
+    finEditLayer(ref._layer_edit);
+
+  }
+}
+
+// creates new actions
+const actions = {
+  name: "le_edit",
+  block: "custom",
+  title: "Edit",
+  className: "fa-regular fa-pen-to-square leaflet_edit-edit",
+  class: "test",
+  actions: [
+    {
+      text: "Cancel",
+      onClick: (e) => {
+        __GeomancancelEdit(e);
+      },
+    },
+    {
+      text: "Finish",
+      onClick: (e) => {
+        __GeomanfinishEdit(e);
+      },
+    },
+    // creates a new action with text and a click event
+    {
+      text: "click me",
+      onClick: () => {
+        alert("🙋‍♂️");
+      },
+    },
+  ],
+  disableOtherButtons: true,
+};
+
+function addGeomanCustom() {
+  map.lMap.pm.Toolbar.createCustomControl(actions);
+  map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
 }

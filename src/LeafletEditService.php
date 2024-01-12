@@ -85,6 +85,7 @@ class LeafletEditService extends LeafletService {
     // Geoman
     $attached_libraries[] = 'leaflet_edit/leaflet-geoman';
     $attached_libraries[] = 'leaflet_edit/leaflet-geoman-drupal';
+
     $settings['leafletedit']['geoman']['control'] = $config->get('geoman_control') ?? false;
     $settings['leafletedit']['geoman']['position'] = $config->get('geoman_position') ?? 'topleft';
     $settings['leafletedit']['geoman']['options'] = $config->get('geoman_options') ??

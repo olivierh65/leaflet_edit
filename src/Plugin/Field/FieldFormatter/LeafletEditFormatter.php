@@ -62,9 +62,21 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     ModuleHandlerInterface $module_handler,
     LinkGeneratorInterface $link_generator
   ) {
-    parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label,
-                        $view_mode, $third_party_settings, $leaflet_service, $entity_field_manager, $token, $renderer,
-                        $module_handler, $link_generator);
+    parent::__construct(
+      $plugin_id,
+      $plugin_definition,
+      $field_definition,
+      $settings,
+      $label,
+      $view_mode,
+      $third_party_settings,
+      $leaflet_service,
+      $entity_field_manager,
+      $token,
+      $renderer,
+      $module_handler,
+      $link_generator
+    );
     $this->defaultSettings = self::getDefaultSettings();
     $this->leafletService = $leaflet_service;
     $this->token = $token;
@@ -97,23 +109,210 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
   /**
    * {@inheritdoc}
    */
+  public static function defaultSettings() {
+    /* return [
+      'size' => 60,
+      'placeholder' => '',
+    ] + parent::defaultSettings(); */
+    $default = [
+      'leaflet_edit' => [
+        'leaflet' => [
+          'tolerance' => 10,
+        ],
+        'locatecontrol' => [
+          'control' => true,
+          'position' => 'bottomright',
+        ],
+        'geoman' => [
+          'control' => true,
+          'position' => 'topright',
+          'options' => [
+              'drawMarker' => "drawMarker",
+              'drawPolyline' => "drawPolyline",
+              'drawCircleMarker' => 0,
+              'drawRectangle' => 0,
+              'drawPolygon' => 0,
+              'drawCircle' => 0,
+              'draxText' => 0,
+              'editMode' => 0,
+              'dragMode' => 0,
+              'cutPolygon' => 0,
+              'removalMode' => 0,
+              'rotateMode' => 0,
+              'oneBlock' => 0,
+              'drawControls' => 0,
+              'editControls' => 0,
+              'customControls' => 'customControls',
+          ],
+        ],
+      ],
+    ] + parent::defaultSettings();
+
+    return $default;
+  }
+
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsSummary() {
+    $summary = [];
+
+    $settings = $this->getSettings();
+    $summary[] = $this->t('Leaflet Map: @map', ['@map' => $settings['leaflet_map']]);
+    $summary[] = $this->t(
+      'Map height: @height @height_unit',
+      [
+        '@height' => $settings['height'],
+        '@height_unit' => $settings['height_unit'],
+      ],
+    );
+
+    $leaflet = $settings['leaflet_edit']['leaflet'];
+    if (!empty($leaflet)) {
+      $summary[] = $this->t('Click tolerance: @tolerance', ['@tolerance' => $leaflet['tolerance']]);
+    } else {
+      $summary[] = $this->t('No click tolerance');
+    }
+    $locatecontrol = $settings['leaflet_edit']['locatecontrol'];
+    if (!empty($locatecontrol)) {
+      $summary[] = $this->t('Locate Control: @control', ['@control' => $locatecontrol['control'] ? 'on' : 'off']);
+    } else {
+      $summary[] = $this->t('No Locate Control');
+    }
+    // $summary[] = $this->t('Locate Control position: @position', ['@position' => $this->getSetting('locatecontrol')['position']]);
+
+    $geoman = $settings['leaflet_edit']['geoman'];
+    if (!empty($geoman)) {
+      $summary[] = $this->t('Geoman Control: @control', ['@control' => $geoman['control'] ? 'on' : 'off']);
+    } else {
+      $summary[] = $this->t('No Geoman Control');
+    }
+
+    return $summary;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function settingsForm(array $form, FormStateInterface $form_state) {
 
     $settings = $this->getSettings();
+
     $form['#tree'] = TRUE;
-    $elements = FormatterBase::settingsForm($form, $form_state);
+    $element = FormatterBase::settingsForm($form, $form_state);
+
 
     // Generate the Leaflet Map General Settings.
-    $this->generateMapGeneralSettings($elements, $settings);
+    $this->generateMapGeneralSettings($element, $settings);
+    unset($element['gesture_handling']);
 
-    // Generate the Leaflet Map Position Form Element.
     $map_position_options = $settings['map_position'];
-    $elements['map_position'] = $this->generateMapPositionElement($map_position_options);
+    $element['map_position'] = $this->generateMapPositionElement($map_position_options);
+    $element['map_position']['zoomControlPosition']['#access'] = FALSE;
+    $element['map_position']['zoom']['#access'] = FALSE;
+    $element['map_position']['zoomFiner']['#access'] = FALSE;
+    $element['map_position']['minZoom']['#access'] = false;
+    $element['map_position']['maxZoom']['#access'] = false;
+    // Don't disable zoomControl, not tested in js
+    $element['map_position']['minZoom']['#default_value'] = 2;
+    $element['map_position']['maxZoom']['#default_value'] = 18;
 
     // Set Map Geometries Options Element.
-    $this->setMapPathOptionsElement($elements, $settings);
+    // $this->setMapPathOptionsElement($element, $settings);
 
-    return $elements;
+    $element['leaflet_edit'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Leaflet Edit Settings'),
+    ];
+    $element['leaflet_edit']['leaflet'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Leaflet Settings'),
+    ];
+    $element['leaflet_edit']['leaflet']['tolerance'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Click tolerance'),
+      '#description' => $this->t('Click tolerance in pixels'),
+      '#min' => 0,
+      '#max' => 50,
+      '#step' => 1,
+      '#default_value' => $this->getSetting('leaflet_edit')['tolerance']  ?? 10,
+    ];
+
+
+    $element['leaflet_edit']['locatecontrol'] = [
+      '#type' => 'details',
+      '#title' => $this->t('LocateControl Settings'),
+    ];
+    $element['leaflet_edit']['locatecontrol']['control'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable LocateControl'),
+      '#description' => $this->t('Add LocateControl'),
+      '#default_value' => $this->getSetting('leaflet_edit')['locatecontrol']['control']  ?? true,
+    ];
+    $element['leaflet_edit']['locatecontrol']['position'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Control position.'),
+      '#options' => [
+        'topleft' => 'Top left',
+        'topright' => 'Top right',
+        'bottomleft' => 'Bottom left',
+        'bottomright' => 'Bottom right',
+      ],
+      '#default_value' => $this->getSetting('leaflet_edit')['locatecontrol']['position'] ?? 'bottomright',
+    ];
+
+    $element['leaflet_edit']['geoman'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Geoman Settings'),
+    ];
+    $element['leaflet_edit']['geoman']['control'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Geoman functionality'),
+      '#description' => $this->t('Add Geoman'),
+      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['control'] ?? true,
+    ];
+    $element['leaflet_edit']['geoman']['position'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Control position.'),
+      '#options' => [
+        'topleft' => 'Top left',
+        'topright' => 'Top right',
+        'bottomleft' => 'Bottom left',
+        'bottomright' => 'Bottom right',
+      ],
+      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['position'] ?? 'topright',
+    ];
+    $element['leaflet_edit']['geoman']['options'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Geoman Options'),
+    ];
+    $element['leaflet_edit']['geoman']['options'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Options'),
+      '#description' => $this->t('Geoman Options'),
+      '#options' => [
+        'drawControls' => 'Shows the draw block.',
+        'drawMarker' => 'Adds button to draw Markers.',
+        'drawCircleMarker' => 'Adds button to draw CircleMarkers.',
+        'drawPolyline' => 'Adds button to draw Line.',
+        'drawRectangle' => 'Adds button to draw Rectangle.',
+        'drawPolygon' => 'Adds button to draw Polygon.',
+        'drawCircle' => 'Adds button to draw Circle.',
+        'drawText' => 'Adds button to draw Text.',
+        'editControls' => 'Shows the edit block.',
+        'editMode' => 'Adds button to toggle Edit Mode for all layers.',
+        'dragMode' => 'Adds button to toggle Drag Mode for all layers.',
+        'cutPolygon' => 'Adds button to cut a hole in a Polygon or Line.',
+        'removalMode' => 'Adds a button to remove layers.',
+        'rotateMode' => 'Adds a button to rotate layers.',
+        'oneBlock' => 'All buttons will be displayed as one block',
+        'customControls' => 'Shows the custom block.',
+      ],
+      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['options'] ?? ['drawMarker', 'drawPolyline', 'customControls'],
+    ];
+
+    return $element;
   }
 
   /**
@@ -155,9 +354,9 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     $features = [];
     // foreach ($items as $delta => $item) {
     for ($i = 0; $i < $items->count(); $i++) {
-      $item=$items->get($i);
-      $item_style['style']=unserialize($item->getValue()['styles']);
-      $item_mapping['mapping']=unserialize($item->getValue()['mappings']);
+      $item = $items->get($i);
+      $item_style['style'] = unserialize($item->getValue()['styles']);
+      $item_mapping['mapping'] = unserialize($item->getValue()['mappings']);
       if (!empty($item->target_id)) {
         $feature['type'] = 'url';
         $feature['url'] = $this->leafletService->leafletProcessGeofieldFileUrl($item->target_id, $entity);
@@ -193,10 +392,11 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     $map_height = !empty($settings['height']) ? $settings['height'] . $settings['height_unit'] : '';
 
     if (!empty($features)) {
-      $results[] = $this->leafletService->leafletRenderMap($js_settings['map'], $js_settings['features'], $map_height);
+      $mapsettings = $this->leafletService->leafletRenderMap($js_settings['map'], $js_settings['features'], $map_height);
+      $mapsettings['#attached']['drupalSettings']['leaflet_edit']=$settings['leaflet_edit'];
+      $results[]=$mapsettings;
     }
 
     return $results;
   }
-
 }
