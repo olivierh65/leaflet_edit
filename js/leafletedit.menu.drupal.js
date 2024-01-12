@@ -443,7 +443,7 @@ const actions = {
   block: "custom",
   title: "Edit",
   className: "fa-regular fa-pen-to-square leaflet_edit-edit",
-  class: "test",
+  disabled: true,
   actions: [
     {
       text: "Cancel",
@@ -470,5 +470,4 @@ const actions = {
 
 function addGeomanCustom() {
   map.lMap.pm.Toolbar.createCustomControl(actions);
-  map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
 }
