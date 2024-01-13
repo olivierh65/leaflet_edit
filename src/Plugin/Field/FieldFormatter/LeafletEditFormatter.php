@@ -140,7 +140,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
               'removalMode' => 0,
               'rotateMode' => 0,
               'oneBlock' => 0,
-              'drawControls' => 0,
+              'drawControls' => 'drawControls',
               'editControls' => 0,
               'customControls' => 'customControls',
           ],
@@ -309,7 +309,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         'oneBlock' => 'All buttons will be displayed as one block',
         'customControls' => 'Shows the custom block.',
       ],
-      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['options'] ?? ['drawMarker', 'drawPolyline', 'customControls'],
+      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['options'] ?? ['drawMarker', 'drawPolyline', 'drawControls', 'customControls'],
     ];
 
     return $element;

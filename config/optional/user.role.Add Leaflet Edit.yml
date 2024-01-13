@@ -1,0 +1,11 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'Add Leaflet Edit'
+label: 'Add new tracks in Leaflet Map Editor maps'
+weight: 2
+is_admin: null
+permissions:
+  - 'Add tracks'

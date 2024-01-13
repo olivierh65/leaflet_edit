@@ -59,6 +59,8 @@ class LeafletEditService extends LeafletService {
 
   public function leafletRenderMap(array $map, array $features = [], $height = '400px') {
 
+    $a=\Drupal::currentUser();
+    
     $feat=[];
     $feat_url=[];
     foreach ($features as $feature) {

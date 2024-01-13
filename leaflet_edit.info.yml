@@ -1,9 +1,10 @@
-name: 'leaflet_edit'
+name: 'Leaflet Map Editor'
 type: module
-description: 'Leaflet map editor'
+description: 'Leaflet Map Editor'
 core_version_requirement: ^9 || ^10
 package: 'Custom'
 dependencies:
   - leaflet
   - fontawesome
   - geojsonfile_field
+  - geophp

@@ -7,8 +7,12 @@ use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Request;
 use \Drupal\Component\Utility\Bytes;
+use geoPHP;
 
 
 class DefaultController extends ControllerBase {
@@ -117,6 +121,33 @@ class DefaultController extends ControllerBase {
         ]);
     }
 
+    public function exportToGpx(Request $request) {
+        $geojson = $request->get('geojson');
+
+        geophp_load();
+        
+        $gpx = geoPHP::load($geojson)->out('gpx');
+
+        $headers = array(
+            'Content-Type' => 'application/gpx+xml',
+            'Content-Disposition' => 'attachment;filename="'. 'export' .'.gpx"',
+            'Content-Length' => strlen($gpx),
+            'Content-Description' => 'Export GPX'
+          );
+          
+          $response = new Response($gpx);
+          $disposition = $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            'export.gpx',
+        );
+
+        // Set the content disposition
+        $response->headers->set('Content-Disposition', $disposition);
+
+        // Dispatch request
+        return $response;
+
+    }
     /**
      * Make a response for file upload attempt with an error message.
      *

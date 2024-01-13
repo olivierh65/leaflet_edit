@@ -1,0 +1,11 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'Import Leaflet Edit'
+label: 'Import tracks to GPX in Leaflet Map Editor maps'
+weight: 6
+is_admin: null
+permissions:
+  - 'Import from GPX'

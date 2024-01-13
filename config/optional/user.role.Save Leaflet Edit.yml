@@ -1,0 +1,11 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'Save Leaflet Edit'
+label: 'Save edited tracks in Leaflet Map Editor maps'
+weight: 4
+is_admin: null
+permissions:
+  - 'Save tracks'

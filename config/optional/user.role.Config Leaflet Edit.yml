@@ -1,0 +1,11 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'Config Leaflet Edit'
+label: 'Configure Leaflet Map Editor maps'
+weight: 1
+is_admin: null
+permissions:
+  - 'Configure Leaflet Edit'

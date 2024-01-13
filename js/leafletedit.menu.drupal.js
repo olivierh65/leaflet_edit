@@ -165,14 +165,14 @@ function evtFeatureSnapdrag(e) {
 
 function evtFeatureMarkerdragStart(e) {
   console.log("MarkerdragStart: " + e);
-  map.lMap.notification.info("Info", "DragStart");
+  // map.lMap.notification.info("Info", "DragStart");
   // disable map dragging when moving vertex
   map.lMap.dragging._enabled = false;
 }
 
 function evtFeatureMarkerdragEnd(e) {
   console.log("MarkerdragEnd: " + e);
-  map.lMap.notification.info("Info", "DragEnd");
+  // map.lMap.notification.info("Info", "DragEnd");
   map.lMap.dragging._enabled = true;
 }
 
@@ -326,6 +326,53 @@ function saveEntity(e) {
 }
 
 async function exportGPX(e) {
+  console.log("export GPX");
+
+  var fd = new FormData();
+  fd.append("geojson", JSON.stringify(e.relatedTarget.toGeoJSON()));
+
+  var rsave = [];
+
+  jQuery.ajax({
+    url: "/leaflet_edit/uptest-toGpx",
+    type: "post",
+    data: fd,
+    contentType: false,
+    processData: false,
+    async: false,
+    success: function (response) {
+      rsave = response;
+      let result = response.success;
+
+      var blob = new Blob([response]);
+      var filename = 'export.gpx';
+      //Check the Browser type and download the File.
+      var isIE = false || !!document.documentMode;
+      if (isIE) {
+          window.navigator.msSaveBlob(blob, filename, 'application/gpx+xml');
+      } else {
+          var url = window.URL || window.webkitURL;
+          link = url.createObjectURL(blob);
+          var a = jQuery("<a />");
+          a.attr("download", filename);
+          a.attr("href", link);
+          jQuery("body").append(a);
+          a[0].click();
+          jQuery("body").remove(a);
+      }
+
+      if (result) {
+        alert("yay!");
+      } else {
+        let msg = response.message;
+        alert("file not uploaded: " + msg);
+      }
+    },
+  });
+}
+
+
+async function exportGPX__(e) {
   console.log("exportGPX");
   let fileHandle;
   try {

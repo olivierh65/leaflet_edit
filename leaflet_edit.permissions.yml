@@ -1,12 +1,18 @@
-Edit track:
-  title: 'Allow track editing'
-  description: 'Allow user to edit tracks in Leaflet map'
-Add track:
-  title: 'Allow adding track'
-  description: 'Allow user to add tracks in Leaflet map'
-Save track:
-  title: 'Allow track saving'
-  description: 'Allow user to save tracks in Leaflet map'
-Export Gpx:
-  title: 'Allow track export to GPX'
-  description: 'Allow user to export tracks in Leaflet map'
+Configure Leaflet Edit:
+  title: 'Configure Leaflet Edit'
+  description: 'Allow user to configure Leaflet Map Editor'
+Edit tracks:
+  title: 'Edit tracks'
+  description: 'Allow user to edit tracks in Leaflet Map Editor'
+Add tracks:
+  title: 'Add tracks'
+  description: 'Allow user to add tracks in Leaflet Map Editor'
+Save tracks:
+  title: 'Save tracks'
+  description: 'Allow user to save edited tracks in Leaflet Map Editor'
+Export to GPX:
+  title: 'Export to GPX'
+  description: 'Allow user to export tracks in Leaflet Map Editor'
+Import from GPX:
+  title: 'Import from GPX'
+  description: 'Allow user to import GPX tracks in Leaflet Map Editor'

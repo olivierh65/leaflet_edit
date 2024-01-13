@@ -4,7 +4,7 @@ leaflet_edit.settings:
     _form: '\Drupal\leaflet_edit\Form\SettingsForm'
     _title: 'Leaflet Edit'
   requirements:
-    _permission: 'administer site configuration'
+    _permission: 'administer site configuration+Configure Leaflet Edit'
 
 leaflet_edit.default_controller_hello:
   path: '/leaflet_edit/uptest'
@@ -20,4 +20,12 @@ leaflet_edit.default_controller_upload:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::saveFile'
     _title: 'Save'
   requirements:
-    _permission: 'access content'
+    _permission: 'Save tracks'
+
+leaflet_edit.default_controller_toGpx:
+  path: '/leaflet_edit/uptest-toGpx'
+  defaults:
+    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpx'
+    _title: 'Export'
+  requirements:
+    _permission: 'Export to GPX'

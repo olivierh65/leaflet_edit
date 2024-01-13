@@ -1,0 +1,11 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'Export Leaflet Edit'
+label: 'Export tracks to GPX in Leaflet Map Editor maps'
+weight: 5
+is_admin: null
+permissions:
+  - 'Export to GPX'
