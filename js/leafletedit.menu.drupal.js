@@ -231,8 +231,8 @@ function finEditLayer(e) {
   });
   if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
     ref=jQuery(".leaflet_edit-edit").parents("a")[0];
-    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
     jQuery(".leaflet_edit-edit").trigger("click");
+    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
     ref._layer_edit = null;
     delete ref._layer_edit;
     ref._layer_edit_orig;
@@ -443,7 +443,6 @@ const actions = {
   block: "custom",
   title: "Edit",
   className: "fa-regular fa-pen-to-square leaflet_edit-edit",
-  disabled: true,
   actions: [
     {
       text: "Cancel",
@@ -470,4 +469,5 @@ const actions = {
 
 function addGeomanCustom() {
   map.lMap.pm.Toolbar.createCustomControl(actions);
+  map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
 }
