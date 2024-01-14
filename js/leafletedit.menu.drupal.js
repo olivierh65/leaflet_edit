@@ -103,6 +103,11 @@ function evtFeatureClick(e) {
 }
 
 function evtFeatureContextmenu(e) {
+  console.log(e);
+}
+
+function evtFeatureDblClick(e) {
+  console.log(e);
   if (e.sourceTarget.selected) {
     // already selected
     unselect_feature(e.sourceTarget);
@@ -112,32 +117,6 @@ function evtFeatureContextmenu(e) {
       saveStyle(e.sourceTarget);
     }
     select_feature(e.sourceTarget);
-    e.sourceTarget.selected = true;
-  }
-}
-
-function evtFeatureDblClick(e) {
-  console.log(e);
-  map.lMap.notification.info("Info", "double click");
-  if (e.sourceTarget.pm.enabled()) {
-    // do nothing if feature is in edit mode
-    return;
-  }
-  if (e.sourceTarget.selected) {
-    // already selected
-    e.sourceTarget.selected = false;
-    restoreStyle(e.sourceTarget);
-  } else {
-    if (!e.sourceTarget.orig_style) {
-      //save style only if not already saved
-      saveStyle(e.sourceTarget);
-    }
-    e.sourceTarget.setStyle({
-      color: "darkpurple",
-      weight: 10,
-      opacity: 1,
-      dashArray: "10",
-    });
     e.sourceTarget.selected = true;
   }
 }
@@ -373,7 +352,6 @@ async function exportGPX(e) {
     processData: false,
     async: false,
     success: function (response) {
-      var blob = new Blob([response.gpx]);
       filename =
         response.filename +
         (response.description.length > 0 ? "-" + response.description : "") +
@@ -381,12 +359,12 @@ async function exportGPX(e) {
       //Check the Browser type and download the File.
       var isIE = false || !!document.documentMode;
       if (isIE) {
-        window.navigator.msSaveBlob(blob, filename, "text/octet-stream");
+        window.navigator.msSaveBlob(new Blob([response.gpx]), filename, "text/octet-stream");
       } else {
         var conv = document.createElement("a");
         conv.setAttribute(
           "href",
-          "data:text/octet-stream;charset=utf-8," + encodeURIComponent(blob)
+          "data:text/octet-stream;charset=utf-8," + encodeURIComponent(response.gpx)
         );
         conv.setAttribute("download", filename);
         conv.style.display = "none";
