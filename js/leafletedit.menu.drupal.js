@@ -99,6 +99,17 @@ function evtLayerUpdate(e) {
 }
 // var map1 = L.map('map', context_menu);
 function evtFeatureClick(e) {
+  if (e.sourceTarget.selected) {
+    // already selected
+    unselect_feature(e.sourceTarget);
+  } else {
+    if (!e.sourceTarget.orig_style) {
+      //save style only if not already saved
+      saveStyle(e.sourceTarget);
+    }
+    select_feature(e.sourceTarget);
+    e.sourceTarget.selected = true;
+  }
   console.log(e);
 }
 function evtFeatureDblClick(e) {
@@ -124,6 +135,28 @@ function evtFeatureDblClick(e) {
       dashArray: "10",
     });
     e.sourceTarget.selected = true;
+  }
+}
+
+function select_feature(feat) {
+  if (!feat.orig_style) {
+    //save style only if not already saved
+    saveStyle(feat);
+  }
+  feat.setStyle({
+    color: "darkpurple",
+    weight: 5,
+    opacity: 1,
+    dashArray: "10,15",
+  });
+  feat.selected = true;
+}
+
+function unselect_feature(feat) {
+  if (feat.selected) {
+    // already selected
+    feat.selected = false;
+    restoreStyle(feat);
   }
 }
 
@@ -230,7 +263,7 @@ function finEditLayer(e) {
     allowEditing: false,
   });
   if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
-    ref=jQuery(".leaflet_edit-edit").parents("a")[0];
+    ref = jQuery(".leaflet_edit-edit").parents("a")[0];
     jQuery(".leaflet_edit-edit").trigger("click");
     map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
     ref._layer_edit = null;
@@ -238,17 +271,6 @@ function finEditLayer(e) {
     ref._layer_edit_orig;
     delete ref._layer_edit_orig;
   }
-}
-
-function evtMenuShow() {
-  map.lMap.on("contextmenu.show", function refer_context_menu(e) {
-    // Double appel, avec la 2eme fois relatedTarget vide !!
-    if (e.contextmenu._showLocation.relatedTarget) {
-      this.ref_context_menu = e.contextmenu._showLocation.relatedTarget;
-    } else {
-      e.contextmenu._showLocation.relatedTarget = this.ref_context_menu;
-    }
-  });
 }
 
 function moveValidation(layer, marker, event) {
@@ -328,10 +350,16 @@ function saveEntity(e) {
 async function exportGPX(e) {
   console.log("export GPX");
 
+  select_feature(e.relatedTarget);
+  setTimeout(unselect_feature, 5000, e.relatedTarget);
+
   var fd = new FormData();
   fd.append("geojson", JSON.stringify(e.relatedTarget.toGeoJSON()));
-
-  var rsave = [];
+  fd.append("filename", e.relatedTarget.defaultOptions.leafletEdit.filename);
+  fd.append(
+    "description",
+    e.relatedTarget.defaultOptions.leafletEdit.description
+  );
 
   jQuery.ajax({
     url: "/leaflet_edit/uptest-toGpx",
@@ -341,36 +369,35 @@ async function exportGPX(e) {
     processData: false,
     async: false,
     success: function (response) {
-      rsave = response;
-      let result = response.success;
-
-      var blob = new Blob([response]);
-      var filename = 'export.gpx';
+      var blob = new Blob([response.gpx]);
+      filename =
+        response.filename +
+        (response.description.length > 0 ? "-" + response.description : "") +
+        ".gpx";
       //Check the Browser type and download the File.
       var isIE = false || !!document.documentMode;
       if (isIE) {
-          window.navigator.msSaveBlob(blob, filename, 'application/gpx+xml');
+        window.navigator.msSaveBlob(blob, filename, "text/octet-stream");
       } else {
-          var url = window.URL || window.webkitURL;
-          link = url.createObjectURL(blob);
-          var a = jQuery("<a />");
-          a.attr("download", filename);
-          a.attr("href", link);
-          jQuery("body").append(a);
-          a[0].click();
-          jQuery("body").remove(a);
+        var conv = document.createElement("a");
+        conv.setAttribute(
+          "href",
+          "data:text/octet-stream;charset=utf-8," + encodeURIComponent(blob)
+        );
+        conv.setAttribute("download", filename);
+        conv.style.display = "none";
+        document.body.appendChild(conv);
+        conv.click();
+        document.body.removeChild(conv);
       }
 
-      if (result) {
-        alert("yay!");
-      } else {
-        let msg = response.message;
-        alert("file not uploaded: " + msg);
-      }
+      map.lMap.notification.success("Export GPX", "Export " + filename + " OK");
+    },
+    error: function (response) {
+      map.lMap.notification.error("Export GPX", "Export " + filename + " KO");
     },
   });
 }
-
 
 async function exportGPX__(e) {
   console.log("exportGPX");
@@ -480,7 +507,6 @@ function __GeomanfinishEdit(e) {
   if (ref._layer_edit) {
     ref._layer_edit.relatedTarget.setLatLngs(ref._layer_edit_orig);
     finEditLayer(ref._layer_edit);
-
   }
 }
 

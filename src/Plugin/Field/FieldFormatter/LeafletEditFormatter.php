@@ -365,15 +365,16 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         $feature['description'] = $item->description;
         $feature['title'] = $entity->get('title')->getString('value');
         $style = [];
-        /* if (! empty($entity->get('field_leaflet_edit_couleur')->getString('color'))) {
-          $style['color'] = $entity->get('field_leaflet_edit_couleur')->getString('color');
+        
+        $_filename = $this->leafletService->leafletProcessGeofieldFilename($item->target_id);
+        if ($_filename) {
+          $feature['filename'] = $_filename['filename'];
+          $feature['extension'] = $_filename['extension'];
         }
-        if (! empty($entity->get('field_leaflet_edit_epaisseur')->getString('epaisseur'))) {
-          $style['weight'] = $entity->get('field_leaflet_edit_epaisseur')->getString('epaisseur');
+        else {
+          $feature['filename'] = "";
+          $feature['extension'] = "";
         }
-        if (! empty($entity->get('field_leaflet_edit_opacite')->getString('opacite'))) {
-          $style['opacity'] = $entity->get('field_leaflet_edit_opacite')->getString('opacite');
-        } */
         $feature['style'] = json_encode($item_style['style']['leaflet_style']);
         $feature['mapping'] = json_encode($item_mapping['mapping']['attribut']);
 

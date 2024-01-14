@@ -193,6 +193,18 @@ class LeafletEditService extends LeafletService {
 
       return \Drupal\Core\Url::fromUserInput('/',  array('absolute' => 'true'))->toString() . 'leaflet/read/' . $entity->getRevisionId() . '/' . $fid . '/' . $entity->id() . '?_format=json';
     }
+    return "";
+  }
+
+  public function leafletProcessGeofieldFilename($fid) {
+    /** @var \Drupal\file\Entity\File $file */
+    $file = File::load($fid);
+    if ($file) {
+      return pathinfo($file->getFilename());
+    }
+    else {
+      return null;
+    }
   }
 
 }

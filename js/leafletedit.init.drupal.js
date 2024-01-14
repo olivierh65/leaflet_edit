@@ -17,7 +17,7 @@
       }
     }
     ////
-    // track contetmenu relatedTarget
+    // track contextmenu relatedTarget
     evtMenuShow();
     ////
 
@@ -258,6 +258,7 @@
           nid: feature.entity,
           fid: feature.id,
           description: feature.description,
+          filename: feature.filename,
         },
       }).on("data:loaded", function () {
         for (feat in this._layers) {

@@ -121,32 +121,57 @@ class DefaultController extends ControllerBase {
         ]);
     }
 
-    public function exportToGpx(Request $request) {
+    public function exportToGpx__(Request $request) {
         $geojson = $request->get('geojson');
+        $filename = $request->get('filename');
 
         geophp_load();
-        
+
         $gpx = geoPHP::load($geojson)->out('gpx');
 
-        $headers = array(
-            'Content-Type' => 'application/gpx+xml',
-            'Content-Disposition' => 'attachment;filename="'. 'export' .'.gpx"',
-            'Content-Length' => strlen($gpx),
-            'Content-Description' => 'Export GPX'
-          );
-          
-          $response = new Response($gpx);
-          $disposition = $response->headers->makeDisposition(
+        $response = new Response($gpx);
+        $disposition = $response->headers->makeDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'export.gpx',
+            $filename,
         );
+
+        // Add filename in GPX file
+        $gpx_temp = simplexml_load_string($gpx);
+        $gpx_temp->addChild('metadata');
+        $gpx_temp->metadata->addChild('name', $filename);
+        $gpx = $gpx_temp->asXML();
 
         // Set the content disposition
         $response->headers->set('Content-Disposition', $disposition);
-
+        $response->headers->set('Content-Type', 'data:text/octet-stream');
+        $response->headers->set('Content-Length', strlen($gpx));
+        $response->headers->set('Content-Description', 'Export GPX');
         // Dispatch request
         return $response;
+    }
 
+    public function exportToGpx(Request $request) {
+        $geojson = $request->get('geojson');
+        $description = $request->get('description');
+        $filename = $request->get('filename');
+
+        geophp_load();
+
+        $gpx = geoPHP::load($geojson)->out('gpx');
+
+        // Add filename in GPX file
+        $gpx_temp = simplexml_load_string($gpx);
+        $gpx_temp->addChild('metadata');
+        $gpx_temp->metadata->addChild('name', $filename . (strlen($description) > 0 ? '-' . $description : ''));
+        $gpx = $gpx_temp->asXML();
+
+        $response = new JsonResponse([
+            'success' => TRUE,
+            'gpx' => $gpx,
+            'filename' => $filename,
+            'description' => $description,
+        ]);
+        return $response;
     }
     /**
      * Make a response for file upload attempt with an error message.
