@@ -151,25 +151,34 @@ class DefaultController extends ControllerBase {
     }
 
     public function exportToGpx(Request $request) {
-        $geojson = $request->get('geojson');
+        $geojsons = json_decode($request->get('geojson'), true);
         $description = $request->get('description');
         $filename = $request->get('filename');
 
         geophp_load();
 
-        $gpx = geoPHP::load($geojson)->out('gpx');
+        $gpxs = [];
+        foreach ($geojsons as $geojson) {
+            $gpx = geoPHP::load(json_encode($geojson['geojson']))->out('gpx');
+            $name = $filename .
+                (strlen($description) > 0 ? '-' . $description : '') .
+                (strlen($geojson['type']) > 0 ? '-' . $geojson['type'] : '');
 
-        // Add filename in GPX file
-        $gpx_temp = simplexml_load_string($gpx);
-        $gpx_temp->addChild('metadata');
-        $gpx_temp->metadata->addChild('name', $filename . (strlen($description) > 0 ? '-' . $description : ''));
-        $gpx = $gpx_temp->asXML();
+            // Add filename in GPX file
+            $gpx_temp = simplexml_load_string($gpx);
+            $gpx_temp->addChild('metadata');
+            $gpx_temp->metadata->addChild('name', $name);
+            $gpx = $gpx_temp->asXML();
+
+            $gpxs[] =  [
+                'gpx' => $gpx,
+                'filename' => $name,
+            ];
+        }
 
         $response = new JsonResponse([
             'success' => TRUE,
-            'gpx' => $gpx,
-            'filename' => $filename,
-            'description' => $description,
+            'gpx' => $gpxs,
         ]);
         return $response;
     }
