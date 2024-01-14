@@ -99,6 +99,10 @@ function evtLayerUpdate(e) {
 }
 // var map1 = L.map('map', context_menu);
 function evtFeatureClick(e) {
+  console.log(e);
+}
+
+function evtFeatureContextmenu(e) {
   if (e.sourceTarget.selected) {
     // already selected
     unselect_feature(e.sourceTarget);
@@ -110,8 +114,8 @@ function evtFeatureClick(e) {
     select_feature(e.sourceTarget);
     e.sourceTarget.selected = true;
   }
-  console.log(e);
 }
+
 function evtFeatureDblClick(e) {
   console.log(e);
   map.lMap.notification.info("Info", "double click");

@@ -276,8 +276,8 @@
           this._layers[feat].on("dblclick", function (e) {
             evtFeatureDblClick(e);
           });
-          this._layers[feat].on("doubletap", function (e) {
-            evtFeatureDblClick(e);
+          this._layers[feat].on("contextmenu", function (e) {
+            evtFeatureContextmenu(e);
           });
           this._layers[feat].on("tooltipopen", function (e) {
             evtFeatureTooltipopen(e);
