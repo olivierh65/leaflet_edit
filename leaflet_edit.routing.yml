@@ -29,3 +29,11 @@ leaflet_edit.default_controller_toGpx:
     _title: 'Export'
   requirements:
     _permission: 'Export to GPX'
+
+leaflet_edit.default_controller_toGpxMerge:
+  path: '/leaflet_edit/uptest-toGpxMerge'
+  defaults:
+    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpxMerge'
+    _title: 'Export Merge'
+  requirements:
+    _permission: 'Export to GPX'

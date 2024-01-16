@@ -19,8 +19,9 @@ const MENU = {
   save: 5,
   exportgpx: 6,
   exportgpxall: 7,
-  sep3: 8,
-  simplify: 9,
+  exportgpxallmerge: 8,
+  sep3: 9,
+  simplify: 10,
 };
 
 function evtContextShow(e) {
@@ -74,6 +75,11 @@ function defineContextMenu() {
     text: "Export to GPX (All)",
     iconCls: "fa-solid fa-file-export",
     callback: exportGPXAll,
+  };
+  menu[MENU.exportgpxallmerge] = {
+    text: "Export to GPX (All Merge)",
+    iconCls: "fa-solid fa-file-export",
+    callback: exportGPXAllMerge,
   };
   menu[MENU.sep3] = "-";
   menu[MENU.simplify] = {
@@ -434,6 +440,91 @@ async function exportGPXAll(e) {
 
   jQuery.ajax({
     url: "/leaflet_edit/uptest-toGpx",
+    type: "post",
+    data: fd,
+    contentType: false,
+    processData: false,
+    async: true,
+    success: function (response) {
+      response.gpx.forEach((g) => {
+        filename = g.filename + ".gpx";
+        //Check the Browser type and download the File.
+        var isIE = false || !!document.documentMode;
+        if (isIE) {
+          window.navigator.msSaveBlob(new Blob([g.gpx]), filename, "text/octet-stream");
+        } else {
+          var conv = document.createElement("a");
+          conv.setAttribute(
+            "href",
+            "data:text/octet-stream;charset=utf-8," + encodeURIComponent(g.gpx)
+          );
+          conv.setAttribute("download", filename);
+          conv.style.display = "none";
+          document.body.appendChild(conv);
+          conv.click();
+          document.body.removeChild(conv);
+        }
+        map.lMap.notification.success("Export GPX", "Export " + filename + " OK");
+      });
+
+      
+    },
+    error: function (response) {
+      map.lMap.notification.error("Export GPX", "Export KO");
+    },
+  });
+}
+
+async function exportGPXAllMerge(e) {
+  console.log("export GPX (All)");
+
+  var nid=e.relatedTarget.options.leafletEdit['nid'];
+  var fid=e.relatedTarget.options.leafletEdit['fid'];
+  var leafletid = e.relatedTarget._leaflet_id;
+
+  data = [{
+    'geojson': e.relatedTarget.toGeoJSON(),
+    'type': e.relatedTarget.feature.properties['type'] ?? '',
+    'properties': JSON.stringify(e.relatedTarget.feature.properties) ?? '',
+    'color': JSON.parse(e.relatedTarget.defaultOptions.style)['color'] ?? '',
+    'width': JSON.parse(e.relatedTarget.defaultOptions.style)['weight'] ?? '',
+  }];
+  select_feature(e.relatedTarget, 10000);
+
+  for (const [key, value] of Object.entries(e.relatedTarget._map._layers)) {
+    console.log(key, value);
+    if (key == leafletid) {
+      continue;
+    }
+    if (value.options.leafletEdit) {
+      if (value.options.leafletEdit['fid'] == fid && value.options.leafletEdit['nid'] == nid) {
+        // alert (key);
+        if (value.feature) {
+          if (value.defaultOptions) {
+            data.push ({
+              'geojson': value.toGeoJSON(),
+              'type': value.feature.properties['type'] ?? '',
+              'properties': JSON.stringify(e.relatedTarget.feature.properties) ?? '',
+              'color': JSON.parse(e.relatedTarget.defaultOptions.style)['color'] ?? '',
+              'width': JSON.parse(e.relatedTarget.defaultOptions.style)['weight'] ?? '',
+            })
+            select_feature(value, 10000);
+          }
+        } 
+      }
+    }
+  }
+
+  var fd = new FormData();
+  fd.append("geojson", JSON.stringify(data));
+  fd.append("filename", e.relatedTarget.defaultOptions.leafletEdit.filename);
+  fd.append(
+    "description",
+    e.relatedTarget.defaultOptions.leafletEdit.description
+  );
+
+  jQuery.ajax({
+    url: "/leaflet_edit/uptest-toGpxMerge",
     type: "post",
     data: fd,
     contentType: false,

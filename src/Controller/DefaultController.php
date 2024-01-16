@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Request;
 use \Drupal\Component\Utility\Bytes;
 use geoPHP;
-
+use SimpleXMLElement;
 
 class DefaultController extends ControllerBase {
 
@@ -182,6 +182,91 @@ class DefaultController extends ControllerBase {
         ]);
         return $response;
     }
+
+    public function exportToGpxMerge(Request $request) {
+        $geojsons = json_decode($request->get('geojson'), true);
+        $description = $request->get('description');
+        $filename = $request->get('filename');
+
+        // prepare merge by type
+        $types = [];
+        $i = 0;
+        for ($i = 0; $i < count($geojsons); $i++) {
+            if ($geojsons[$i]['type']) {
+                $types[$geojsons[$i]['type']][] = $i;
+            }
+        }
+
+        geophp_load();
+
+        $gpxs = [];
+        
+        $b = new \DOMDocument("1.1", "UTF-8");
+        $gpxRoot = $b->createElement('gpx');
+        $gpxRoot->setAttribute('creator', 'Drupal Leaflet Edit');
+        $gpxRoot->setAttribute('version', '1.1');
+        $b->appendChild($gpxRoot);
+
+        $XMLRoot = $b->createElement('metadata');
+        $meta = $b->createElement('name', $filename);
+        $XMLRoot->appendChild($meta);
+        $meta = $b->createElement('desc', $description);
+        $XMLRoot->appendChild($meta);
+        $gpxRoot->appendChild($XMLRoot);
+
+        
+        foreach ($types as $type => $indexes) {
+
+            $trkRoot = $b->createElement('trk');
+            if ($type) {
+                $meta = $b->createElement('type', $type);
+                $trkRoot->appendChild($meta);
+            }
+            
+            $name_done=false;
+            foreach ($indexes as $index) {
+                $meta = $b->createElement('name', $filename .
+                    (strlen($description) > 0 ? '-' . $description : '') .
+                    (strlen($type) > 0 ? '-' . $type : ''));
+                if (! $name_done) {
+                    $trkRoot->appendChild($meta);
+                    $name_done = true;
+                }
+
+
+                $gpx = geoPHP::load(json_encode($geojsons[$index]['geojson']))->out('gpx');
+
+                $b_tmp = new \DOMDocument();
+                $b_tmp->loadXML($gpx);
+
+                // trk
+                foreach ($b_tmp->getElementsByTagName('trkseg') as $trkseg) {
+
+                    // $tr = $b->getElementsByTagName('trk');
+                    // $tr1 = $tr->item($tr->count() - 1);
+                    if ($ti = $b->importNode($trkseg, true)) {
+                        $trkRoot->appendChild($ti);
+                    }
+                }
+                $gpxRoot->appendChild($trkRoot);
+            }
+            $b->appendChild($gpxRoot);
+        }
+
+        $b->preserveWhiteSpace = false;
+        $b->formatOutput = true;
+        $gpxs[] =  [
+            'gpx' => $b->saveXML(),
+            'filename' => $filename,
+        ];
+
+        $response = new JsonResponse([
+            'success' => TRUE,
+            'gpx' => $gpxs,
+        ]);
+        return $response;
+    }
+
     /**
      * Make a response for file upload attempt with an error message.
      *
