@@ -27,7 +27,18 @@
     }
 
     // Add Geoman Custom buttons
-    addGeomanCustom()
+    addGeomanCustom();
+
+    // Event geoman Draw
+    map.lMap.on("pm:drawstart", function (e) {
+      evtMapDrawstart(e);
+    });
+    map.lMap.on("pm:drawend", function (e) {
+      evtMapDrawend(e);
+    });
+    map.lMap.on("pm:create", function (e) {
+      evtMapCreate(e);
+    });
 
     var menu_outils = new L.cascadeButtons(
       [
@@ -117,7 +128,7 @@
     }
 
     // Dialog
-    var dialog = new L.control.dialog({
+    /* dialog = new L.control.dialog({
       size: [300, 300],
       minSize: [100, 100],
       maxSize: [350, 350],
@@ -127,7 +138,7 @@
     });
     dialog
       .setContent("<p>Hello! Welcome to your nice new dialog box!</p>")
-      .addTo(map.lMap);
+      .addTo(map.lMap); */
 
     // leaflet.control-window
     //var win =  L.control.window(map.lMap,{title:'Hello world!',content:'This is my first control window.'})
@@ -156,6 +167,7 @@
       compact: true,
       collapsibleGroups: true,
     });
+
     map.bounds = null;
 
     var base = [];
@@ -245,8 +257,8 @@
       lay = new L.GeoJSON.AJAX(feature.url, {
         // "default_style": feature.style,
         // "onEachFeature": oneach_style,
-        style: feature.style,
-        mapping: feature.mapping,
+        style: JSON.parse(feature.style),
+        mapping: JSON.parse(feature.mapping),
         renderer: canvasRenderer,
         distanceMarkers: {
           lazy: true,
@@ -259,111 +271,21 @@
           fid: feature.id,
           description: feature.description,
           filename: feature.filename,
+          _selected: false,
+          _updated: false,
         },
-      }).on("data:loaded", function () {
-        for (feat in this._layers) {
-          // Add context menu
-          this._layers[feat].bindContextMenu(defineContextMenu());
-          // Add hide event to close popup menu
-          this._layers[feat]._map.contextmenu.addHooks();
-          this._layers[feat]._map.on("contextmenu.show", function (e) {
-            evtContextShow(e);
-          });
-
-          this._layers[feat].on("click", function (e) {
-            evtFeatureClick(e);
-          });
-          this._layers[feat].on("dblclick", function (e) {
-            evtFeatureDblClick(e);
-          });
-          this._layers[feat].on("contextmenu", function (e) {
-            evtFeatureContextmenu(e);
-          });
-          this._layers[feat].on("tooltipopen", function (e) {
-            evtFeatureTooltipopen(e);
-          });
-          this._layers[feat].on("tooltipclose", function (e) {
-            evtFeatureTooltipclose(e);
-          });
-          this._layers[feat].on("pm:vertexadded", function (e) {
-            evtFeatureVertexadded(e);
-          });
-          this._layers[feat].on("pm:vertexremoved", function (e) {
-            evtFeatureVertexremoved(e);
-          });
-          this._layers[feat].on("pm:vertexclick", function (e) {
-            evtFeatureVertexclick(e);
-          });
-          this._layers[feat].on("pm:snapdrag", function (e) {
-            evtFeatureSnapdrag(e);
-          });
-          this._layers[feat].on("pm:markerdragstart", function (e) {
-            evtFeatureMarkerdragStart(e);
-          });
-          this._layers[feat].on("pm:markerdragend", function (e) {
-            evtFeatureMarkerdragEnd(e);
-          });
-
-          // add variables
-          this._layers[feat].selected = false;
-          this._layers[feat].updated = false;
-
-          // set global settings
-          if (this._layers[feat].defaultOptions.style) {
-            console.log("Style global");
-            this._layers[feat].setStyle(
-              JSON.parse(this._layers[feat].defaultOptions.style)
-            );
-          } else {
-            console.log("Pas de Style global!!!");
-            this._layers[feat].setStyle({ color: "red", weight: 5 });
+      }).on("data:loaded", function (e) {
+        for (const [lid, value] of Object.entries(this.getLayers())) {
+          processLoadedData(value);
+          if (map.bounds && map.bounds.isValid()) {
+            map.bounds=map.bounds.extend(L.latLngBounds(value.getLatLngs()));
           }
-          // set global popup name
-          if (this._layers[feat].defaultOptions.leafletEdit.description) {
-            this._layers[feat].bindTooltip(
-              this._layers[feat].defaultOptions.leafletEdit.description,
-              {
-                sticky: true,
-              }
-            );
-          } else {
-            console.log("Pas de description");
-          }
-
-          mappings = JSON.parse(this._layers[feat].defaultOptions.mapping);
-          if (mappings && this._layers[feat].feature.properties) {
-            for (let i = 0; i < mappings.length; i++) {
-              attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
-              console.log("Attrib: " + attrib);
-              if (attrib && attrib.length > 0) {
-                attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
-                console.log("Attrib value: " + attrib_val);
-                if (attrib in this._layers[feat].feature.properties) {
-                  if (
-                    this._layers[feat].feature.properties[attrib] == attrib_val
-                  ) {
-                    console.log(
-                      "Set Style " + mappings[i].leaflet_style_mapping.Style
-                    );
-                    this._layers[feat].setStyle(
-                      mappings[i].leaflet_style_mapping.Style
-                    );
-                    this._layers[feat].bindTooltip(attrib_val, {
-                      sticky: true,
-                    });
-                  }
-                }
-              }
-            }
+          else {
+            map.bounds=L.latLngBounds(value.getLatLngs());
           }
         }
 
-        if (map.bounds) {
-          map.bounds.extend(lay.getBounds());
-        } else {
-          map.bounds = lay.getBounds();
-        }
-        self.fitBounds(map.bounds);
+        map.lMap.fitBounds(map.bounds)
       });
 
       lay.on("pm:edit", function (e) {
@@ -410,4 +332,92 @@
     );
     map.lMap.addControl(panel);
   });
+
+  function processLoadedData(layer) {
+    // Add context menu
+    layer.bindContextMenu(defineContextMenu());
+    // Add hide event to close popup menu
+    layer._map.contextmenu.addHooks();
+    layer._map.on("contextmenu.show", function (e) {
+      evtContextShow(e);
+    });
+
+    layer.on("click", function (e) {
+      evtFeatureClick(e);
+    });
+    layer.on("dblclick", function (e) {
+      evtFeatureDblClick(e);
+    });
+    layer.on("contextmenu", function (e) {
+      evtFeatureContextmenu(e);
+    });
+    layer.on("tooltipopen", function (e) {
+      evtFeatureTooltipopen(e);
+    });
+    layer.on("tooltipclose", function (e) {
+      evtFeatureTooltipclose(e);
+    });
+    layer.on("pm:vertexadded", function (e) {
+      evtFeatureVertexadded(e);
+    });
+    layer.on("pm:vertexremoved", function (e) {
+      evtFeatureVertexremoved(e);
+    });
+    layer.on("pm:vertexclick", function (e) {
+      evtFeatureVertexclick(e);
+    });
+    layer.on("pm:snapdrag", function (e) {
+      evtFeatureSnapdrag(e);
+    });
+    layer.on("pm:markerdragstart", function (e) {
+      evtFeatureMarkerdragStart(e);
+    });
+    layer.on("pm:markerdragend", function (e) {
+      evtFeatureMarkerdragEnd(e);
+    });
+
+    // add variables
+    // TODO ==> Utiliser au niveau du layer
+    layer.selected = false;
+    layer.updated = false;
+
+    // set global settings
+    if (layer.defaultOptions.style) {
+      // console.log("Style global");
+      layer.setStyle(layer.defaultOptions.style);
+    } else {
+      // console.log("Pas de Style global!!!");
+      layer.setStyle({ color: "red", weight: 5 });
+    }
+    // set global popup name
+    if (layer.defaultOptions.leafletEdit.description) {
+      layer.bindTooltip(layer.defaultOptions.leafletEdit.description, {
+        sticky: true,
+      });
+    } else {
+      // console.log("Pas de description");
+    }
+
+    mappings = layer.defaultOptions.mapping;
+    if (mappings && layer.feature.properties) {
+      for (let i = 0; i < mappings.length; i++) {
+        attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
+        // console.log("Attrib: " + attrib);
+        if (attrib && attrib.length > 0) {
+          attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
+          // console.log("Attrib value: " + attrib_val);
+          if (attrib in layer.feature.properties) {
+            if (layer.feature.properties[attrib] == attrib_val) {
+              //console.log("Set Style " + mappings[i].leaflet_style_mapping.Style);
+              layer.setStyle(mappings[i].leaflet_style_mapping.Style);
+              layer.bindTooltip(attrib_val, {
+                sticky: true,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
 })(jQuery, Drupal, drupalSettings);

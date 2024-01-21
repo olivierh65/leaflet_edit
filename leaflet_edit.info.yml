@@ -4,7 +4,9 @@ description: 'Leaflet Map Editor'
 core_version_requirement: ^9 || ^10
 package: 'Custom'
 dependencies:
-  - leaflet
+  - leaflet (>=10.2.0)
   - fontawesome
   - geojsonfile_field
   - geophp
+  - jquery_ui_selectmenu
+  - jquery_ui_dialog

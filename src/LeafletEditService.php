@@ -20,6 +20,8 @@ use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Utility\LinkGeneratorInterface;
 use Drupal\Component\Serialization\Json;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Drupal\Core\File\FileUrlGeneratorInterface;
+
 
 /**
  * Provides a LeafletService class.
@@ -46,7 +48,8 @@ class LeafletEditService extends LeafletService {
     LinkGeneratorInterface $link_generator,
     StreamWrapperManagerInterface $stream_wrapper_manager,
     RequestStack $request_stack,
-    CacheBackendInterface $cache
+    CacheBackendInterface $cache,
+    FileUrlGeneratorInterface $file_url_generator
   ) {
     parent::__construct( $current_user,
      $geophp_wrapper,
@@ -54,7 +57,8 @@ class LeafletEditService extends LeafletService {
      $link_generator,
      $stream_wrapper_manager,
      $request_stack,
-     $cache);
+     $cache,
+     $file_url_generator);
   }
 
   public function leafletRenderMap(array $map, array $features = [], $height = '400px') {
@@ -153,6 +157,11 @@ class LeafletEditService extends LeafletService {
 
     // turf
     $attached_libraries[] =  'leaflet_edit/leaflet.turf';
+
+    //JQuery UI Dialog
+    $attached_libraries[] = 'jquery_ui_dialog/dialog';
+    $attached_libraries[] = 'jquery_ui_selectmenu/selectmenu';
+
 
     // now add url features
     $settings[$map_id] = [

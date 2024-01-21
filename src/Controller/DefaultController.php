@@ -188,6 +188,17 @@ class DefaultController extends ControllerBase {
         $description = $request->get('description');
         $filename = $request->get('filename');
 
+        /* foreach ($geojsons as &$geojson) {
+            foreach ($geojson['geojson']['geometry']['coordinates'] as &$coords) {
+                $i=0;
+                foreach ($coords as &$coord) {
+                        $coord[0] = sprintf('%f', $coord[0]);
+                        $coord[1] = sprintf('%f', $coord[1]);
+                    
+                }
+
+            }
+        } */
         // prepare merge by type
         $types = [];
         $i = 0;
@@ -200,11 +211,30 @@ class DefaultController extends ControllerBase {
         geophp_load();
 
         $gpxs = [];
-        
-        $b = new \DOMDocument("1.1", "UTF-8");
+
+        $b = new \DOMDocument("1.0", "UTF-8");
         $gpxRoot = $b->createElement('gpx');
         $gpxRoot->setAttribute('creator', 'Drupal Leaflet Edit');
         $gpxRoot->setAttribute('version', '1.1');
+        $gpxRoot->setAttribute('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+        $gpxRoot->setAttribute('xmlns', 'http://www.topografix.com/GPX/1/1');
+        $gpxRoot->setAttribute('xmlns', 'xmlns:ogr="http://osgeo.org/gdal');
+        $gpxRoot->setAttribute('xsi:schemaLocation', 'http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/WaypointExtension/v1 http://www8.garmin.com/xmlschemas/WaypointExtensionv1.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www8.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/ActivityExtension/v1 http://www8.garmin.com/xmlschemas/ActivityExtensionv1.xsd http://www.garmin.com/xmlschemas/AdventuresExtensions/v1 http://www8.garmin.com/xmlschemas/AdventuresExtensionv1.xsd http://www.garmin.com/xmlschemas/PressureExtension/v1 http://www.garmin.com/xmlschemas/PressureExtensionv1.xsd http://www.garmin.com/xmlschemas/TripExtensions/v1 http://www.garmin.com/xmlschemas/TripExtensionsv1.xsd http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1 http://www.garmin.com/xmlschemas/TripMetaDataExtensionsv1.xsd http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1 http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensionsv1.xsd http://www.garmin.com/xmlschemas/CreationTimeExtension/v1 http://www.garmin.com/xmlschemas/CreationTimeExtensionsv1.xsd http://www.garmin.com/xmlschemas/AccelerationExtension/v1 http://www.garmin.com/xmlschemas/AccelerationExtensionv1.xsd http://www.garmin.com/xmlschemas/PowerExtension/v1 http://www.garmin.com/xmlschemas/PowerExtensionv1.xsd http://www.garmin.com/xmlschemas/VideoExtension/v1 http://www.garmin.com/xmlschemas/VideoExtensionv1.xsd');
+        $gpxRoot->setAttribute('xmlns:wptx1', 'http://www.garmin.com/xmlschemas/WaypointExtension/v1');
+        $gpxRoot->setAttribute('xmlns:gpxtrx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3');
+        $gpxRoot->setAttribute('xmlns:gpxtpx', 'http://www.garmin.com/xmlschemas/TrackPointExtension/v1');
+        $gpxRoot->setAttribute('xmlns:gpxx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3');
+        $gpxRoot->setAttribute('xmlns:trp', 'http://www.garmin.com/xmlschemas/TripExtensions/v1');
+        $gpxRoot->setAttribute('xmlns:adv', 'http://www.garmin.com/xmlschemas/AdventuresExtensions/v1');
+        $gpxRoot->setAttribute('xmlns:prs', 'http://www.garmin.com/xmlschemas/PressureExtension/v1');
+        $gpxRoot->setAttribute('xmlns:tmd', 'http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1');
+        $gpxRoot->setAttribute('xmlns:vptm', 'http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1');
+        $gpxRoot->setAttribute('xmlns:ctx', 'http://www.garmin.com/xmlschemas/CreationTimeExtension/v1');
+        $gpxRoot->setAttribute('xmlns:gpxacc', 'http://www.garmin.com/xmlschemas/AccelerationExtension/v1');
+        $gpxRoot->setAttribute('xmlns:gpxpx', 'http://www.garmin.com/xmlschemas/PowerExtension/v1');
+        $gpxRoot->setAttribute('xmlns:vidx1', 'http://www.garmin.com/xmlschemas/VideoExtension/v1');
+        $gpxRoot->setAttribute('xmlns:ogr', 'http://osgeo.org/gdal');
+
         $b->appendChild($gpxRoot);
 
         $XMLRoot = $b->createElement('metadata');
@@ -214,22 +244,51 @@ class DefaultController extends ControllerBase {
         $XMLRoot->appendChild($meta);
         $gpxRoot->appendChild($XMLRoot);
 
-        
+
         foreach ($types as $type => $indexes) {
 
             $trkRoot = $b->createElement('trk');
-            if ($type) {
-                $meta = $b->createElement('type', $type);
-                $trkRoot->appendChild($meta);
-            }
-            
-            $name_done=false;
+
+            $name_done = false;
             foreach ($indexes as $index) {
-                $meta = $b->createElement('name', $filename .
-                    (strlen($description) > 0 ? '-' . $description : '') .
-                    (strlen($type) > 0 ? '-' . $type : ''));
-                if (! $name_done) {
+
+                if (!$name_done) {
+                    $meta = $b->createElement('name', $filename .
+                        (strlen($description) > 0 ? '-' . $description : '') .
+                        (strlen($type) > 0 ? '-' . $type : ''));
                     $trkRoot->appendChild($meta);
+                    if ($type) {
+                        $meta = $b->createElement('type', $type);
+                        $trkRoot->appendChild($meta);
+                    }
+                    $extRoot=$b->createElement('extensions');
+
+                    if (isset($geojsons[$index]['color'])) {
+                        $gpxxRoot=$b->createElement('gpxx:TrackExtension');
+                        $color = $this->hex2colorName($geojsons[$index]['color']);
+                        $meta = $b->createElement('gpxx:DisplayColor', $color);
+                        $gpxxRoot->appendChild($meta);
+                        $extRoot->appendChild($gpxxRoot);
+                    }
+
+                    if (isset($geojsons[$index]['width'])) {
+                        $lineRoot=$b->createElement('line');
+                        $lineRoot->setAttribute('xmlns', 'http://www.topografix.com/GPX/gpx_style/0/2');
+                        $meta = $b->createElement('width', $geojsons[$index]['width']);
+                        $lineRoot->appendChild($meta);
+                        $extRoot->appendChild($lineRoot);
+                    }
+
+                    if (isset($geojsons[$index]['properties'])) {
+                        $props=json_decode($geojsons[$index]['properties'], true);
+                        foreach ($props as $prop => $value) {
+                            $meta = $b->createElement('ogr:' . $prop, $value);
+                            $extRoot->appendChild($meta);
+                        }
+                    }
+
+                    $trkRoot->appendChild($extRoot);
+
                     $name_done = true;
                 }
 
@@ -239,6 +298,12 @@ class DefaultController extends ControllerBase {
                 $b_tmp = new \DOMDocument();
                 $b_tmp->loadXML($gpx);
 
+                // geoPHP can write numbers in scientific notation (at least when close to greenwitch meridian),
+                // which is not correct with the GPX specification.
+                // Rewrites all coordinates as floats
+                foreach ($b_tmp->getElementsByTagName('trkpt') as $key => $value) {
+                    $b_tmp->getElementsByTagName('trkpt')->item($key)->setAttribute('lon', sprintf('%f', $b_tmp->getElementsByTagName('trkpt')->item($key)->getAttribute('lon')));
+                }
                 // trk
                 foreach ($b_tmp->getElementsByTagName('trkseg') as $trkseg) {
 
@@ -328,5 +393,74 @@ class DefaultController extends ControllerBase {
             'uri_scheme' => $fieldDef->getSetting('uri_scheme'),
         ];
         return $result;
+    }
+    private function hex2colorName($value) {
+        // Garmin colors
+        $colors = array(
+            "Black"     => array(0, 0, 0),
+            "DarkRed"     => array(139, 0, 0),
+            "DarkGreen"    => array(0, 100, 0),
+            "DarkYellow"      => array(139, 128, 0),
+            "DarkBlue"      => array(0, 0, 139),
+            "DarkMagenta"     => array(139, 0, 139),
+            "DarkCyan"     => array(0, 139, 139),
+            "LightGray"    => array(211, 211, 211),
+            "DarkGray"    => array(169, 169, 169),
+            "Red"      => array(255, 0, 0),
+            "Green"       => array(0, 128, 0),
+            "Yellow"      => array(255, 255, 0),
+            "Blue"    => array(0, 0, 255),
+            "Magenta"      => array(255, 0, 255),
+            "Cyan"   => array(0, 255, 255),
+            "White"      => array(255, 255, 255),
+        );
+
+
+        $distances = array();
+        $val = $this->html2rgb($value);
+        foreach ($colors as $name => $c) {
+            $distances[$name] = $this->distancel2($c, $val);
+        }
+
+        $mincolor = "";
+        $minval = pow(2, 30); /*big value*/
+        foreach ($distances as $k => $v) {
+            if ($v < $minval) {
+                $minval = $v;
+                $mincolor = $k;
+            }
+        }
+
+        return $mincolor;
+    }
+    private function html2rgb($color) {
+        if ($color[0] == '#')
+            $color = substr($color, 1);
+
+        if (strlen($color) == 6)
+            list($r, $g, $b) = array(
+                $color[0] . $color[1],
+                $color[2] . $color[3],
+                $color[4] . $color[5]
+            );
+        elseif (strlen($color) == 3)
+            list($r, $g, $b) = array(
+                $color[0] . $color[0],
+                $color[1] . $color[1], $color[2] . $color[2]
+            );
+        else
+            return false;
+
+        $r = hexdec($r);
+        $g = hexdec($g);
+        $b = hexdec($b);
+
+        return array($r, $g, $b);
+    }
+
+    private function distancel2(array $color1, array $color2) {
+        return sqrt(pow($color1[0] - $color2[0], 2) +
+            pow($color1[1] - $color2[1], 2) +
+            pow($color1[2] - $color2[2], 2));
     }
 }
