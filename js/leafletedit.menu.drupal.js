@@ -14,14 +14,15 @@ const MENU = {
   showcoord: 0,
   sep1: 1,
   editlayer: 2,
-  finedit: 3,
-  sep2: 4,
-  save: 5,
-  exportgpx: 6,
-  exportgpxall: 7,
-  exportgpxallmerge: 8,
-  sep3: 9,
-  simplify: 10,
+  cutline: 3,
+  deletelay: 4,
+  sep2: 5,
+  save: 6,
+  exportgpx: 7,
+  exportgpxall: 8,
+  exportgpxallmerge: 9,
+  sep3: 10,
+  simplify: 11,
 };
 
 function evtContextShow(e) {
@@ -55,10 +56,15 @@ function defineContextMenu() {
     iconCls: "fa-regular fa-pen-to-square",
     callback: editLayer,
   };
-  menu[MENU.finedit] = {
-    text: "Fin Edit layer",
+  menu[MENU.cutline] = {
+    text: "Cut here",
     iconCls: "fa-regular fa-arrow-up-right-from-square",
-    callback: finEditLayer,
+    callback: cutLine,
+  };
+  menu[MENU.deletelay] = {
+    text: "Delete",
+    iconCls: "fa-regular fa-arrow-up-right-from-square",
+    callback: deleteLay,
   };
   menu[MENU.sep2] = "-";
   menu[MENU.save] = {
@@ -113,6 +119,7 @@ function __evtMapCreate(e) {
     );
     container.style.zIndex = "2000";
     container.style.position = "relative";
+    container.style.opacity = 0.85;
   }
 
   container = document.querySelector(".leaflet-confirm-dialog");
@@ -148,6 +155,7 @@ function evtMapCreate(e) {
     );
     // container.style.zIndex = "2000";
     // container.style.position = "relative";
+    container.style.opacity = 0.85;
   }
 
   jQuery(".leaflet-confirm-dialog")
@@ -178,6 +186,24 @@ function evtMapCreate(e) {
               ".leaflet-confirm-dialog-layers option:selected"
             ).val();
             // ajoute le nouveau tracé
+
+            l = panel._layersActives.find((_l) => _l._leaflet_id == _lay_v);
+            exist_lays = Object.keys(l._layers);
+            // l.on('layeradd',(e)=>{
+            //   alert('add');
+            // });
+            l.addData(jQuery(this).data("levt").layer.toGeoJSON());
+            for (const nl of Object.keys(l._layers)) {
+              if (!exist_lays.includes(nl)) {
+                new_layer = l._layers[nl];
+                break;
+              }
+            }
+            // recupere les options d'une entite de meme type
+            new_layer.defaultOptions = l._layers[_type_v].defaultOptions;
+            // et configure
+            processLoadedData(new_layer);
+
 
             jQuery(this).data("levt").layer.remove();
 
@@ -236,11 +262,17 @@ function evtMapCreate(e) {
     types.empty();
     liste_types = {};
     for (const [key, value] of Object.entries(l._layers)) {
-      if (value.feature.properties.type in liste_types) {
-        liste_types[value.feature.properties.type].push(value);
+      if (! value.feature.properties.type ) {
+        type_val = 'N/A';
+      }
+      else {
+        type_val = value.feature.properties.type
+      }
+      if (type_val in liste_types) {
+        liste_types[type_val].push(value);
       } else {
-        liste_types[value.feature.properties.type] = [value];
-        types.append(new Option(value.feature.properties.type, key));
+        liste_types[type_val] = [value];
+        types.append(new Option(type_val, key));
       }
     }
     types.selectmenu("refresh", true);
@@ -567,6 +599,18 @@ function finEditLayer(e) {
     ref._layer_edit_orig;
     delete ref._layer_edit_orig;
   }
+}
+
+function cutLine(e) {
+  console.log("cutLine: " + e);
+  // L.marker(e.latlng).addTo(map.lMap);
+  np=turf.nearestPointOnLine(e.relatedTarget.feature, turf.point([e.latlng['lng'],e.latlng['lat']]));
+
+  L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
+}
+
+function deleteLay(e) {
+  console.log("deleteLay: " + e);
 }
 
 function moveValidation(layer, marker, event) {

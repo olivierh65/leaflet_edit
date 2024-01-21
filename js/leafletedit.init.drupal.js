@@ -333,91 +333,93 @@
     map.lMap.addControl(panel);
   });
 
-  function processLoadedData(layer) {
-    // Add context menu
-    layer.bindContextMenu(defineContextMenu());
-    // Add hide event to close popup menu
-    layer._map.contextmenu.addHooks();
-    layer._map.on("contextmenu.show", function (e) {
-      evtContextShow(e);
-    });
+  
 
-    layer.on("click", function (e) {
-      evtFeatureClick(e);
-    });
-    layer.on("dblclick", function (e) {
-      evtFeatureDblClick(e);
-    });
-    layer.on("contextmenu", function (e) {
-      evtFeatureContextmenu(e);
-    });
-    layer.on("tooltipopen", function (e) {
-      evtFeatureTooltipopen(e);
-    });
-    layer.on("tooltipclose", function (e) {
-      evtFeatureTooltipclose(e);
-    });
-    layer.on("pm:vertexadded", function (e) {
-      evtFeatureVertexadded(e);
-    });
-    layer.on("pm:vertexremoved", function (e) {
-      evtFeatureVertexremoved(e);
-    });
-    layer.on("pm:vertexclick", function (e) {
-      evtFeatureVertexclick(e);
-    });
-    layer.on("pm:snapdrag", function (e) {
-      evtFeatureSnapdrag(e);
-    });
-    layer.on("pm:markerdragstart", function (e) {
-      evtFeatureMarkerdragStart(e);
-    });
-    layer.on("pm:markerdragend", function (e) {
-      evtFeatureMarkerdragEnd(e);
-    });
+})(jQuery, Drupal, drupalSettings);
 
-    // add variables
-    // TODO ==> Utiliser au niveau du layer
-    layer.selected = false;
-    layer.updated = false;
+function processLoadedData(layer) {
+  // Add context menu
+  layer.bindContextMenu(defineContextMenu());
+  // Add hide event to close popup menu
+  layer._map.contextmenu.addHooks();
+  layer._map.on("contextmenu.show", function (e) {
+    evtContextShow(e);
+  });
 
-    // set global settings
-    if (layer.defaultOptions.style) {
-      // console.log("Style global");
-      layer.setStyle(layer.defaultOptions.style);
-    } else {
-      // console.log("Pas de Style global!!!");
-      layer.setStyle({ color: "red", weight: 5 });
-    }
-    // set global popup name
-    if (layer.defaultOptions.leafletEdit.description) {
-      layer.bindTooltip(layer.defaultOptions.leafletEdit.description, {
-        sticky: true,
-      });
-    } else {
-      // console.log("Pas de description");
-    }
+  layer.on("click", function (e) {
+    evtFeatureClick(e);
+  });
+  layer.on("dblclick", function (e) {
+    evtFeatureDblClick(e);
+  });
+  layer.on("contextmenu", function (e) {
+    evtFeatureContextmenu(e);
+  });
+  layer.on("tooltipopen", function (e) {
+    evtFeatureTooltipopen(e);
+  });
+  layer.on("tooltipclose", function (e) {
+    evtFeatureTooltipclose(e);
+  });
+  layer.on("pm:vertexadded", function (e) {
+    evtFeatureVertexadded(e);
+  });
+  layer.on("pm:vertexremoved", function (e) {
+    evtFeatureVertexremoved(e);
+  });
+  layer.on("pm:vertexclick", function (e) {
+    evtFeatureVertexclick(e);
+  });
+  layer.on("pm:snapdrag", function (e) {
+    evtFeatureSnapdrag(e);
+  });
+  layer.on("pm:markerdragstart", function (e) {
+    evtFeatureMarkerdragStart(e);
+  });
+  layer.on("pm:markerdragend", function (e) {
+    evtFeatureMarkerdragEnd(e);
+  });
 
-    mappings = layer.defaultOptions.mapping;
-    if (mappings && layer.feature.properties) {
-      for (let i = 0; i < mappings.length; i++) {
-        attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
-        // console.log("Attrib: " + attrib);
-        if (attrib && attrib.length > 0) {
-          attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
-          // console.log("Attrib value: " + attrib_val);
-          if (attrib in layer.feature.properties) {
-            if (layer.feature.properties[attrib] == attrib_val) {
-              //console.log("Set Style " + mappings[i].leaflet_style_mapping.Style);
-              layer.setStyle(mappings[i].leaflet_style_mapping.Style);
-              layer.bindTooltip(attrib_val, {
-                sticky: true,
-              });
-            }
+  // add variables
+  // TODO ==> Utiliser au niveau du layer
+  layer.selected = false;
+  layer.updated = false;
+
+  // set global settings
+  if (layer.defaultOptions.style) {
+    // console.log("Style global");
+    layer.setStyle(layer.defaultOptions.style);
+  } else {
+    // console.log("Pas de Style global!!!");
+    layer.setStyle({ color: "red", weight: 5 });
+  }
+  // set global popup name
+  if (layer.defaultOptions.leafletEdit.description) {
+    layer.bindTooltip(layer.defaultOptions.leafletEdit.description, {
+      sticky: true,
+    });
+  } else {
+    // console.log("Pas de description");
+  }
+
+  mappings = layer.defaultOptions.mapping;
+  if (mappings && layer.feature.properties) {
+    for (let i = 0; i < mappings.length; i++) {
+      attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
+      // console.log("Attrib: " + attrib);
+      if (attrib && attrib.length > 0) {
+        attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
+        // console.log("Attrib value: " + attrib_val);
+        if (attrib in layer.feature.properties) {
+          if (layer.feature.properties[attrib] == attrib_val) {
+            //console.log("Set Style " + mappings[i].leaflet_style_mapping.Style);
+            layer.setStyle(mappings[i].leaflet_style_mapping.Style);
+            layer.bindTooltip(attrib_val, {
+              sticky: true,
+            });
           }
         }
       }
     }
   }
-
-})(jQuery, Drupal, drupalSettings);
+}
