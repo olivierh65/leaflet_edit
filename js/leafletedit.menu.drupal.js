@@ -187,23 +187,7 @@ function evtMapCreate(e) {
             ).val();
             // ajoute le nouveau tracé
 
-            l = panel._layersActives.find((_l) => _l._leaflet_id == _lay_v);
-            exist_lays = Object.keys(l._layers);
-            // l.on('layeradd',(e)=>{
-            //   alert('add');
-            // });
-            l.addData(jQuery(this).data("levt").layer.toGeoJSON());
-            for (const nl of Object.keys(l._layers)) {
-              if (!exist_lays.includes(nl)) {
-                new_layer = l._layers[nl];
-                break;
-              }
-            }
-            // recupere les options d'une entite de meme type
-            new_layer.defaultOptions = l._layers[_type_v].defaultOptions;
-            // et configure
-            processLoadedData(new_layer);
-
+            addData(_lay_v,l.addData(jQuery(this).data("levt").layer.toGeoJSON()), l._layers[_type_v]);
 
             jQuery(this).data("levt").layer.remove();
 
@@ -278,7 +262,7 @@ function evtMapCreate(e) {
     types.selectmenu("refresh", true);
   });
   types.on("selectmenuselect", function (e, ui) {
-    flash_features(liste_types[ui.item.label], (duree = 2000));
+    flash_features(liste_types[ui.item.label], 2000);
   });
 
   jQuery(".leaflet-confirm-dialog").dialog("open");
@@ -430,7 +414,17 @@ function unselect_feature(feat) {
   }
 }
 
+function cancel_flash_features(obj) {
+  clearTimeout(obj.tid);
+      obj.feats.forEach((feat) => {
+        restoreStyle(feat);
+      });
+}
+
 function flash_features(feats, duree = 1000) {
+  if (! (feats instanceof Array)) {
+    feats = [ feats ];
+  }
   feats.forEach((feat) => {
     if (!feat.orig_style) {
       //save style only if not already saved
@@ -442,6 +436,7 @@ function flash_features(feats, duree = 1000) {
   index = 0;
   obj = {
     tid: 0,
+    feats: feats,
   };
 
   function changeColor(feats, colors, index, tid) {
@@ -476,6 +471,7 @@ function flash_features(feats, duree = 1000) {
     duree,
     feats
   );
+  return obj;
 }
 
 function evtLayerMouseover(e) {
@@ -606,11 +602,134 @@ function cutLine(e) {
   // L.marker(e.latlng).addTo(map.lMap);
   np=turf.nearestPointOnLine(e.relatedTarget.feature, turf.point([e.latlng['lng'],e.latlng['lat']]));
 
-  L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
+  // L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
+
+  cutpoint= {
+    lay: e.relatedTarget,
+    nearestPoint: null,
+    segIndex: 0,
+    dist: 999,
+  }
+
+  turf.segmentEach(e.relatedTarget.feature, 
+    function (currentSegment, featureIndex, multiFeatureIndex, geometryIndex, segmentIndex) {
+      np1=turf.nearestPointOnLine(currentSegment, np);
+      // console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist)
+      if (turf.booleanPointOnLine(np, currentSegment, {ignoreEndVertices: false, epsilon: 5e-8})) {
+        if(np1.properties.dist < cutpoint.dist) {
+          cutpoint.dist = np1.properties.dist;
+          cutpoint.segIndex = segmentIndex;
+          cutpoint.nearestPoint = np1;
+        }
+        // cutpoint.lay.feature.geometry.coordinates[geometryIndex][segmentIndex];
+        console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist);
+      }
+    });
+
+    path1 = cutpoint.lay.toGeoJSON();
+    path1.geometry.coordinates[0] = path1.geometry.coordinates[0].slice(0,cutpoint.segIndex);
+    path1.geometry.coordinates[0].push(cutpoint.nearestPoint.geometry.coordinates);
+    path1.bbox = [];
+    path1.bbox = turf.bbox(path1);
+    // path1 = cutpoint.lay.getLatLngs().flat().slice(0,cutpoint.segmentIndex);
+    // path1.push({lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]});
+
+    path2 = cutpoint.lay.toGeoJSON();
+    path2.geometry.coordinates[0] = path2.geometry.coordinates[0].slice(cutpoint.segIndex);
+    path2.geometry.coordinates[0].unshift(cutpoint.nearestPoint.geometry.coordinates);
+    path2.bbox = [];
+    path2.bbox = turf.bbox(path2);
+
+    // path2 = [{lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]}];
+    // path2.push(cutpoint.lay.getLatLngs().flat().slice(cutpoint.segmentIndex+1 ));
+
+    laygroup = panel._layersActives.find((_l) => _l._leaflet_id == Object.keys(e.relatedTarget.pm._parentLayerGroup)[0]);
+    addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path1, e.relatedTarget);
+    addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path2, e.relatedTarget);
+
+    e.relatedTarget.remove();
+}
+
+function addData (layGroupid, lay, origin) {
+  laygroup = panel._layersActives.find((_l) => _l._leaflet_id == layGroupid);
+
+  exist_lays = Object.keys(laygroup._layers);
+
+
+    laygroup.addData(lay);
+
+  // search added layer
+  for (const nl of Object.keys(laygroup._layers)) {
+    if (!exist_lays.includes(nl)) {
+      new_layer = laygroup._layers[nl];
+      break;
+    }
+  }
+  // recupere les options de l'entite d'origine
+  new_layer.defaultOptions = origin.defaultOptions;
+  // et configure
+  processLoadedData(new_layer);
+
 }
 
 function deleteLay(e) {
   console.log("deleteLay: " + e);
+  if (jQuery(".leaflet-confirm-dialog").length == 0) {
+    container = L.DomUtil.create(
+      "div",
+      "leaflet-confirm-dialog",
+      map.lMap.getContainer()
+    );
+  }
+
+  try {
+    obj=flash_features(e.relatedTarget, 100000);
+  }
+  catch(err) {
+    console.log('flash_feature Err: ' + err);
+  }
+
+  jQuery(".leaflet-confirm-dialog")
+    .data("levt", e)
+    .data("obj", obj)
+    .dialog({
+      autoOpen: false,
+      height: "auto",
+      width: 400,
+      modal: true,
+      title: "Suppresion trace",
+      buttons: [
+        {
+          text: "Ok",
+          icon: "ui-icon-heart",
+          click: function (e, evt) {
+            jQuery(this).dialog("close");
+            if (jQuery(this).data("obj")) {
+              cancel_flash_features (jQuery(this).data("obj"));
+            }
+            jQuery(this).data("levt").relatedTarget.remove();
+            jQuery(".leaflet-confirm-dialog").remove();
+          },
+        },
+        {
+          text: "Cancel",
+          click: function (e) {
+            jQuery(this).dialog("close");
+            if (jQuery(this).data("obj")) {
+              cancel_flash_features (jQuery(this).data("obj"));
+            }
+            jQuery(".leaflet-confirm-dialog").remove();
+          },
+        },
+      ],
+    });
+
+  // Groupe de trace
+  label = L.DomUtil.create("label", "", container);
+  label.innerHTML = "<b> Vraiment supprimer cette trace ?</b>";
+
+  jQuery(".leaflet-confirm-dialog").dialog("open");
+
 }
 
 function moveValidation(layer, marker, event) {
