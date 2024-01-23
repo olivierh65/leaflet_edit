@@ -22,7 +22,9 @@ const MENU = {
   exportgpxall: 8,
   exportgpxallmerge: 9,
   sep3: 10,
-  simplify: 11,
+  importfile: 11,
+  sep4: 12,
+  simplify: 13,
 };
 
 function evtContextShow(e) {
@@ -30,7 +32,7 @@ function evtContextShow(e) {
   if (!e.relatedTarget) {
     return;
   }
-  if (e.relatedTarget.updated) {
+  if (isUpdated(e.relatedTarget)) {
     e.contextmenu.setDisabled(MENU.save, false);
   } else {
     e.contextmenu.setDisabled(MENU.save, true);
@@ -88,6 +90,12 @@ function defineContextMenu() {
     callback: exportGPXAllMerge,
   };
   menu[MENU.sep3] = "-";
+  menu[MENU.importfile] = {
+    text: "Import GPX file",
+    iconCls: "fa-solid fa-file-export",
+    callback: readLocalFile,
+  };
+  menu[MENU.sep4] = "-";
   menu[MENU.simplify] = {
     text: "Simplify",
     iconCls: "fa-solid fa-minimize",
@@ -142,8 +150,6 @@ function __evtMapCreate(e) {
   }
 
   container.showModal();
-
-  //jQuery(".leaflet-confirm-dialog-layers").selectmenu('option', 'appendTo','.leaflet-confirm-dialog');
 }
 
 function evtMapCreate(e) {
@@ -266,91 +272,8 @@ function evtMapCreate(e) {
   });
 
   jQuery(".leaflet-confirm-dialog").dialog("open");
-  //jQuery(".leaflet-confirm-dialog-layers").selectmenu('option', 'appendTo','.leaflet-confirm-dialog');
 }
 
-function DOevtMapCreate(e) {
-  console.log(e);
-
-  // constructConfirm(map.lMap,'leaflet-confirm-dialog', 'Premier message');
-  container = L.DomUtil.create(
-    "div",
-    "leaflet-confirm-dialog",
-    map.lMap.getContainer()
-  );
-  container.style.zIndex = "2000";
-  container.style.position = "relative";
-
-  waitDialogConfirm("msg", "Query");
-
-  // jQuery(".leaflet-confirm-dialog").dialog("open");
-
-  /* var win =  L.control.window(map.lMap,{
-    title:'Hello world!',
-    content:'This is my first control window.',
-    modal: true,
-  }).show(); */
-
-  e.layer.added = true;
-  // TODO select layer
-  panel._layersActives[0].addLayer(e.layer);
-
-  for (const [key, value] of Object.entries(panel._layersActives[0]._layers)) {
-    if (value.added) {
-      value.feature = L.GeoJSON.asFeature(e.layer.toGeoJSON());
-      // Add context menu
-      value.bindContextMenu(defineContextMenu());
-      // Add hide event to close popup menu
-      ////     value._map.contextmenu.addHooks();
-      value.on("contextmenu.show", function (e) {
-        evtContextShow(e);
-      });
-
-      value.on("click", function (e) {
-        evtFeatureClick(e);
-      });
-      value.on("dblclick", function (e) {
-        evtFeatureDblClick(e);
-      });
-      value.on("contextmenu", function (e) {
-        evtFeatureContextmenu(e);
-      });
-      value.on("tooltipopen", function (e) {
-        evtFeatureTooltipopen(e);
-      });
-      value.on("tooltipclose", function (e) {
-        evtFeatureTooltipclose(e);
-      });
-      value.on("pm:vertexadded", function (e) {
-        evtFeatureVertexadded(e);
-      });
-      value.on("pm:vertexremoved", function (e) {
-        evtFeatureVertexremoved(e);
-      });
-      value.on("pm:vertexclick", function (e) {
-        evtFeatureVertexclick(e);
-      });
-      value.on("pm:snapdrag", function (e) {
-        evtFeatureSnapdrag(e);
-      });
-      value.on("pm:markerdragstart", function (e) {
-        evtFeatureMarkerdragStart(e);
-      });
-      value.on("pm:markerdragend", function (e) {
-        evtFeatureMarkerdragEnd(e);
-      });
-
-      // add variables
-      value.feature.selected = false;
-      value.feature.updated = false;
-
-      value.added = null;
-      delete value.added;
-
-      break;
-    }
-  }
-}
 
 function evtLayerEdit(e) {
   console.log(e);
@@ -362,7 +285,8 @@ function evtLayerEdit(e) {
 
 function evtLayerUpdate(e) {
   console.log(e);
-  e.layer.updated = true;
+  setUpdated(e.layer);
+  
 }
 // var map1 = L.map('map', context_menu);
 function evtFeatureClick(e) {
@@ -375,7 +299,7 @@ function evtFeatureContextmenu(e) {
 
 function evtFeatureDblClick(e) {
   console.log(e);
-  if (e.sourceTarget.selected) {
+  if (isSelected(e.sourceTarget)) {
     // already selected
     unselect_feature(e.sourceTarget);
   } else {
@@ -384,95 +308,9 @@ function evtFeatureDblClick(e) {
       saveStyle(e.sourceTarget);
     }
     select_feature(e.sourceTarget);
-    e.sourceTarget.selected = true;
   }
 }
 
-function select_feature(feat, duree = 0) {
-  if (!feat.orig_style) {
-    //save style only if not already saved
-    saveStyle(feat);
-  }
-  feat.setStyle({
-    color: "darkpurple",
-    weight: 5,
-    opacity: 1,
-    dashArray: "10,15",
-  });
-  feat.selected = true;
-
-  if (duree > 0) {
-    setTimeout(unselect_feature, duree, feat);
-  }
-}
-
-function unselect_feature(feat) {
-  if (feat.selected) {
-    // already selected
-    feat.selected = false;
-    restoreStyle(feat);
-  }
-}
-
-function cancel_flash_features(obj) {
-  clearTimeout(obj.tid);
-      obj.feats.forEach((feat) => {
-        restoreStyle(feat);
-      });
-}
-
-function flash_features(feats, duree = 1000) {
-  if (! (feats instanceof Array)) {
-    feats = [ feats ];
-  }
-  feats.forEach((feat) => {
-    if (!feat.orig_style) {
-      //save style only if not already saved
-      saveStyle(feat);
-    }
-  });
-
-  colors = ["red", "yellow"];
-  index = 0;
-  obj = {
-    tid: 0,
-    feats: feats,
-  };
-
-  function changeColor(feats, colors, index, tid) {
-    if (index >= colors.length) {
-      index = 0;
-    }
-
-    feats.forEach((feat) => {
-      feat.setStyle({
-        color: colors[index],
-        weight: 5,
-        opacity: 1,
-        dashArray: "10,15",
-      });
-    });
-
-    index++;
-
-    obj.tid = setTimeout(changeColor, 250, feats, colors, index, obj.tid);
-    return obj.tid;
-  }
-
-  changeColor(feats, colors, index, obj.tid);
-
-  setTimeout(
-    function (feats) {
-      clearTimeout(obj.tid);
-      feats.forEach((feat) => {
-        restoreStyle(feat);
-      });
-    },
-    duree,
-    feats
-  );
-  return obj;
-}
 
 function evtLayerMouseover(e) {
   console.log("Mouseover: " + e);
@@ -528,12 +366,16 @@ function evtPanelAdd(e) {
 }
 
 function showCoordinates(e) {
+  a=getLayGroup(e.relatedTarget);
   alert(
     e.latlng +
       "\nColor: " +
       e.relatedTarget.options.color +
       "\nEventParents: " +
-      Object.keys(e.relatedTarget._eventParents).toString()
+      Object.keys(e.relatedTarget._eventParents).toString() +
+      "\nLaygroupID: " + a._leaflet_id + 
+      "\nisUpdated: " + isUpdated(e.relatedTarget) + "(any updated: " + anyUpdated().length + ")" +
+      "\nisSelected: " + isSelected(e.relatedTarget) + "(any selected: " + anySelected().length + ")"
   );
 }
 
@@ -551,9 +393,9 @@ function editLayer(e) {
     //save style only if not already saved
     saveStyle(e.relatedTarget);
   }
-  if (e.relatedTarget.selected) {
+  if (isSelected(e.relatedTarget)) {
     // deselect feature
-    e.relatedTarget.selected = false;
+    clearSelected(e.relatedTarget);
   }
   // this.ref_context_menu.setStyle({color: 'yellow'});
   e.relatedTarget.setStyle({
@@ -597,140 +439,9 @@ function finEditLayer(e) {
   }
 }
 
-function cutLine(e) {
-  console.log("cutLine: " + e);
-  // L.marker(e.latlng).addTo(map.lMap);
-  np=turf.nearestPointOnLine(e.relatedTarget.feature, turf.point([e.latlng['lng'],e.latlng['lat']]));
-
-  // L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
-
-  cutpoint= {
-    lay: e.relatedTarget,
-    nearestPoint: null,
-    segIndex: 0,
-    dist: 999,
-  }
-
-  turf.segmentEach(e.relatedTarget.feature, 
-    function (currentSegment, featureIndex, multiFeatureIndex, geometryIndex, segmentIndex) {
-      np1=turf.nearestPointOnLine(currentSegment, np);
-      // console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist)
-      if (turf.booleanPointOnLine(np, currentSegment, {ignoreEndVertices: false, epsilon: 5e-8})) {
-        if(np1.properties.dist < cutpoint.dist) {
-          cutpoint.dist = np1.properties.dist;
-          cutpoint.segIndex = segmentIndex;
-          cutpoint.nearestPoint = np1;
-        }
-        // cutpoint.lay.feature.geometry.coordinates[geometryIndex][segmentIndex];
-        console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist);
-      }
-    });
-
-    path1 = cutpoint.lay.toGeoJSON();
-    path1.geometry.coordinates[0] = path1.geometry.coordinates[0].slice(0,cutpoint.segIndex);
-    path1.geometry.coordinates[0].push(cutpoint.nearestPoint.geometry.coordinates);
-    path1.bbox = [];
-    path1.bbox = turf.bbox(path1);
-    // path1 = cutpoint.lay.getLatLngs().flat().slice(0,cutpoint.segmentIndex);
-    // path1.push({lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]});
-
-    path2 = cutpoint.lay.toGeoJSON();
-    path2.geometry.coordinates[0] = path2.geometry.coordinates[0].slice(cutpoint.segIndex);
-    path2.geometry.coordinates[0].unshift(cutpoint.nearestPoint.geometry.coordinates);
-    path2.bbox = [];
-    path2.bbox = turf.bbox(path2);
-
-    // path2 = [{lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]}];
-    // path2.push(cutpoint.lay.getLatLngs().flat().slice(cutpoint.segmentIndex+1 ));
-
-    laygroup = panel._layersActives.find((_l) => _l._leaflet_id == Object.keys(e.relatedTarget.pm._parentLayerGroup)[0]);
-    addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path1, e.relatedTarget);
-    addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path2, e.relatedTarget);
-
-    e.relatedTarget.remove();
-}
-
-function addData (layGroupid, lay, origin) {
-  laygroup = panel._layersActives.find((_l) => _l._leaflet_id == layGroupid);
-
-  exist_lays = Object.keys(laygroup._layers);
 
 
-    laygroup.addData(lay);
 
-  // search added layer
-  for (const nl of Object.keys(laygroup._layers)) {
-    if (!exist_lays.includes(nl)) {
-      new_layer = laygroup._layers[nl];
-      break;
-    }
-  }
-  // recupere les options de l'entite d'origine
-  new_layer.defaultOptions = origin.defaultOptions;
-  // et configure
-  processLoadedData(new_layer);
-
-}
-
-function deleteLay(e) {
-  console.log("deleteLay: " + e);
-  if (jQuery(".leaflet-confirm-dialog").length == 0) {
-    container = L.DomUtil.create(
-      "div",
-      "leaflet-confirm-dialog",
-      map.lMap.getContainer()
-    );
-  }
-
-  try {
-    obj=flash_features(e.relatedTarget, 100000);
-  }
-  catch(err) {
-    console.log('flash_feature Err: ' + err);
-  }
-
-  jQuery(".leaflet-confirm-dialog")
-    .data("levt", e)
-    .data("obj", obj)
-    .dialog({
-      autoOpen: false,
-      height: "auto",
-      width: 400,
-      modal: true,
-      title: "Suppresion trace",
-      buttons: [
-        {
-          text: "Ok",
-          icon: "ui-icon-heart",
-          click: function (e, evt) {
-            jQuery(this).dialog("close");
-            if (jQuery(this).data("obj")) {
-              cancel_flash_features (jQuery(this).data("obj"));
-            }
-            jQuery(this).data("levt").relatedTarget.remove();
-            jQuery(".leaflet-confirm-dialog").remove();
-          },
-        },
-        {
-          text: "Cancel",
-          click: function (e) {
-            jQuery(this).dialog("close");
-            if (jQuery(this).data("obj")) {
-              cancel_flash_features (jQuery(this).data("obj"));
-            }
-            jQuery(".leaflet-confirm-dialog").remove();
-          },
-        },
-      ],
-    });
-
-  // Groupe de trace
-  label = L.DomUtil.create("label", "", container);
-  label.innerHTML = "<b> Vraiment supprimer cette trace ?</b>";
-
-  jQuery(".leaflet-confirm-dialog").dialog("open");
-
-}
 
 function moveValidation(layer, marker, event) {
   return true;
@@ -741,28 +452,6 @@ function removeValidation(obj) {
   return true;
 }
 
-function saveStyle(feature) {
-  feature.orig_style = {
-    stroke: feature.options["stroke"],
-    color: feature.options["color"],
-    weight: feature.options["weight"],
-    opacity: feature.options["opacity"],
-    lineCap: feature.options["lineCap"],
-    lineJoin: feature.options["lineJoin"],
-    dashArray: feature.options["dashArray"],
-    dashOffset: feature.options["dashOffset"],
-    fillColor: feature.options["fillColor"],
-    fillOpacity: feature.options["fillOpacity"],
-    fillRule: feature.options["fillRule"],
-    fill: feature.options["fill"],
-  };
-}
-
-function restoreStyle(feature) {
-  feature.setStyle(feature.orig_style);
-  feature.orig_style = undefined;
-  delete feature.orig_style;
-}
 
 function saveEntity(e) {
   console.log("Save");
@@ -802,7 +491,7 @@ function saveEntity(e) {
         ")"
     );
     e.relatedTarget.defaultOptions.leafletEdit.fid = rsave.fid;
-    e.relatedTarget.pm.updated = false;
+    clearUpdated(e.relatedTarget);
   }
 }
 
@@ -973,40 +662,6 @@ async function exportGPXAllMerge(e) {
     }
   }
 
-  /* 
-  data = [{
-    'geojson': e.relatedTarget.toGeoJSON(),
-    'type': e.relatedTarget.feature.properties['type'] ?? '',
-    'properties': JSON.stringify(e.relatedTarget.feature.properties) ?? '',
-    'color': e.relatedTarget.options.color ?? '',
-    'width': e.relatedTarget.options.weight ?? '',
-  }];
-  select_feature(e.relatedTarget, 10000);
-
-  for (const [key, value] of Object.entries(e.relatedTarget._map._layers)) {
-    console.log(key, value);
-    if (key == leafletid) {
-      continue;
-    }
-    if (value.options.leafletEdit) {
-      if (value.options.leafletEdit['fid'] == fid && value.options.leafletEdit['nid'] == nid) {
-        // alert (key);
-        if (value.feature) {
-          if (value.defaultOptions) {
-            data.push ({
-              'geojson': value.toGeoJSON(),
-              'type': value.feature.properties['type'] ?? '',
-              'properties': JSON.stringify(e.relatedTarget.feature.properties) ?? '',
-              'color': value.options.color ?? '',
-              'width': value.options.weight ?? '',
-            })
-            select_feature(value, 10000);
-          }
-        } 
-      }
-    }
-  }
-*/
 
   var fd = new FormData();
   fd.append("geojson", JSON.stringify(data));
@@ -1148,168 +803,69 @@ function simplify(e) {
   }
 }
 
-/////////////////////////
-// Geoman custo
-////////////////////////
-function __GeomancancelEdit(e) {
-  console.log(e);
-  ref = jQuery(".leaflet_edit-edit").parents("a")[0];
-  if (ref._layer_edit) {
-    ref._layer_edit.relatedTarget.setLatLngs(ref._layer_edit_orig);
-    finEditLayer(ref._layer_edit);
+function readLocalFile(e, button_name, file_type) {
+
+  closeGeomanMenu(button_name);
+
+  var conv = document.createElement("input");
+  conv.setAttribute(
+    "type",
+    "file");
+  conv.setAttribute("id", "leafletedit-file-input");
+  conv.setAttribute("accept", "." + file_type);
+  conv.style.display = "none";
+  document.body.appendChild(conv);
+  conv.addEventListener('change', readSingleFile, false);
+  conv.click();
+  document.body.removeChild(conv);
+
+}
+
+function readSingleFile(e) {
+
+  var file = e.target.files[0];
+  if (!file) {
+    return;
   }
+  var file_infos = e.target.files;
+  var reader = new FileReader();
+  reader.onload = (function(file_infos) {
+    var fileInfos = file_infos;
+    return function(e) {
+      var contents = e.target.result;
+    // Display file content
+      importTrack(contents, fileInfos);
+    };
+  })(file);
+  reader.readAsText(file);
 }
 
-function __GeomanfinishEdit(e) {
-  console.log(e);
-  ref = jQuery(".leaflet_edit-edit").parents("a")[0];
-  if (ref._layer_edit) {
-    finEditLayer(ref._layer_edit);
-  }
+function importTrack(track) {
+  content = (new window.DOMParser()).parseFromString(track, 'text/xml');
+  geojson=gpx(content);
+  lay = new L.geoJSON(geojson);
+  lay.addTo(map.lMap);
 }
 
-// creates new actions
-const actions = {
-  name: "le_edit",
-  block: "custom",
-  title: "Edit",
-  className: "fa-regular fa-pen-to-square leaflet_edit-edit",
-  actions: [
-    {
-      text: "Cancel",
-      onClick: (e) => {
-        __GeomancancelEdit(e);
-      },
-    },
-    {
-      text: "Finish",
-      onClick: (e) => {
-        __GeomanfinishEdit(e);
-      },
-    },
-    // creates a new action with text and a click event
-    {
-      text: "click me",
-      onClick: () => {
-        alert("🙋‍♂️");
-      },
-    },
-  ],
-  disableOtherButtons: true,
-};
-
-function addGeomanCustom() {
-  map.lMap.pm.Toolbar.createCustomControl(actions);
-  map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
+function saveAll(e,button_name) {
+  alert('PAs encore fait');
+  closeGeomanMenu(button_name);
+  // button_save(e);
 }
 
-function constructConfirm(map, className, message) {
-  if (map.hasOwnProperty("options")) {
-    container = _container = L.DomUtil.create(
-      "div",
-      className,
-      map.getContainer()
-    );
-  } else {
-    container = _container = L.DomUtil.create("div", className);
-  }
-
-  container.style.width = 200 + "px";
-  container.style.height = 300 + "px";
-
-  container.style.top = 50 + "px";
-  container.style.left = 50 + "px";
-  container.style.backgroundColor = "grey";
-
-  container.style.zIndex = "2000";
-  container.style.position = "relative";
-
-  var stop = L.DomEvent.stopPropagation;
-  L.DomEvent.on(container, "click", stop)
-    .on(container, "mousedown", stop)
-    .on(container, "touchstart", stop)
-    .on(container, "dblclick", stop)
-    .on(container, "mousewheel", stop)
-    .on(container, "contextmenu", stop)
-    .on(container, "MozMousePixelScroll", stop);
-
-  var innerContainer = (_innerContainer = L.DomUtil.create(
-    "div",
-    className + "-inner"
-  ));
-  innerContainer.innerHTML = message;
-
-  var grabberNode = (_grabberNode = L.DomUtil.create(
-    "div",
-    className + "-grabber"
-  ));
-  var grabberIcon = L.DomUtil.create("i", "fa fa-arrows");
-  grabberNode.appendChild(grabberIcon);
-
-  // L.DomEvent.on(grabberNode, "mousedown", this._handleMoveStart, this);
-
-  var closeNode = (_closeNode = L.DomUtil.create("div", className + "-close"));
-  var closeIcon = L.DomUtil.create("i", "fa fa-times");
-  closeNode.appendChild(closeIcon);
-  // L.DomEvent.on(closeNode, "click", this._handleClose, this);
-
-  var resizerNode = (_resizerNode = L.DomUtil.create(
-    "div",
-    className + "-resizer"
-  ));
-  var resizeIcon = L.DomUtil.create("i", "fa fa-arrows-h fa-rotate-45");
-  resizerNode.appendChild(resizeIcon);
-
-  // L.DomEvent.on(resizerNode, "mousedown", this._handleResizeStart, this);
-
-  var contentNode = (_contentNode = L.DomUtil.create(
-    "div",
-    className + "-contents"
-  ));
-
-  container.appendChild(innerContainer);
-
-  innerContainer.appendChild(contentNode);
-  innerContainer.appendChild(grabberNode);
-  innerContainer.appendChild(closeNode);
-  innerContainer.appendChild(resizerNode);
-}
-
-async function buildDialogConfirm(msg, title) {
-  return new Promise(function (resolve, reject) {
-    jQuery(".leaflet-confirm-dialog").dialog({
-      height: "auto",
-      width: 400,
+function button_save(e) {
+  L.control
+    .window(map.lMap, {
+      title: "Hello world!",
+      content: "This is my first control window.",
       modal: true,
-      title: "TITRE",
-      buttons: [
-        {
-          text: "Ok",
-          icon: "ui-icon-heart",
-          click: function () {
-            jQuery(this).dialog("close");
-            resolve();
-          },
-        },
-        {
-          text: "Cancel",
-          click: function () {
-            jQuery(this).dialog("close");
-            reject();
-          },
-        },
-      ],
-    });
-  });
-}
-
-async function waitDialogConfirm(msg, query) {
-  await buildDialogConfirm(msg, query)
-    .then(function () {
-      // 'yes' was clicked...
-      alert("Yes");
     })
-    .catch(function () {
-      alert("No");
-    });
+    .prompt({
+      callback: function () {
+        alert("This is called after OK click!");
+      },
+      buttonCancel: "Annuler",
+      buttonOK: "Sauver",
+    })
+    .show();
 }

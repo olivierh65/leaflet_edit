@@ -3,6 +3,8 @@ leaflet-edit:
   js:
     js/leafletedit.init.drupal.js: {}
     js/leafletedit.menu.drupal.js: {}
+    js/leafletedit.util.drupal.js: {}
+    js/leafletedit.edit.drupal.js: {}
   css:
     component:
       js/leafletedit.init.drupal.css: {}
@@ -249,6 +251,14 @@ leaflet.turf:
   version: 1.0
   js:
     js/turf/turf.min.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings
+
+leaflet.togeojson:
+  version: 1.0
+  js:
+    js/togeojson/togeojson.js: {}
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings

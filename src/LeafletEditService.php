@@ -93,7 +93,7 @@ class LeafletEditService extends LeafletService {
     $attached_libraries[] = 'leaflet_edit/leaflet-geoman-drupal';
 
     $settings['leafletedit']['geoman']['control'] = $config->get('geoman_control') ?? false;
-    $settings['leafletedit']['geoman']['position'] = $config->get('geoman_position') ?? 'topleft';
+    $settings['leafletedit']['geoman']['position'] = $config->get('geoman_position') ?? 'topright';
     $settings['leafletedit']['geoman']['options'] = $config->get('geoman_options') ??
         ['drawmarker', 'drawpolyline', 'drawpolygon',
         'editmode', 'dragmode', 'cutpolygon', 'removalmode', 'drawcontrols', 'editcontrols', 'customcontrols' ];
@@ -136,7 +136,7 @@ class LeafletEditService extends LeafletService {
     $attached_libraries[] = 'leaflet_edit/leaflet-contextmenu';
 
     // Select2 
-    $attached_libraries[] =  'leaflet_edit/select2.min';
+    // $attached_libraries[] =  'leaflet_edit/select2.min';
 
     // Dialog
     $attached_libraries[] =  'leaflet_edit/leaflet.Dialog';
@@ -145,10 +145,10 @@ class LeafletEditService extends LeafletService {
     $attached_libraries[] =  'leaflet_edit/leaflet.control-window';
 
     //CascadeButtons
-    $attached_libraries[] =  'leaflet_edit/leaflet.cascadebuttons';
+    // $attached_libraries[] =  'leaflet_edit/leaflet.cascadebuttons';
 
     //togpx
-    $attached_libraries[] =  'leaflet_edit/togpx';
+    // $attached_libraries[] =  'leaflet_edit/togpx';
 
     // leaflet-distance-markers
     $attached_libraries[] =  'leaflet_edit/leaflet-distance-markers';
@@ -157,6 +157,8 @@ class LeafletEditService extends LeafletService {
 
     // turf
     $attached_libraries[] =  'leaflet_edit/leaflet.turf';
+    //togeojson
+     $attached_libraries[] =  'leaflet_edit/leaflet.togeojson';
 
     //JQuery UI Dialog
     $attached_libraries[] = 'jquery_ui_dialog/dialog';
