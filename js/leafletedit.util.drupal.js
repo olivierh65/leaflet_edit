@@ -251,7 +251,7 @@ function addData (layGroupid, lay, origin) {
         });
       },
       duree,
-      feats
+      layers
     );
     return obj;
   }

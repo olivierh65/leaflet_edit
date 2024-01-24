@@ -57,13 +57,13 @@ const import_actions = {
     {
       text: "GPX",
       onClick: (e) => {
-        readLocalFile(e,'le_import','GPX');
+        readLocalFile(e, "le_import", "GPX");
       },
     },
     {
       text: "Geojson",
       onClick: (e) => {
-        readLocalFile(e,'le_import','GeoJSON');
+        readLocalFile(e, "le_import", "GeoJSON");
       },
     },
   ],
@@ -79,7 +79,7 @@ const save_actions = {
     {
       text: "All",
       onClick: (e) => {
-        saveAll(e,'le_save');
+        saveAll(e, "le_save");
       },
     },
   ],
@@ -95,7 +95,7 @@ function addGeomanCustom() {
 }
 
 function closeGeomanMenu(button_name) {
-  map.lMap.pm.Toolbar.buttons[button_name].toggle()
+  map.lMap.pm.Toolbar.buttons[button_name].toggle();
 }
 
 function constructConfirm(map, className, message) {
@@ -170,117 +170,151 @@ function constructConfirm(map, className, message) {
   innerContainer.appendChild(resizerNode);
 }
 
-
 function deleteLay(e) {
-    console.log("deleteLay: " + e);
-    if (jQuery(".leaflet-confirm-dialog").length == 0) {
-      container = L.DomUtil.create(
-        "div",
-        "leaflet-confirm-dialog",
-        map.lMap.getContainer()
-      );
-    }
-  
-    try {
-      obj=flash_features(e.relatedTarget, 100000);
-    }
-    catch(err) {
-      console.log('flash_feature Err: ' + err);
-    }
-  
-    jQuery(".leaflet-confirm-dialog")
-      .data("levt", e)
-      .data("obj", obj)
-      .dialog({
-        autoOpen: false,
-        height: "auto",
-        width: 400,
-        modal: true,
-        title: "Suppresion trace",
-        buttons: [
-          {
-            text: "Ok",
-            icon: "ui-icon-heart",
-            click: function (e, evt) {
-              jQuery(this).dialog("close");
-              if (jQuery(this).data("obj")) {
-                cancel_flash_features (jQuery(this).data("obj"));
-              }
-              jQuery(this).data("levt").relatedTarget.remove();
-              jQuery(".leaflet-confirm-dialog").remove();
-            },
-          },
-          {
-            text: "Cancel",
-            click: function (e) {
-              jQuery(this).dialog("close");
-              if (jQuery(this).data("obj")) {
-                cancel_flash_features (jQuery(this).data("obj"));
-              }
-              jQuery(".leaflet-confirm-dialog").remove();
-            },
-          },
-        ],
-      });
-  
-    // Groupe de trace
-    label = L.DomUtil.create("label", "", container);
-    label.innerHTML = "<b> Vraiment supprimer cette trace ?</b>";
-  
-    jQuery(".leaflet-confirm-dialog").dialog("open");
-  
+  console.log("deleteLay: " + e);
+  if (jQuery(".leaflet-confirm-dialog").length == 0) {
+    container = L.DomUtil.create(
+      "div",
+      "leaflet-confirm-dialog",
+      map.lMap.getContainer()
+    );
   }
 
-  
-function cutLine(e) {
-    console.log("cutLine: " + e);
-    // L.marker(e.latlng).addTo(map.lMap);
-    np=turf.nearestPointOnLine(e.relatedTarget.feature, turf.point([e.latlng['lng'],e.latlng['lat']]));
-  
-    // L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
-  
-    cutpoint= {
-      lay: e.relatedTarget,
-      nearestPoint: null,
-      segIndex: 0,
-      dist: 999,
-    }
-  
-    turf.segmentEach(e.relatedTarget.feature, 
-      function (currentSegment, featureIndex, multiFeatureIndex, geometryIndex, segmentIndex) {
-        np1=turf.nearestPointOnLine(currentSegment, np);
-        // console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist)
-        if (turf.booleanPointOnLine(np, currentSegment, {ignoreEndVertices: false, epsilon: 5e-8})) {
-          if(np1.properties.dist < cutpoint.dist) {
-            cutpoint.dist = np1.properties.dist;
-            cutpoint.segIndex = segmentIndex;
-            cutpoint.nearestPoint = np1;
-          }
-          // cutpoint.lay.feature.geometry.coordinates[geometryIndex][segmentIndex];
-          console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist);
-        }
-      });
-  
-      path1 = cutpoint.lay.toGeoJSON();
-      path1.geometry.coordinates[0] = path1.geometry.coordinates[0].slice(0,cutpoint.segIndex);
-      path1.geometry.coordinates[0].push(cutpoint.nearestPoint.geometry.coordinates);
-      path1.bbox = [];
-      path1.bbox = turf.bbox(path1);
-      // path1 = cutpoint.lay.getLatLngs().flat().slice(0,cutpoint.segmentIndex);
-      // path1.push({lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]});
-  
-      path2 = cutpoint.lay.toGeoJSON();
-      path2.geometry.coordinates[0] = path2.geometry.coordinates[0].slice(cutpoint.segIndex);
-      path2.geometry.coordinates[0].unshift(cutpoint.nearestPoint.geometry.coordinates);
-      path2.bbox = [];
-      path2.bbox = turf.bbox(path2);
-  
-      // path2 = [{lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]}];
-      // path2.push(cutpoint.lay.getLatLngs().flat().slice(cutpoint.segmentIndex+1 ));
-  
-      laygroup = panel._layersActives.find((_l) => _l._leaflet_id == Object.keys(e.relatedTarget.pm._parentLayerGroup)[0]);
-      addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path1, e.relatedTarget);
-      addData(Object.keys(e.relatedTarget.pm._parentLayerGroup)[0], path2, e.relatedTarget);
-  
-      e.relatedTarget.remove();
+  try {
+    obj = flash_features(e.relatedTarget, 100000);
+  } catch (err) {
+    console.log("flash_feature Err: " + err);
   }
+
+  jQuery(".leaflet-confirm-dialog")
+    .data("levt", e)
+    .data("obj", obj)
+    .dialog({
+      autoOpen: false,
+      height: "auto",
+      width: 400,
+      modal: true,
+      title: "Suppresion trace",
+      buttons: [
+        {
+          text: "Ok",
+          icon: "ui-icon-heart",
+          click: function (e, evt) {
+            jQuery(this).dialog("close");
+            if (jQuery(this).data("obj")) {
+              cancel_flash_features(jQuery(this).data("obj"));
+            }
+            jQuery(this).data("levt").relatedTarget.remove();
+            jQuery(".leaflet-confirm-dialog").remove();
+          },
+        },
+        {
+          text: "Cancel",
+          click: function (e) {
+            jQuery(this).dialog("close");
+            if (jQuery(this).data("obj")) {
+              cancel_flash_features(jQuery(this).data("obj"));
+            }
+            jQuery(".leaflet-confirm-dialog").remove();
+          },
+        },
+      ],
+    });
+
+  // Groupe de trace
+  label = L.DomUtil.create("label", "", container);
+  label.innerHTML = "<b> Vraiment supprimer cette trace ?</b>";
+
+  jQuery(".leaflet-confirm-dialog").dialog("open");
+}
+
+function cutLine(e) {
+  console.log("cutLine: " + e);
+  // L.marker(e.latlng).addTo(map.lMap);
+  np = turf.nearestPointOnLine(
+    e.relatedTarget.feature,
+    turf.point([e.latlng["lng"], e.latlng["lat"]])
+  );
+
+  // L.marker([np.geometry.coordinates[1],np.geometry.coordinates[0]], {opacity: 0.5}).addTo(map.lMap);
+
+  cutpoint = {
+    lay: e.relatedTarget,
+    nearestPoint: null,
+    segIndex: 0,
+    dist: 999,
+  };
+
+  turf.segmentEach(
+    e.relatedTarget.feature,
+    function (
+      currentSegment,
+      featureIndex,
+      multiFeatureIndex,
+      geometryIndex,
+      segmentIndex
+    ) {
+      np1 = turf.nearestPointOnLine(currentSegment, np);
+      // console.log('cut : ' + segmentIndex + ', distance: '+ np1.properties.dist)
+      if (
+        turf.booleanPointOnLine(np, currentSegment, {
+          ignoreEndVertices: false,
+          epsilon: 5e-8,
+        })
+      ) {
+        if (np1.properties.dist < cutpoint.dist) {
+          cutpoint.dist = np1.properties.dist;
+          cutpoint.segIndex = segmentIndex;
+          cutpoint.nearestPoint = np1;
+        }
+        // cutpoint.lay.feature.geometry.coordinates[geometryIndex][segmentIndex];
+        console.log(
+          "cut : " + segmentIndex + ", distance: " + np1.properties.dist
+        );
+      }
+    }
+  );
+
+  path1 = cutpoint.lay.toGeoJSON();
+  path1.geometry.coordinates[0] = path1.geometry.coordinates[0].slice(
+    0,
+    cutpoint.segIndex
+  );
+  path1.geometry.coordinates[0].push(
+    cutpoint.nearestPoint.geometry.coordinates
+  );
+  path1.bbox = [];
+  path1.bbox = turf.bbox(path1);
+  // path1 = cutpoint.lay.getLatLngs().flat().slice(0,cutpoint.segmentIndex);
+  // path1.push({lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]});
+
+  path2 = cutpoint.lay.toGeoJSON();
+  path2.geometry.coordinates[0] = path2.geometry.coordinates[0].slice(
+    cutpoint.segIndex
+  );
+  path2.geometry.coordinates[0].unshift(
+    cutpoint.nearestPoint.geometry.coordinates
+  );
+  path2.bbox = [];
+  path2.bbox = turf.bbox(path2);
+
+  // path2 = [{lat: cutpoint.nearestPoint.geometry.coordinates[1], lon: cutpoint.nearestPoint.geometry.coordinates[0]}];
+  // path2.push(cutpoint.lay.getLatLngs().flat().slice(cutpoint.segmentIndex+1 ));
+
+  laygroup = panel._layersActives.find(
+    (_l) =>
+      _l._leaflet_id == Object.keys(e.relatedTarget.pm._parentLayerGroup)[0]
+  );
+  addData(
+    Object.keys(e.relatedTarget.pm._parentLayerGroup)[0],
+    path1,
+    e.relatedTarget
+  );
+  addData(
+    Object.keys(e.relatedTarget.pm._parentLayerGroup)[0],
+    path2,
+    e.relatedTarget
+  );
+
+  e.relatedTarget.remove();
+}

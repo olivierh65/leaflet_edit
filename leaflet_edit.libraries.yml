@@ -171,21 +171,16 @@ leaflet-contextmenu:
     - leaflet/leaflet
     - core/drupalSettings
 
-select2.min:
-  remote: https://github.com/select2/select2
-  license:
-      name: MIT
-      url: https://github.com/select2/select2/blob/master/LICENSE.md
-      gpl-compatible: true
+leaflet.select2:
+  version: 4.0.13
   js:
-    /libraries/select2/dist/js/select2.min.js: { minified: true }
+    js/select2/dist/js/select2.full.js: {}
   css:
     component:
-      /libraries/select2/dist/css/select2.min.css: {}
+      js/select2/dist/css/select2.css: {}
   dependencies:
-    - core/drupal
-    - core/jquery
-    - core/once
+    - leaflet/leaflet
+    - core/drupalSettings
 
 leaflet.Dialog:
   version: 1.0
