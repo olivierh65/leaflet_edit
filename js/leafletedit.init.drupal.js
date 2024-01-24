@@ -87,7 +87,7 @@
       content: null, // change the content of the button, can be HTML, default null
       forceSeparateButton: true, // force seperate button to detach from zoom
       //buttons, default false
-      forcePseudoFullscreen: true, // force use of pseudo full screen even if
+      forcePseudoFullscreen: false, // force use of pseudo full screen even if
       //full screen API is available, default false
       fullscreenElement: false, // Dom element to render in full screen, false by
       //default, fallback to map._container
