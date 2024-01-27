@@ -26,6 +26,82 @@
       map.lMap.zoomControl.remove();
     }
 
+    // Geoman
+    console.log("Init geoman_");
+    if (
+      drupalSettings.leaflet_edit.geoman &&
+      drupalSettings.leaflet_edit.geoman.control
+    ) {
+      L.PM.reInitLayer(map.lMap);
+
+      map.lMap.pm.addControls({
+        position: drupalSettings.leaflet_edit.geoman.position,
+        drawMarker:
+          drupalSettings.leaflet_edit.geoman.options["drawMarker"] == 0
+            ? false
+            : true,
+        drawCircleMarker:
+          drupalSettings.leaflet_edit.geoman.options["drawCircleMarker"] == 0
+            ? false
+            : true,
+        drawPolyline:
+          drupalSettings.leaflet_edit.geoman.options["drawPolyline"] == 0
+            ? false
+            : true,
+        drawRectangle:
+          drupalSettings.leaflet_edit.geoman.options["drawRectangle"] == 0
+            ? false
+            : true,
+        drawPolygon:
+          drupalSettings.leaflet_edit.geoman.options["drawPolygon"] == 0
+            ? false
+            : true,
+        drawCircle:
+          drupalSettings.leaflet_edit.geoman.options["drawCircle"] == 0
+            ? false
+            : true,
+        drawText:
+          drupalSettings.leaflet_edit.geoman.options["drawText"] == 0
+            ? false
+            : true,
+        editMode:
+          drupalSettings.leaflet_edit.geoman.options["editMode"] == 0
+            ? false
+            : true,
+        dragMode:
+          drupalSettings.leaflet_edit.geoman.options["dragMode"] == 0
+            ? false
+            : true,
+        cutPolygon:
+          drupalSettings.leaflet_edit.geoman.options["cutPolygon"] == 0
+            ? false
+            : true,
+        removalMode:
+          drupalSettings.leaflet_edit.geoman.options["removalMode"] == 0
+            ? false
+            : true,
+        rotateMode:
+          drupalSettings.leaflet_edit.geoman.options["rotateMode"] == 0
+            ? false
+            : true,
+        oneBlock:
+          drupalSettings.leaflet_edit.geoman.options["oneBlock"] == 0
+            ? false
+            : true,
+        drawControls:
+          drupalSettings.leaflet_edit.geoman.options["drawControls"] == 0
+            ? false
+            : true,
+        editControls:
+          drupalSettings.leaflet_edit.geoman.options["editControls"] == 0
+            ? false
+            : true,
+        customControls:
+          drupalSettings.leaflet_edit.geoman.options["customControls"] == 0
+            ? false
+            : true,
+      });
+    }
     // Add Geoman Custom buttons
     addGeomanCustom();
 
@@ -40,26 +116,14 @@
       evtMapCreate(e);
     });
 
-
-    function close_menu(e) {
-      Array.from(e.getElementsByTagName("button")).forEach((child, index) => {
-        if (index !== 0) child.classList.toggle("hidden");
-      });
-      mainButton = e.getElementsByTagName("button").item(0);
-      const isAriaExpanded = JSON.parse(
-        mainButton.getAttribute("aria-expanded")
-      );
-      mainButton.setAttribute("aria-expanded", !isAriaExpanded);
-    }
-
     /// Init StyleEditor
     console.log("event  style editor");
     // if ((drupalSettings.leafletedit.styleeditor) && (drupalSettings.leafletedit.styleeditor.control)) {
-    map.lMap.addControl(
+    /* map.lMap.addControl(
       L.control.styleEditor({
         position: drupalSettings.leafletedit.styleeditor.position,
       })
-    );
+    ); */
     // }
 
     /// Init Notifications
@@ -93,6 +157,23 @@
       //default, fallback to map._container
     }).addTo(map.lMap);
 
+    //Locate control
+    console.log("event locateconrol");
+    if (
+      drupalSettings.leaflet_edit.locatecontrol &&
+      drupalSettings.leaflet_edit.locatecontrol.control
+    ) {
+      map.lMap.addControl(
+        L.control.locate({
+          strings: { title: "Où suis-je ???" },
+          position: drupalSettings.leaflet_edit.locatecontrol.position
+            ? drupalSettings.leaflet_edit.locatecontrol.position
+            : "topright",
+        })
+      );
+    }
+
+    // load datas
     map.bounds = null;
 
     var base = [];
@@ -176,14 +257,13 @@
         for (const [lid, value] of Object.entries(this.getLayers())) {
           processLoadedData(value);
           if (map.bounds && map.bounds.isValid()) {
-            map.bounds=map.bounds.extend(L.latLngBounds(value.getLatLngs()));
-          }
-          else {
-            map.bounds=L.latLngBounds(value.getLatLngs());
+            map.bounds = map.bounds.extend(L.latLngBounds(value.getLatLngs()));
+          } else {
+            map.bounds = L.latLngBounds(value.getLatLngs());
           }
         }
 
-        map.lMap.fitBounds(map.bounds)
+        map.lMap.fitBounds(map.bounds);
       });
 
       lay.on("pm:edit", function (e) {
@@ -231,9 +311,6 @@
     map.lMap.addControl(panel);
     map.lMap.leafletEdit = {
       LAYGROUP_CONTROL: panel,
-    }
+    };
   });
-
-  
-
 })(jQuery, Drupal, drupalSettings);

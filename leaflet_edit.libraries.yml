@@ -1,13 +1,13 @@
 leaflet-edit:
   version: 0.1
   js:
-    js/leafletedit.init.drupal.js: {}
-    js/leafletedit.menu.drupal.js: {}
-    js/leafletedit.util.drupal.js: {}
-    js/leafletedit.edit.drupal.js: {}
+    js/leaflet_edit.init.drupal.js: {}
+    js/leaflet_edit.menu.drupal.js: {}
+    js/leaflet_edit.util.drupal.js: {}
+    js/leaflet_edit.edit.drupal.js: {}
   css:
     component:
-      js/leafletedit.init.drupal.css: {}
+      js/leaflet_edit.init.drupal.css: {}
   dependencies:
     - leaflet/leaflet
     - core/jquery
@@ -28,13 +28,7 @@ leaflet-feature-control:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
-leaflet-feature-control-drupal:
-  version: VERSION
-  js:
-    js/leaflet_feature_control/leaflet_feature_control.drupal.js: {}
-  dependencies:
-    - leaflet/leaflet-drupal
-    - core/drupalSettings
+
 
 leaflet-doubleclick-drupal:
   version: VERSION
@@ -54,13 +48,6 @@ leaflet-geoman:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
-leaflet-geoman-drupal:
-  version: VERSION
-  js:
-    js/leaflet_geoman/leaflet_geoman.drupal.js: {}
-  dependencies:
-    - leaflet/leaflet-drupal
-    - core/drupalSettings
 
 leaflet-locatecontrol:
   version: 1.0
@@ -71,13 +58,6 @@ leaflet-locatecontrol:
       js/leaflet_locatecontrol/js/dist/L.Control.Locate.min.css: {}
   dependencies:
     - leaflet/leaflet
-    - core/drupalSettings
-leaflet-locatecontrol-drupal:
-  version: VERSION
-  js:
-    js/leaflet_locatecontrol/leaflet_locatecontrol.drupal.js: {}
-  dependencies:
-    - leaflet/leaflet-drupal
     - core/drupalSettings
 
 
@@ -90,14 +70,6 @@ leaflet-styleeditor:
       js/leaflet_styleeditor/js/dist/css/Leaflet.StyleEditor.min.css: {}
   dependencies:
     - leaflet/leaflet
-    - core/drupalSettings
-
-leaflet-styleeditor-drupal:
-  version: VERSION
-  js:
-    js/leaflet_styleeditor/leaflet_styleeditor.drupal.js: {}
-  dependencies:
-    - leaflet/leaflet-drupal
     - core/drupalSettings
 
 leaflet-geojson:
@@ -257,3 +229,4 @@ leaflet.togeojson:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
+

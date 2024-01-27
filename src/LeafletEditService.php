@@ -81,32 +81,16 @@ class LeafletEditService extends LeafletService {
     $attached_libraries = $par['#attached']['library'];
     $settings = $par['#attached']['drupalSettings'];
 
-    // Doubleclick
-    /* $attached_libraries[] = 'leaflet_edit/leaflet-doubleclick-drupal'; */
-    //Feature_control
-    /* $attached_libraries[] = 'leaflet_edit/leaflet-feature-control';
-    $attached_libraries[] = 'leaflet_edit/leaflet-feature-control-drupal';
-    $settings['leafletedit']['feature_control']['control'] = $config->get('feature_control_control') ?? false;
-    $settings['leafletedit']['feature_control']['position'] = $config->get('feature_control_position') ?? 'topright'; */
+   
     // Geoman
     $attached_libraries[] = 'leaflet_edit/leaflet-geoman';
-    $attached_libraries[] = 'leaflet_edit/leaflet-geoman-drupal';
 
-    $settings['leafletedit']['geoman']['control'] = $config->get('geoman_control') ?? false;
-    $settings['leafletedit']['geoman']['position'] = $config->get('geoman_position') ?? 'topright';
-    $settings['leafletedit']['geoman']['options'] = $config->get('geoman_options') ??
-        ['drawmarker', 'drawpolyline', 'drawpolygon',
-        'editmode', 'dragmode', 'cutpolygon', 'removalmode', 'drawcontrols', 'editcontrols', 'customcontrols' ];
     // Locate
     $attached_libraries[] = 'leaflet_edit/leaflet-locatecontrol';
-    // $attached_libraries[] = 'leaflet_edit/leaflet-locatecontrol-drupal';
-    $settings['leafletedit']['locatecontrol']['control'] = $config->get('locatecontrol_control') ?? false;
-    $settings['leafletedit']['locatecontrol']['position'] = $config->get('locatecontrol_position') ?? 'bottomright';
+    
     // StyleEditor
     $attached_libraries[] = 'leaflet_edit/leaflet-styleeditor';
-    // $attached_libraries[] = 'leaflet_edit/leaflet-styleeditor-drupal';
-    $settings['leafletedit']['styleeditor']['control'] = $config->get('styleeditor_control') ?? false;
-    $settings['leafletedit']['styleeditor']['position'] = $config->get('styleeditor_position') ?? 'bottomright';
+  
 
     // geojson
     /* $attached_libraries[] = 'leaflet_edit/leaflet-geojson'; */
@@ -163,6 +147,7 @@ class LeafletEditService extends LeafletService {
     //JQuery UI Dialog
     $attached_libraries[] = 'jquery_ui_dialog/dialog';
     $attached_libraries[] = 'jquery_ui_selectmenu/selectmenu';
+
 
 
     // now add url features

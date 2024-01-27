@@ -338,6 +338,13 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
 
     $settings = $this->getSettings();
 
+    $settings['leaflet_edit']['permissions']['configure'] = \Drupal::currentUser()->hasPermission('Configure Leaflet Edit'); 
+    $settings['leaflet_edit']['permissions']['edit'] = \Drupal::currentUser()->hasPermission('Edit tracks');
+    $settings['leaflet_edit']['permissions']['add'] = \Drupal::currentUser()->hasPermission('Add tracks');
+    $settings['leaflet_edit']['permissions']['save'] = \Drupal::currentUser()->hasPermission('Save tracks');
+    $settings['leaflet_edit']['permissions']['exportGPX'] = \Drupal::currentUser()->hasPermission('Export to GPX');
+    $settings['leaflet_edit']['permissions']['importGPX'] = \Drupal::currentUser()->hasPermission('Import from GPX');
+
     // Always render the map, even if we do not have any data.
     $map = leaflet_map_get_info($settings['leaflet_map']);
 

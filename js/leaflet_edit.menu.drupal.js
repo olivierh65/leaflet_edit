@@ -15,16 +15,17 @@ const MENU = {
   sep1: 1,
   editlayer: 2,
   cutline: 3,
-  deletelay: 4,
-  sep2: 5,
-  save: 6,
-  exportgpx: 7,
-  exportgpxall: 8,
-  exportgpxallmerge: 9,
-  sep3: 10,
-  importfile: 11,
-  sep4: 12,
-  simplify: 13,
+  joinline: 4,
+  deletelay: 5,
+  sep2: 6,
+  save: 7,
+  exportgpx: 8,
+  exportgpxall: 9,
+  exportgpxallmerge: 10,
+  sep3: 11,
+  importfile: 12,
+  sep4: 13,
+  simplify: 14,
 };
 
 function evtContextShow(e) {
@@ -60,12 +61,17 @@ function defineContextMenu() {
   };
   menu[MENU.cutline] = {
     text: "Cut here",
-    iconCls: "fa-regular fa-arrow-up-right-from-square",
+    iconCls: "fa-regular fa-scissors",
     callback: cutLine,
+  };
+  menu[MENU.joinline] = {
+    text: "Join",
+    iconCls: "fa-regular fa-link",
+    callback: joinLine,
   };
   menu[MENU.deletelay] = {
     text: "Delete",
-    iconCls: "fa-regular fa-arrow-up-right-from-square",
+    iconCls: "fa-regular fa-eraser",
     callback: deleteLay,
   };
   menu[MENU.sep2] = "-";
@@ -92,7 +98,7 @@ function defineContextMenu() {
   menu[MENU.sep3] = "-";
   menu[MENU.importfile] = {
     text: "Import GPX file",
-    iconCls: "fa-solid fa-file-export",
+    iconCls: "fa-solid fa-file-import",
     callback: readLocalFile,
   };
   menu[MENU.sep4] = "-";
@@ -125,23 +131,25 @@ function evtMapCreate(e) {
       "leaflet-confirm-dialog",
       map.lMap.getContainer()
     );
-    // container.style.zIndex = "2000";
+    // container.style.zIndex = 99999;
     // container.style.position = "relative";
     container.style.opacity = 0.85;
   }
 
-  jQuery(".leaflet-confirm-dialog")
+  dialog = jQuery(".leaflet-confirm-dialog")
     .data("levt", e)
     .dialog({
       autoOpen: false,
       height: "auto",
-      width: 400,
+      width: 300,
       modal: true,
+      draggable: true,
+      resizable: true,
       title: "Affectation de la trace",
       buttons: [
         {
           text: "Ok",
-          icon: "ui-icon-heart",
+          icon: "fa-solid fa-check",
           click: function (e, evt) {
             jQuery(this).dialog("close");
             // alert("OK");
@@ -175,6 +183,7 @@ function evtMapCreate(e) {
         },
         {
           text: "Cancel",
+          icon: "fa-solid fa-xmark",
           click: function (e) {
             jQuery(this).dialog("close");
             // alert("Cancel");
@@ -196,8 +205,9 @@ function evtMapCreate(e) {
   grp_layers = L.DomUtil.create(
     "div",
     "leaflet-confirm-dialog-grplayers",
-    container);
-  label = L.DomUtil.create("label", "", grp_layers);
+    container
+  );
+  label = L.DomUtil.create("label", "label-grp-layers", grp_layers);
   label.innerHTML = "<b> Quel groupe de traces</b><br>";
 
   if (jQuery(".leaflet-confirm-dialog-layers").length == 0) {
@@ -208,34 +218,32 @@ function evtMapCreate(e) {
     );
   }
 
-  layers = jQuery(".leaflet-confirm-dialog-layers").select2();
-  layers.select2({
-    width: '60%', // need to override the changed default
-    placeholder: 'Groupe de traces',
-});
+  layers = jQuery(".leaflet-confirm-dialog-layers").select2({
+    width: "60%", // need to override the changed default
+    placeholder: "Groupe de traces",
+  });
 
   layers.empty();
-  layers.append(new Option('',-1)); // To not select first entry on open
+  layers.append(new Option("", -1)); // To not select first entry on open
   for (const value of Object.values(panel._layersActives)) {
     layers.append(
       new Option(value.options.leafletEdit.description, value._leaflet_id)
     );
   }
- 
 
   // Type de trace
   grp_trace = L.DomUtil.create(
     "div",
     "leaflet-confirm-dialog-grptrace",
-    container);
-  label = L.DomUtil.create("label", "", grp_trace);
+    container
+  );
+  label = L.DomUtil.create("label", "label-grp-trace", grp_trace);
   label.innerHTML = "<br><b> Quel type de trace</b><br>";
   types = L.DomUtil.create("select", "leaflet-confirm-dialog-types", grp_trace);
-  types = jQuery(".leaflet-confirm-dialog-types").select2();
-  types.select2({
-    width: '60%', // need to override the changed default
-    placeholder: 'Type de trace',
-});
+  types = jQuery(".leaflet-confirm-dialog-types").select2({
+    width: "60%", // need to override the changed default
+    placeholder: "Type de trace",
+  });
 
   // Update liste
   layers.on("select2:select", function (e) {
@@ -255,13 +263,63 @@ function evtMapCreate(e) {
         types.append(new Option(type_val, key));
       }
     }
-    types.trigger('change');
+    types.trigger("change");
   });
   types.on("select2:select", function (e) {
     flash_features(liste_types[e.params.data.text], 2000);
   });
 
+  if (document.fullscreenElement) {
+    jQuery(".leaflet-confirm-dialog").dialog(
+      "option",
+      "appendTo",
+      "#" + document.fullscreenElement.id
+    );
+    // jQuery('#' + document.fullscreenElement.id).append(jQuery(".leaflet-confirm-dialog").parentNode);
+
+    jQuery(".leaflet-confirm-dialog").dialog("option", "position", {
+      my: "left+50 top+50",
+      at: "left top",
+      of: "#" + document.fullscreenElement.id,
+    });
+
+    // Increase zindex in fullscreen mode
+    container.parentNode.style["zIndex"] = 400;
+
+    layers.select2({
+      dropdownParent: map.lMap.getContainer(),
+      width: "60%",
+    });
+    types.select2({
+      dropdownParent: map.lMap.getContainer(),
+      width: "60%",
+    });
+  }
+
+  jQuery(".leaflet-confirm-dialog").prev(".ui-dialog-titlebar").css("font-size" , '1em');
+  jQuery("label-grp-layers").css("font-size" , '1em');
+  jQuery("label-grp-trace").css("font-size" , '1em');
   jQuery(".leaflet-confirm-dialog").dialog("open");
+  jQuery(".leaflet-confirm-dialog").dialog("moveToTop");
+}
+
+function requestFullscreen(id) {
+  var elem = jQuery(id)[0],
+    isFullscreenSupported = false;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+    isFullscreenSupported = true;
+  } else if (elem.msRequestFullscreen) {
+    elem.msRequestFullscreen();
+    isFullscreenSupported = true;
+  } else if (elem.mozRequestFullScreen) {
+    elem.mozRequestFullScreen();
+    isFullscreenSupported = true;
+  } else if (elem.webkitRequestFullscreen) {
+    elem.webkitRequestFullscreen();
+    isFullscreenSupported = true;
+  }
+  return isFullscreenSupported;
 }
 
 function evtLayerEdit(e) {

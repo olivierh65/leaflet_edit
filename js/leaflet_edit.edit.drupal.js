@@ -228,6 +228,11 @@ function deleteLay(e) {
   jQuery(".leaflet-confirm-dialog").dialog("open");
 }
 
+function joinLine(e) {
+  onsole.log("joinLine: " + e);
+}
+
+
 function cutLine(e) {
   console.log("cutLine: " + e);
   // L.marker(e.latlng).addTo(map.lMap);
