@@ -125,7 +125,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         ],
         'geoman' => [
           'control' => true,
-          'position' => 'topright',
+          'position' => 'topleft',
           'options' => [
               'drawMarker' => "drawMarker",
               'drawPolyline' => "drawPolyline",
@@ -281,7 +281,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         'bottomleft' => 'Bottom left',
         'bottomright' => 'Bottom right',
       ],
-      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['position'] ?? 'topright',
+      '#default_value' => $this->getSetting('leaflet_edit')['geoman']['position'] ?? 'topleft',
     ];
     $element['leaflet_edit']['geoman']['options'] = [
       '#type' => 'details',
@@ -338,12 +338,13 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
 
     $settings = $this->getSettings();
 
-    $settings['leaflet_edit']['permissions']['configure'] = \Drupal::currentUser()->hasPermission('Configure Leaflet Edit'); 
-    $settings['leaflet_edit']['permissions']['edit'] = \Drupal::currentUser()->hasPermission('Edit tracks');
-    $settings['leaflet_edit']['permissions']['add'] = \Drupal::currentUser()->hasPermission('Add tracks');
-    $settings['leaflet_edit']['permissions']['save'] = \Drupal::currentUser()->hasPermission('Save tracks');
-    $settings['leaflet_edit']['permissions']['exportGPX'] = \Drupal::currentUser()->hasPermission('Export to GPX');
-    $settings['leaflet_edit']['permissions']['importGPX'] = \Drupal::currentUser()->hasPermission('Import from GPX');
+    $settings['leaflet_edit']['permissions']['configure'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Configure'); 
+    $settings['leaflet_edit']['permissions']['edit'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Edit');
+    $settings['leaflet_edit']['permissions']['add'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Add');
+    $settings['leaflet_edit']['permissions']['save'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Save');
+    $settings['leaflet_edit']['permissions']['exportGPX'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Export_GPX');
+    $settings['leaflet_edit']['permissions']['importGPX'] = \Drupal::currentUser()->hasPermission('LeafletEditor_Import_GPX');
+    $settings['leaflet_edit']['permissions']['read'] = \Drupal::currentUser()->hasPermission('restful get get_geojson');
 
     // Always render the map, even if we do not have any data.
     $map = leaflet_map_get_info($settings['leaflet_map']);

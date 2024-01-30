@@ -3,9 +3,10 @@ status: true
 dependencies: 
   module:
     - leaflet_edit
-id: 'Edit Leaflet Edit'
-label: 'Edit tracks in Leaflet Map Editor maps'
+id: 'LeafletEditorEdit'
+label: 'LeafletEditor Edit'
 weight: 3
 is_admin: null
 permissions:
-  - 'Edit tracks'
+  - 'LeafletEditor_Edit'
+  - 'restful get get_geojson'

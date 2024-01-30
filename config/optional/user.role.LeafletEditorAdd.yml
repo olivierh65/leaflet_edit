@@ -3,9 +3,10 @@ status: true
 dependencies: 
   module:
     - leaflet_edit
-id: 'Add Leaflet Edit'
-label: 'Add new tracks in Leaflet Map Editor maps'
+id: 'LeafletEditorAdd'
+label: 'LeafletEditor Add'
 weight: 2
 is_admin: null
 permissions:
-  - 'Add tracks'
+  - 'LeafletEditor_Add'
+  - 'restful get get_geojson'

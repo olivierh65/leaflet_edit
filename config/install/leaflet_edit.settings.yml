@@ -5,7 +5,7 @@ styleeditor_control: 0
 styleeditor_position: topleft
 doubleclick_control: null
 geoman_control: 1
-geoman_position: topright
+geoman_position: topleft
 geoman_options:
   drawMarker: drawMarker
   drawPolyline: drawPolyline

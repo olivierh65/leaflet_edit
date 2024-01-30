@@ -1,0 +1,13 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'LeafletEditorExportGPX'
+label: 'LeafletEditor Export GPX'
+weight: 5
+is_admin: null
+permissions:
+  - 'LeafletEditor_Export_GPX'
+  - 'restful get get_geojson'
+

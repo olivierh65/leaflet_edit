@@ -1,0 +1,12 @@
+langcode: en
+status: true
+dependencies: 
+  module:
+    - leaflet_edit
+id: 'LeafletEditorImportGPX'
+label: 'LeafletEditor Import GPX'
+weight: 6
+is_admin: null
+permissions:
+  - 'LeafletEditor_Import_GPX'
+  - 'restful get get_geojson'
