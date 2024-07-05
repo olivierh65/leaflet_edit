@@ -60,17 +60,18 @@ function processLoadedData(layer) {
 
   mappings = layer.defaultOptions.mapping;
   if (mappings && layer.feature.properties) {
-    for (let i = 0; i < mappings.length; i++) {
+    for (let i = 1; i <= Object.keys(mappings).length; i++) {
       attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
       // console.log("Attrib: " + attrib);
-      if (attrib && attrib.length > 0) {
+      if (attrib && Object.keys(attrib).length > 0) {
         attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
         // console.log("Attrib value: " + attrib_val);
         if (attrib in layer.feature.properties) {
           if (layer.feature.properties[attrib] == attrib_val) {
             //console.log("Set Style " + mappings[i].leaflet_style_mapping.Style);
             layer.setStyle(mappings[i].leaflet_style_mapping.Style);
-            layer.bindTooltip(attrib_val, {
+            layer.bindTooltip(mappings[i].leaflet_style_mapping.Attribute.label.trim().length == 0 ?
+                attrib_val : mappings[i].leaflet_style_mapping.Attribute.label.trim(), {
               sticky: true,
             });
           }
