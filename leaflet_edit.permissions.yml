@@ -1,18 +1,19 @@
-LeafletEditor_Configure:
+LeafletEditor Configure:
   title: 'LeafletEditor Configure'
   description: 'Allow user to configure Leaflet Map Editor'
-LeafletEditor_Edit:
+  restrict access: true
+LeafletEditor Edit:
   title: 'LeafletEditor Edit tracks'
   description: 'Allow user to edit tracks in Leaflet Map Editor'
-LeafletEditor_Add:
+LeafletEditor Add:
   title: 'LeafletEditor Add tracks'
   description: 'Allow user to add tracks in Leaflet Map Editor'
-LeafletEditor_Save:
+LeafletEditor Save:
   title: 'LeafletEditor Save tracks'
   description: 'Allow user to save edited tracks in Leaflet Map Editor'
-LeafletEditor_Export_GPX:
+LeafletEditor Export_GPX:
   title: 'LeafletEditor Export to GPX'
   description: 'Allow user to export tracks in Leaflet Map Editor'
-LeafletEditor_Import_GPX:
+LeafletEditor Import_GPX:
   title: 'LeafletEditor Import from GPX'
   description: 'Allow user to import GPX tracks in Leaflet Map Editor'

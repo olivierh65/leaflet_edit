@@ -167,11 +167,22 @@ function evtMapCreate(e) {
             ).val();
             // ajoute le nouveau tracé
 
+            // copies les proprietes 
+            trace=jQuery(this).data("levt").layer.toGeoJSON();
+            try {
+              trace.properties=l._layers[_type_v].feature.properties;
+            }
+            catch (error) {
+              console.error(error);
+            }
             addData(
               _lay_v,
-              jQuery(this).data("levt").layer.toGeoJSON(),
+              trace,
               l._layers[_type_v]
             );
+
+            // allow to save this layer
+            setUpdated(l._layers[_type_v]);
 
             jQuery(this).data("levt").layer.remove();
 
@@ -507,9 +518,49 @@ function saveEntity(e) {
   console.log("Save");
 
   var fd = new FormData();
+
+  // search all features with same fid
+  var nid = e.relatedTarget.options.leafletEdit["nid"];
+  var fid = e.relatedTarget.options.leafletEdit["fid"];
+  var leafletid = e.relatedTarget._leaflet_id;
+
+  var data = [];
+  data.push(e.relatedTarget.toGeoJSON()); /*= [
+     {
+      geojson: e.relatedTarget.toGeoJSON(),
+      type: e.relatedTarget.feature.properties["type"],
+    }, 
+
+  ];*/
+
+  for (const [key, value] of Object.entries(e.relatedTarget._map._layers)) {
+    console.log(key, value);
+    if (key == leafletid) {
+      continue;
+    }
+    if (value.options.leafletEdit) {
+      if (
+        value.options.leafletEdit["fid"] == fid &&
+        value.options.leafletEdit["nid"] == nid
+      ) {
+        // alert (key);
+        if (value.feature) {
+          if (value.defaultOptions) {
+            /* data.push({
+              geojson: value.toGeoJSON(),
+              type: value.feature.properties["type"],
+            }); */
+            data.push(value.toGeoJSON());
+            select_feature(value, 10000);
+          }
+        }
+      }
+    }
+  }
+
   fd.append("fid", e.relatedTarget.defaultOptions.leafletEdit.fid);
   fd.append("nid", e.relatedTarget.defaultOptions.leafletEdit.nid);
-  fd.append("geojson", JSON.stringify(e.relatedTarget.toGeoJSON()));
+  fd.append("geojson", JSON.stringify(turf.featureCollection(data)));
 
   var rsave = [];
 

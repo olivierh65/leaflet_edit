@@ -29,7 +29,6 @@ leaflet-feature-control:
     - leaflet/leaflet
     - core/drupalSettings
 
-
 leaflet-doubleclick-drupal:
   version: VERSION
   js:
@@ -59,7 +58,6 @@ leaflet-locatecontrol:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
-
 
 leaflet-styleeditor:
   version: 1.0
@@ -230,3 +228,13 @@ leaflet.togeojson:
     - leaflet/leaflet
     - core/drupalSettings
 
+leaflet-slider:
+  version: 1.0
+  js:
+    js/leaflet-slider/dist/leaflet-slider.js: {}
+  css:
+    component:
+      js/leaflet-slider/dist/leaflet-slider.css: {}
+  dependencies:
+    - leaflet/leaflet
+    - core/drupalSettings

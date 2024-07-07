@@ -51,22 +51,22 @@ class LeafletEditService extends LeafletService {
     CacheBackendInterface $cache,
     FileUrlGeneratorInterface $file_url_generator
   ) {
-    parent::__construct( $current_user,
-     $geophp_wrapper,
-     $module_handler,
-     $link_generator,
-     $stream_wrapper_manager,
-     $request_stack,
-     $cache,
-     $file_url_generator);
+    parent::__construct(
+      $current_user,
+      $geophp_wrapper,
+      $module_handler,
+      $link_generator,
+      $stream_wrapper_manager,
+      $request_stack,
+      $cache,
+      $file_url_generator
+    );
   }
 
   public function leafletRenderMap(array $map, array $features = [], $height = '400px') {
-
-    $a=\Drupal::currentUser();
     
-    $feat=[];
-    $feat_url=[];
+    $feat = [];
+    $feat_url = [];
     foreach ($features as $feature) {
       if ($feature['type'] == 'url') {
         array_push($feat_url, $feature);
@@ -81,16 +81,16 @@ class LeafletEditService extends LeafletService {
     $attached_libraries = $par['#attached']['library'];
     $settings = $par['#attached']['drupalSettings'];
 
-   
+
     // Geoman
     $attached_libraries[] = 'leaflet_edit/leaflet-geoman';
 
     // Locate
     $attached_libraries[] = 'leaflet_edit/leaflet-locatecontrol';
-    
+
     // StyleEditor
     $attached_libraries[] = 'leaflet_edit/leaflet-styleeditor';
-  
+
 
     // geojson
     /* $attached_libraries[] = 'leaflet_edit/leaflet-geojson'; */
@@ -140,15 +140,16 @@ class LeafletEditService extends LeafletService {
     $attached_libraries[] =  'leaflet_edit/leaflet.GeometryUtil';
 
     // turf
-    $attached_libraries[] =  'leaflet_edit/leaflet.turf';
+    
     //togeojson
-     $attached_libraries[] =  'leaflet_edit/leaflet.togeojson';
+    $attached_libraries[] =  'leaflet_edit/leaflet.togeojson';
 
     //JQuery UI Dialog
     $attached_libraries[] = 'jquery_ui_dialog/dialog';
     $attached_libraries[] = 'jquery_ui_selectmenu/selectmenu';
 
-
+    //Slider
+    $attached_libraries[] =  'leaflet_edit/leaflet-slider';
 
     // now add url features
     $settings[$map_id] = [
@@ -197,10 +198,8 @@ class LeafletEditService extends LeafletService {
     $file = File::load($fid);
     if ($file) {
       return pathinfo($file->getFilename());
-    }
-    else {
+    } else {
       return null;
     }
   }
-
 }

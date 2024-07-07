@@ -30,7 +30,8 @@
     console.log("Init geoman_");
     if (
       drupalSettings.leaflet_edit.geoman &&
-      drupalSettings.leaflet_edit.geoman.control
+      drupalSettings.leaflet_edit.geoman.control &&
+      drupalSettings.leaflet_edit.permissions["edit"]
     ) {
       L.PM.reInitLayer(map.lMap);
 
@@ -101,20 +102,20 @@
             ? false
             : true,
       });
-    }
-    // Add Geoman Custom buttons
-    addGeomanCustom();
+      // Add Geoman Custom buttons
+      addGeomanCustom();
 
-    // Event geoman Draw
-    map.lMap.on("pm:drawstart", function (e) {
-      evtMapDrawstart(e);
-    });
-    map.lMap.on("pm:drawend", function (e) {
-      evtMapDrawend(e);
-    });
-    map.lMap.on("pm:create", function (e) {
-      evtMapCreate(e);
-    });
+      // Event geoman Draw
+      map.lMap.on("pm:drawstart", function (e) {
+        evtMapDrawstart(e);
+      });
+      map.lMap.on("pm:drawend", function (e) {
+        evtMapDrawend(e);
+      });
+      map.lMap.on("pm:create", function (e) {
+        evtMapCreate(e);
+      });
+    }
 
     /// Init StyleEditor
     console.log("event  style editor");
@@ -207,80 +208,135 @@
       };
     }
 
-    console.log("Chargement geojson");
+    // Slider
 
-    var geojsonLayer = new L.GeoJSON.AJAX(
-      "/sites/default/files/public/2022-01/zoncommuni.geojson",
-      {
-        onEachFeature: geojson_onEachFeature,
-        style: chemin_style,
-      }
-    );
-
-    over_info.push({ layer: geojsonLayer, name: "Chemins" });
-
-    function oneach_style(feature, layer) {
-      style = JSON.parse(layer.defaultOptions.style);
-      if (feature.style) {
-        if (feature.style.fill) {
-          style["color"] = feature.style.fill;
+    var slider = L.control
+      .slider(
+        function (value) {
+          console.log(value);
+          function _findActiveBaseLayer() {
+            var layers = map.layer_control._layers;
+            for (var i = 0; i < layers.length; i++) {
+              var layer = layers[i];
+              if (!layer.overlay && map.lMap.hasLayer(layer.layer)) {
+                return layer;
+              }
+            }
+            return null;
+          }
+          layer = _findActiveBaseLayer();
+          if (layer) {
+            if (layer.layer.setStyle) {
+              layer.layer.setStyle({});
+              this.opacity = value / 100;
+            } else if (layer.layer.setOpacity) {
+              layer.layer.setOpacity(value / 100);
+            }
+          }
+        },
+        {
+          size: "100px",
+          orientation: "horizontal",
+          id: "slider",
+          min: 0,
+          max: 100,
+          step: 1,
+          value: 100,
+          title: "Opacity",
+          logo: "O",
         }
-      }
-      layer.setStyle(style);
-    }
+      )
+      .addTo(map.lMap);
+      map.lMap.on('baselayerchange', function(layer) {
+        // remove transparency on new layer
+        slider.slider.value = 100;
+        slider._updateValue();
+      });
 
-    // Extend selection area
-    const canvasRenderer = L.canvas({
-      tolerance: 10,
-    });
+    //
 
-    drupalSettings[mapid].features_url.forEach(function add(feature) {
-      lay = new L.GeoJSON.AJAX(feature.url, {
-        style: JSON.parse(feature.style),
-        mapping: JSON.parse(feature.mapping),
-        renderer: canvasRenderer,
-        distanceMarkers: {
-          lazy: true,
-          iconSize: null,
-          showAll: 14,
-          distance: 5000,
-        },
-        leafletEdit: {
-          nid: feature.entity,
-          fid: feature.id,
-          description: feature.description,
-          filename: feature.filename,
-          _selected: false,
-          _updated: false,
-        },
-      }).on("data:loaded", function (e) {
-        for (const [lid, value] of Object.entries(this.getLayers())) {
-          processLoadedData(value);
-          if (map.bounds && map.bounds.isValid()) {
-            map.bounds = map.bounds.extend(L.latLngBounds(value.getLatLngs()));
-          } else {
-            map.bounds = L.latLngBounds(value.getLatLngs());
+    if (drupalSettings.leaflet_edit.permissions["read"]) {
+      console.log("Chargement geojson");
+
+      var geojsonLayer = new L.GeoJSON.AJAX(
+        "/sites/default/files/public/2022-01/zoncommuni.geojson",
+        {
+          onEachFeature: geojson_onEachFeature,
+          style: chemin_style,
+        }
+      );
+
+      over_info.push({ layer: geojsonLayer, name: "Chemins" });
+
+      function oneach_style(feature, layer) {
+        style = JSON.parse(layer.defaultOptions.style);
+        if (feature.style) {
+          if (feature.style.fill) {
+            style["color"] = feature.style.fill;
           }
         }
+        layer.setStyle(style);
+      }
 
-        map.lMap.fitBounds(map.bounds);
-      });
-
-      lay.on("pm:edit", function (e) {
-        evtLayerEdit(e);
-      });
-      lay.on("pm:update", function (e) {
-        evtLayerUpdate(e);
-      });
-      lay.on("mouseover", function (e) {
-        evtLayerMouseover(e);
-      });
-      lay.on("mouseout", function (e) {
-        evtLayerMouseout(e);
+      // Extend selection area
+      const canvasRenderer = L.canvas({
+        tolerance: 10,
       });
 
-      over_trace.push({ layer: lay, name: feature.description, active: true });
-    });
+      drupalSettings[mapid].features_url.forEach(function add(feature) {
+        lay = new L.GeoJSON.AJAX(feature.url, {
+          style: JSON.parse(feature.style),
+          mapping: JSON.parse(feature.mapping),
+          renderer: canvasRenderer,
+          distanceMarkers: {
+            lazy: true,
+            iconSize: null,
+            showAll: 14,
+            distance: 5000,
+          },
+          leafletEdit: {
+            nid: feature.entity,
+            fid: feature.id,
+            description: feature.description,
+            filename: feature.filename,
+            _selected: false,
+            _updated: false,
+          },
+        }).on("data:loaded", function (e) {
+          for (const [lid, value] of Object.entries(this.getLayers())) {
+            processLoadedData(value);
+            if (map.bounds && map.bounds.isValid()) {
+              map.bounds = map.bounds.extend(
+                L.latLngBounds(value.getLatLngs())
+              );
+            } else {
+              map.bounds = L.latLngBounds(value.getLatLngs());
+            }
+          }
+
+          map.lMap.fitBounds(map.bounds);
+        });
+
+        lay.on("pm:edit", function (e) {
+          evtLayerEdit(e);
+        });
+        lay.on("pm:update", function (e) {
+          evtLayerUpdate(e);
+        });
+        lay.on("mouseover", function (e) {
+          evtLayerMouseover(e);
+        });
+        lay.on("mouseout", function (e) {
+          evtLayerMouseout(e);
+        });
+
+        over_trace.push({
+          layer: lay,
+          name: feature.description,
+          active: true,
+        });
+      });
+    }
 
     panel = L.control.panelLayers(
       [
@@ -308,6 +364,7 @@
         collapsibleGroups: true,
       }
     );
+
     map.lMap.addControl(panel);
     map.lMap.leafletEdit = {
       LAYGROUP_CONTROL: panel,

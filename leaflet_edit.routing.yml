@@ -4,7 +4,7 @@ leaflet_edit.settings:
     _form: '\Drupal\leaflet_edit\Form\SettingsForm'
     _title: 'Leaflet Edit'
   requirements:
-    _permission: 'administer site configuration+Configure Leaflet Edit'
+    _permission: 'administer site configuration+LeafletEditor Configure'
 
 leaflet_edit.default_controller_hello:
   path: '/leaflet_edit/uptest'
@@ -20,7 +20,7 @@ leaflet_edit.default_controller_upload:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::saveFile'
     _title: 'Save'
   requirements:
-    _permission: 'Save tracks'
+    _permission: 'access content+LeafletEditor Save'
 
 leaflet_edit.default_controller_toGpx:
   path: '/leaflet_edit/uptest-toGpx'
@@ -28,7 +28,7 @@ leaflet_edit.default_controller_toGpx:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpx'
     _title: 'Export'
   requirements:
-    _permission: 'Export to GPX'
+    _permission: 'LeafletEditor Export GPX'
 
 leaflet_edit.default_controller_toGpxMerge:
   path: '/leaflet_edit/uptest-toGpxMerge'
@@ -36,4 +36,4 @@ leaflet_edit.default_controller_toGpxMerge:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpxMerge'
     _title: 'Export Merge'
   requirements:
-    _permission: 'Export to GPX'
+    _permission: 'LeafletEditor Export GPX'
