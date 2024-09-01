@@ -127,22 +127,22 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
           'control' => true,
           'position' => 'topleft',
           'options' => [
-              'drawMarker' => "drawMarker",
-              'drawPolyline' => "drawPolyline",
-              'drawCircleMarker' => 0,
-              'drawRectangle' => 0,
-              'drawPolygon' => 0,
-              'drawCircle' => 0,
-              'draxText' => 0,
-              'editMode' => 0,
-              'dragMode' => 0,
-              'cutPolygon' => 0,
-              'removalMode' => 0,
-              'rotateMode' => 0,
-              'oneBlock' => 0,
-              'drawControls' => 'drawControls',
-              'editControls' => 0,
-              'customControls' => 'customControls',
+            'drawMarker' => "drawMarker",
+            'drawPolyline' => "drawPolyline",
+            'drawCircleMarker' => 0,
+            'drawRectangle' => 0,
+            'drawPolygon' => 0,
+            'drawCircle' => 0,
+            'draxText' => 0,
+            'editMode' => 0,
+            'dragMode' => 0,
+            'cutPolygon' => 0,
+            'removalMode' => 0,
+            'rotateMode' => 0,
+            'oneBlock' => 0,
+            'drawControls' => 'drawControls',
+            'editControls' => 0,
+            'customControls' => 'customControls',
           ],
         ],
       ],
@@ -338,7 +338,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
 
     $settings = $this->getSettings();
 
-    $settings['leaflet_edit']['permissions']['configure'] = \Drupal::currentUser()->hasPermission('LeafletEditor Configure'); 
+    $settings['leaflet_edit']['permissions']['configure'] = \Drupal::currentUser()->hasPermission('LeafletEditor Configure');
     $settings['leaflet_edit']['permissions']['edit'] = \Drupal::currentUser()->hasPermission('LeafletEditor Edit');
     $settings['leaflet_edit']['permissions']['add'] = \Drupal::currentUser()->hasPermission('LeafletEditor Add');
     $settings['leaflet_edit']['permissions']['save'] = \Drupal::currentUser()->hasPermission('LeafletEditor Save');
@@ -373,18 +373,21 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         $feature['description'] = $item->description;
         $feature['title'] = $entity->get('title')->getString('value');
         $style = [];
-        
+
         $_filename = $this->leafletService->leafletProcessGeofieldFilename($item->target_id);
         if ($_filename) {
           $feature['filename'] = $_filename['filename'];
           $feature['extension'] = $_filename['extension'];
-        }
-        else {
+        } else {
           $feature['filename'] = "";
           $feature['extension'] = "";
         }
         $feature['style'] = json_encode($item_style['style']['leaflet_style']);
-        $feature['mapping'] = json_encode($item_mapping['mapping']['attribut']);
+        if (isset($item_mapping['mapping']['attribut'])) {
+          $feature['mapping'] = json_encode($item_mapping['mapping']['attribut']);
+        } else {
+          $feature['mapping'] = null;
+        }
 
         $features[] = $feature;
       }
@@ -402,8 +405,8 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
 
     if (!empty($features)) {
       $mapsettings = $this->leafletService->leafletRenderMap($js_settings['map'], $js_settings['features'], $map_height);
-      $mapsettings['#attached']['drupalSettings']['leaflet_edit']=$settings['leaflet_edit'];
-      $results[]=$mapsettings;
+      $mapsettings['#attached']['drupalSettings']['leaflet_edit'] = $settings['leaflet_edit'];
+      $results[] = $mapsettings;
     }
 
     return $results;

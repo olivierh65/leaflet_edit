@@ -450,7 +450,10 @@ function editLayer(e) {
     jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit = e;
     jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit_orig =
       e.relatedTarget.getLatLngs();
-    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", false);
+    // ===> map.lMap.pm.Toolbar.setButtonDisabled("le_edit", false);
+    let i = map.lMap.pm.Toolbar._btnNameMapping("le_edit");
+    map.lMap.pm.Toolbar.buttons[i]._button.disabled = false;
+
     jQuery(".leaflet_edit-edit").trigger("click");
   }
 

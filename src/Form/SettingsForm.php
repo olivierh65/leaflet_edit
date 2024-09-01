@@ -62,6 +62,7 @@ class SettingsForm extends ConfigFormBase {
     global $base_url;
     $config = $this->configFactory->get('leaflet_edit.settings');
 
+
     $form['nb_mapping'] = [
       '#type' => 'number',
       '#title' => t('Number of mapping attributes'),

@@ -215,6 +215,9 @@
         function (value) {
           console.log(value);
           function _findActiveBaseLayer() {
+            if (! map.layer_control) {
+              return null;
+            }
             var layers = map.layer_control._layers;
             for (var i = 0; i < layers.length; i++) {
               var layer = layers[i];

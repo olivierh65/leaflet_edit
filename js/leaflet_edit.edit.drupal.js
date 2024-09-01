@@ -90,7 +90,9 @@ function addGeomanCustom() {
   map.lMap.pm.Toolbar.createCustomControl(edit_actions);
   map.lMap.pm.Toolbar.createCustomControl(import_actions);
   map.lMap.pm.Toolbar.createCustomControl(save_actions);
-  map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
+  // ===> map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
+  let i = map.lMap.pm.Toolbar._btnNameMapping("le_edit");
+  map.lMap.pm.Toolbar.buttons[i]._button.disabled = true;
   // map.lMap.pm.Toolbar.setButtonDisabled("le_save", true);
 }
 
