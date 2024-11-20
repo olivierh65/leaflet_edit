@@ -3,9 +3,9 @@ status: true
 dependencies:
   enforced:
   config:
-    - field.field.node.leaflet_edit.field_leafletedit_description
-    - field.field.node.leaflet_edit.field_leafletedit_geojsonfile
-    - field.field.node.leaflet_edit.field_leafletedit_modification
+    - field.field.node.leaflet_edit.field_leaflet_edit_description
+    - field.field.node.leaflet_edit.field_leaflet_edit_geojsonfile
+    - field.field.node.leaflet_edit.field_leaflet_edit_modification
     - node.type.leaflet_edit
   module:
     - leaflet_edit
@@ -21,7 +21,7 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_leafletedit_description:
+  field_leaflet_edit_description:
     type: string_textfield
     weight: 121
     region: content
@@ -29,14 +29,14 @@ content:
       size: 60
       placeholder: ''
     third_party_settings: {  }
-  field_leafletedit_geojsonfile:
+  field_leaflet_edit_geojsonfile:
     type: geojsonfile_widget
     weight: 124
     region: content
     settings:
       progress_indicator: throbber
     third_party_settings: {  }
-  field_leafletedit_modification:
+  field_leaflet_edit_modification:
     type: string_textfield
     weight: 122
     region: content

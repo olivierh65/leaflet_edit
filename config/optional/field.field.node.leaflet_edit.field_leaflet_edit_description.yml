@@ -3,10 +3,10 @@ status: true
 dependencies:
   enforced:
   config:
-    - field.storage.node.field_leafletedit_description
+    - field.storage.node.field_leaflet_edit_description
     - node.type.leaflet_edit
-id: node.leaflet_edit.field_leafletedit_description
-field_name: field_leafletedit_description
+id: node.leaflet_edit.field_leaflet_edit_description
+field_name: field_leaflet_edit_description
 entity_type: node
 bundle: leaflet_edit
 label: Description

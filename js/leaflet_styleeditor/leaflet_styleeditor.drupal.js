@@ -6,10 +6,10 @@
   console.log("init StyleEditor_");
   $(document).on("leafletMapInit", function (e, settings, lMap, mapid) {
     console.log ("event  style editor");
-    if ((drupalSettings.leafletedit.styleeditor) && (drupalSettings.leafletedit.styleeditor.control)) {
+    if ((drupalSettings.leaflet_edit.styleeditor) && (drupalSettings.leaflet_edit.styleeditor.control)) {
       lMap.addControl(
         L.control.styleEditor({
-          position: drupalSettings.leafletedit.styleeditor.position,
+          position: drupalSettings.leaflet_edit.styleeditor.position,
         })
       );
     }
