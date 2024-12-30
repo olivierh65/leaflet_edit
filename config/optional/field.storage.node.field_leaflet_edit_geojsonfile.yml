@@ -6,8 +6,8 @@ dependencies:
     - file
     - leaflet_edit
     - node
-id: node.field_leafletedit_geojsonfile
-field_name: field_leafletedit_geojsonfile
+id: node.field_leaflet_edit_geojsonfile
+field_name: field_leaflet_edit_geojsonfile
 entity_type: node
 type: geojsonfile_field
 settings:

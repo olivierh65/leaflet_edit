@@ -911,7 +911,7 @@ function readLocalFile(e, button_name, file_type) {
 
   var conv = document.createElement("input");
   conv.setAttribute("type", "file");
-  conv.setAttribute("id", "leafletedit-file-input");
+  conv.setAttribute("id", "leaflet_edit-file-input");
   conv.setAttribute("accept", "." + file_type);
   conv.style.display = "none";
   document.body.appendChild(conv);

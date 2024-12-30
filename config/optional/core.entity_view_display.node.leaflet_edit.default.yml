@@ -3,9 +3,9 @@ status: true
 dependencies:
   enforced:
   config:
-    - field.field.node.leaflet_edit.field_leafletedit_description
-    - field.field.node.leaflet_edit.field_leafletedit_geojsonfile
-    - field.field.node.leaflet_edit.field_leafletedit_modification
+    - field.field.node.leaflet_edit.field_leaflet_edit_description
+    - field.field.node.leaflet_edit.field_leaflet_edit_geojsonfile
+    - field.field.node.leaflet_edit.field_leaflet_edit_modification
     - node.type.leaflet_edit
   module:
     - leaflet_edit
@@ -15,7 +15,7 @@ targetEntityType: node
 bundle: leaflet_edit
 mode: default
 content:
-  field_leafletedit_description:
+  field_leaflet_edit_description:
     type: string
     label: above
     settings:
@@ -23,7 +23,7 @@ content:
     third_party_settings: {  }
     weight: 101
     region: content
-  field_leafletedit_geojsonfile:
+  field_leaflet_edit_geojsonfile:
     type: leaflet_edit_formatter
     label: above
     settings:
@@ -149,7 +149,7 @@ content:
             suffix: ''
     weight: 104
     region: content
-  field_leafletedit_modification:
+  field_leaflet_edit_modification:
     type: string
     label: above
     settings:
