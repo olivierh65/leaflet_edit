@@ -21,10 +21,9 @@ use Drupal\Core\Utility\LinkGeneratorInterface;
  *
  * @FieldFormatter(
  *   id = "leaflet_edit_formatter",
- *   label = @Translation("Leaflet edit map"),
+ *   label = @Translation("Leaflet edit map formatter"),
  *   field_types = {
- *     "file",
- *     "geojsonfile_field"
+ *     "geojsonfile"
  *   }
  * )
  */
@@ -363,18 +362,22 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     // foreach ($items as $delta => $item) {
     for ($i = 0; $i < $items->count(); $i++) {
       $item = $items->get($i);
-      $item_style['style'] = unserialize($item->getValue()['styles']);
-      $item_mapping['mapping'] = unserialize($item->getValue()['mappings']);
-      if (!empty($item->target_id)) {
+      if (!empty($item->file)) {
+        $fid = $item->file[0];
+      }
+      else {
+        $fid = 0;
+      }
+      if ($fid > 0) {
         $feature['type'] = 'url';
-        $feature['url'] = $this->leafletService->leafletProcessGeofieldFileUrl($item->target_id, $entity);
-        $feature['id'] = $item->target_id;
+        $feature['url'] = $this->leafletService->leafletProcessGeofieldFileUrl($fid, $entity);
+        $feature['id'] = $fid;
         $feature['entity'] = $entity_id;
         $feature['description'] = $item->description;
-        $feature['title'] = $entity->get('title')->getString('value');
+        $feature['title'] = $entity->getTitle();
         $style = [];
 
-        $_filename = $this->leafletService->leafletProcessGeofieldFilename($item->target_id);
+        $_filename = $this->leafletService->leafletProcessGeofieldFilename($fid);
         if ($_filename) {
           $feature['filename'] = $_filename['filename'];
           $feature['extension'] = $_filename['extension'];
@@ -382,9 +385,9 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
           $feature['filename'] = "";
           $feature['extension'] = "";
         }
-        $feature['style'] = json_encode($item_style['style']['leaflet_style']);
-        if (isset($item_mapping['mapping']['attribut'])) {
-          $feature['mapping'] = json_encode($item_mapping['mapping']['attribut']);
+        $feature['style'] = json_encode($item->style_global['style']);
+        if (isset($item->mapping)) {
+          $feature['mapping'] = json_encode($item->mapping);
         } else {
           $feature['mapping'] = null;
         }

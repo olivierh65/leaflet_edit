@@ -45,6 +45,8 @@ function processLoadedData(layer) {
   if (layer.defaultOptions.style) {
     // console.log("Style global");
     layer.setStyle(layer.defaultOptions.style);
+    // layer.setStyle(JSON.stringify(layer.defaultOptions.style));
+    // layer.setStyle({ color: layer.defaultOptions.style['color'], weight: layer.defaultOptions.style['weight'] });
   } else {
     // console.log("Pas de Style global!!!");
     layer.setStyle({ color: "red", weight: 5 });
@@ -56,31 +58,60 @@ function processLoadedData(layer) {
     });
   } else {
     // console.log("Pas de description");
+    // Sans description, on affiche le nom du fichier
+    layer.bindTooltip(layer.defaultOptions.leafletEdit.filename, {
+      sticky: true,
+    });
   }
 
+  // return;
+  
   mappings = layer.defaultOptions.mapping;
+  for (const [key, value] of Object.entries(mappings)) {
+
+    console.log("Key: " + key + " Value: " + value);
+  }
+  
   if (mappings && layer.feature.properties) {
     for (let i = 1; i <= Object.keys(mappings).length; i++) {
-      attrib = mappings[i].leaflet_style_mapping.Attribute.attribut;
-      // console.log("Attrib: " + attrib);
+      if(mappings[i] == undefined) {
+        continue;
+      }
+      attrib = mappings[i].attribut;
+      console.log("Attrib: " + attrib);
       if (attrib && Object.keys(attrib).length > 0) {
-        attrib_val = mappings[i].leaflet_style_mapping.Attribute.value;
-        // console.log("Attrib value: " + attrib_val);
+        attrib_val = mappings[i].value;
+        console.log("Attrib value: " + attrib_val);
         if (attrib in layer.feature.properties) {
           if (layer.feature.properties[attrib] == attrib_val) {
-            //console.log("Set Style " + mappings[i].leaflet_style_mapping.Style);
-            layer.setStyle(mappings[i].leaflet_style_mapping.Style);
+            console.log("Set Style " + JSON.stringify(mappings[i].detail_style.style));
+            // delete(mappings[i].detail_style.style['fill']);
+            // delete(mappings[i].detail_style.style['fillColor']);
+            // delete(mappings[i].detail_style.style['fillOpacity']);
+            // delete(mappings[i].detail_style.style['fillRule']);
+            // delete(mappings[i].detail_style.style['dashArray']);
+            // delete(mappings[i].detail_style.style['dashOffset']);
+            // delete(mappings[i].detail_style.style['lineCap']);
+            // delete(mappings[i].detail_style.style['lineJoin']);
+            // delete(mappings[i].detail_style.style['opacity']);
+            // delete(mappings[i].detail_style.style['weight']);
+            // delete(mappings[i].detail_style.style['color']);
+
+           // layer.setStyle(JSON.stringify(mappings[i].detail_style.style));
+            layer.setStyle(mappings[i].detail_style.style);
+            // layer.setStyle({ color: mappings[i].detail_style.style['color'], weight: mappings[i].detail_style.style['weight'] });
             layer.bindTooltip(
-              mappings[i].leaflet_style_mapping.Attribute.label.trim().length ==
-                0
+              mappings[i].label.trim().length ==  0
                 ? attrib_val
-                : mappings[i].leaflet_style_mapping.Attribute.label.trim(),
+                : mappings[i].label.trim(),
               {
                 sticky: true,
               }
-            );
+            ); 
+            //console.log('mapping termine: ' + layer.feature.properties.name + '(' . layer.feature.properties.type + ')');
           }
         }
+        //console.log(' Pas de mapping: ' + layer.feature.properties.name + '(' . layer.feature.properties.type + ')');
       }
     }
   }

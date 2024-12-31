@@ -261,7 +261,8 @@
     if (drupalSettings.leaflet_edit.permissions["read"]) {
       console.log("Chargement geojson");
 
-      var geojsonLayer = new L.GeoJSON.AJAX(
+      var geojsonLayer = null;
+      /* var geojsonLayer = new L.GeoJSON.AJAX(
         "/sites/default/files/public/2022-01/zoncommuni.geojson",
         {
           onEachFeature: geojson_onEachFeature,
@@ -269,7 +270,7 @@
         }
       );
 
-      over_info.push({ layer: geojsonLayer, name: "Chemins" });
+      over_info.push({ layer: geojsonLayer, name: "Chemins" }); */
 
       function oneach_style(feature, layer) {
         style = JSON.parse(layer.defaultOptions.style);
