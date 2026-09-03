@@ -1,0 +1,21 @@
+uuid: 8f9f0e56-4d9d-4924-88f6-0353ee0a28b8
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leaflet_geojson_files
+    - node.type.leaflet_map_editor
+  module:
+    - geojsonfile_field
+id: node.leaflet_map_editor.field_leaflet_geojson_files
+field_name: field_leaflet_geojson_files
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Fichiers Geojson'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: geojsonfile

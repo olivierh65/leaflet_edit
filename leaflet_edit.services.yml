@@ -1,4 +1,7 @@
 services:
   leaflet_edit.service:
-    class: Drupal\leaflet_edit\LeafletEditService
+    class: Drupal\leaflet_edit\Service\LeafletEditService
     arguments: ['@current_user', '@geofield.geophp', '@module_handler', '@link_generator', '@stream_wrapper_manager', '@request_stack', '@cache.default', '@file_url_generator']
+  leaflet_edit.permission_checker:
+    class: Drupal\leaflet_edit\Service\PermissionChecker
+    arguments: ['@current_user']

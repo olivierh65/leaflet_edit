@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\leaflet_edit;
+namespace Drupal\leaflet_edit\Service;
 
 use Drupal\Core\Url;
 use Drupal\file\Entity\File;
@@ -188,7 +188,7 @@ class LeafletEditService extends LeafletService {
 
       // return \Drupal::service('file_url_generator')->generateAbsoluteString($file->getFileUri()) . '?v=' . $entity->getRevisionId();
 
-      return \Drupal\Core\Url::fromUserInput('/',  array('absolute' => 'true'))->toString() . 'leaflet/read/' . $entity->getRevisionId() . '/' . $fid . '/' . $entity->id() . '?_format=json';
+      return \Drupal\Core\Url::fromUserInput('/',  array('absolute' => 'true'))->toString() . 'leaflet_edit/geojson/' . $entity->getRevisionId() . '/' . $fid . '/' . $entity->id() . '?_format=json';
     }
     return "";
   }

@@ -8,4 +8,4 @@ label: 'LeafletEditor Read'
 weight: 6
 is_admin: null
 permissions:
-  - 'restful get get_geojson'
+  - 'restful get transfert_geojson'

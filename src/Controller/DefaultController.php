@@ -33,6 +33,13 @@ class DefaultController extends ControllerBase {
     }
 
     public function saveFile(Request $request) {
+
+        // Verification des permissions
+        $permission_checker = \Drupal::service('mymodule.permission_checker');
+        if (! $permission_checker->hasAnyPermission(['LeafletEditor Save'])) {
+            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+        }
+
         $nid = $request->get('nid');
         $fid = $request->get('fid');
         $geojson = $request->get('geojson');
@@ -122,6 +129,13 @@ class DefaultController extends ControllerBase {
     }
 
     public function exportToGpx__(Request $request) {
+
+        // Verification des permissions
+        $permission_checker = \Drupal::service('mymodule.permission_checker');
+        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
+            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+        }
+
         $geojson = $request->get('geojson');
         $filename = $request->get('filename');
 
@@ -151,6 +165,13 @@ class DefaultController extends ControllerBase {
     }
 
     public function exportToGpx(Request $request) {
+
+        // Verification des permissions
+        $permission_checker = \Drupal::service('mymodule.permission_checker');
+        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
+            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+        }
+
         $geojsons = json_decode($request->get('geojson'), true);
         $description = $request->get('description');
         $filename = $request->get('filename');
@@ -184,6 +205,13 @@ class DefaultController extends ControllerBase {
     }
 
     public function exportToGpxMerge(Request $request) {
+
+        // Verification des permissions
+        $permission_checker = \Drupal::service('mymodule.permission_checker');
+        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
+            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+        }
+
         $geojsons = json_decode($request->get('geojson'), true);
         $description = $request->get('description');
         $filename = $request->get('filename');
@@ -261,10 +289,10 @@ class DefaultController extends ControllerBase {
                         $meta = $b->createElement('type', $type);
                         $trkRoot->appendChild($meta);
                     }
-                    $extRoot=$b->createElement('extensions');
+                    $extRoot = $b->createElement('extensions');
 
                     if (isset($geojsons[$index]['color'])) {
-                        $gpxxRoot=$b->createElement('gpxx:TrackExtension');
+                        $gpxxRoot = $b->createElement('gpxx:TrackExtension');
                         $color = $this->hex2colorName($geojsons[$index]['color']);
                         $meta = $b->createElement('gpxx:DisplayColor', $color);
                         $gpxxRoot->appendChild($meta);
@@ -272,7 +300,7 @@ class DefaultController extends ControllerBase {
                     }
 
                     if (isset($geojsons[$index]['width'])) {
-                        $lineRoot=$b->createElement('line');
+                        $lineRoot = $b->createElement('line');
                         $lineRoot->setAttribute('xmlns', 'http://www.topografix.com/GPX/gpx_style/0/2');
                         $meta = $b->createElement('width', $geojsons[$index]['width']);
                         $lineRoot->appendChild($meta);
@@ -280,7 +308,7 @@ class DefaultController extends ControllerBase {
                     }
 
                     if (isset($geojsons[$index]['properties'])) {
-                        $props=json_decode($geojsons[$index]['properties'], true);
+                        $props = json_decode($geojsons[$index]['properties'], true);
                         foreach ($props as $prop => $value) {
                             $meta = $b->createElement('ogr:' . $prop, $value);
                             $extRoot->appendChild($meta);
@@ -355,7 +383,8 @@ class DefaultController extends ControllerBase {
      *
      * @return array|bool Metadata, or false if a problem.
      */
-    public function getFileFieldMetaData($contentType, $fieldName) {
+    protected function getFileFieldMetaData($contentType, $fieldName) {
+
         if ($contentType === '' || $fieldName === '') {
             return FALSE;
         }
@@ -446,7 +475,8 @@ class DefaultController extends ControllerBase {
         elseif (strlen($color) == 3)
             list($r, $g, $b) = array(
                 $color[0] . $color[0],
-                $color[1] . $color[1], $color[2] . $color[2]
+                $color[1] . $color[1],
+                $color[2] . $color[2]
             );
         else
             return false;

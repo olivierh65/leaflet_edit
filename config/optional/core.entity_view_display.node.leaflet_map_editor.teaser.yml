@@ -1,0 +1,28 @@
+uuid: 4c3540d1-60a0-438b-a330-d476bd969355
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.teaser
+    - field.field.node.leaflet_map_editor.field_leaflet_geojson_files
+    - field.field.node.leaflet_map_editor.field_leafletedit_description
+    - node.type.leaflet_map_editor
+  module:
+    - user
+id: node.leaflet_map_editor.teaser
+targetEntityType: node
+bundle: leaflet_map_editor
+mode: teaser
+content:
+  links:
+    settings: {  }
+    third_party_settings: {  }
+    weight: 100
+    region: content
+hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
+  field_leaflet_geojson_files: true
+  field_leafletedit_description: true
+  langcode: true

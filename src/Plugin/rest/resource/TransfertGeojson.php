@@ -14,14 +14,15 @@ use Drupal\file\Entity\File;
  * Provides a resource to get view modes by entity and bundle.
  *
  * @RestResource(
- *   id = "get_geojson",
- *   label = @Translation("Get geojson"),
+ *   id = "transfert_geojson",
+ *   label = @Translation("Transfert geojson"),
  *   uri_paths = {
- *     "canonical" = "/leaflet/read/{vid}/{fid}/{eid}"
+ *     "canonical" = "/leaflet_edit/geojson/{vid}/{fid?}/{eid?}",
+ *     "https://www.drupal.org/link-relations/edit" = "/leaflet/geojson/{vid}/{fid?}/{eid?}"
  *   }
  * )
  */
-class GetGeojson extends ResourceBase {
+class TransfertGeojson extends ResourceBase {
 
   /**
    * A current user instance.
@@ -51,7 +52,7 @@ class GetGeojson extends ResourceBase {
      * @throws \Symfony\Component\HttpKernel\Exception\HttpException
      *   Throws exception expected.
      */
-    public function get($vid, $fid = NULL, $eid = NULL) {
+    public function get($vid, $fid, $eid) {
 
         // You must to implement the logic of your REST Resource here.
         // Use current user after pass authentication to validate access.
@@ -74,5 +75,23 @@ class GetGeojson extends ResourceBase {
 
         return new ResourceResponse("", 200);
     }
+
+      /**
+   * Handles PUT requests.
+   *
+   * @param mixed $data
+   *   The data received in the PUT request.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   */
+  public function put($vid, $fid, $eid, $data) {
+    // Logique pour mettre à jour des données.
+    if (! $vid) {
+      return new JsonResponse(['error' => 'Missing ID'], 400);
+    }
+
+    // Simuler une mise à jour réussie.
+    return new JsonResponse(['message' => 'Data updated successfully'], 200);
+  }
 
 }

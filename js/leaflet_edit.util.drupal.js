@@ -65,16 +65,16 @@ function processLoadedData(layer) {
   }
 
   // return;
-  
-  mappings = layer.defaultOptions.mapping;
-  for (const [key, value] of Object.entries(mappings)) {
 
-    console.log("Key: " + key + " Value: " + value);
+  mappings = layer.defaultOptions.mapping;
+  if (mappings) {
+    for (const [key, value] of Object.entries(mappings)) {
+      console.log("Key: " + key + " Value: " + value);
+    }
   }
-  
   if (mappings && layer.feature.properties) {
     for (let i = 1; i <= Object.keys(mappings).length; i++) {
-      if(mappings[i] == undefined) {
+      if (mappings[i] == undefined) {
         continue;
       }
       attrib = mappings[i].attribut;
@@ -84,7 +84,9 @@ function processLoadedData(layer) {
         console.log("Attrib value: " + attrib_val);
         if (attrib in layer.feature.properties) {
           if (layer.feature.properties[attrib] == attrib_val) {
-            console.log("Set Style " + JSON.stringify(mappings[i].detail_style.style));
+            console.log(
+              "Set Style " + JSON.stringify(mappings[i].detail_style.style)
+            );
             // delete(mappings[i].detail_style.style['fill']);
             // delete(mappings[i].detail_style.style['fillColor']);
             // delete(mappings[i].detail_style.style['fillOpacity']);
@@ -97,17 +99,17 @@ function processLoadedData(layer) {
             // delete(mappings[i].detail_style.style['weight']);
             // delete(mappings[i].detail_style.style['color']);
 
-           // layer.setStyle(JSON.stringify(mappings[i].detail_style.style));
+            // layer.setStyle(JSON.stringify(mappings[i].detail_style.style));
             layer.setStyle(mappings[i].detail_style.style);
             // layer.setStyle({ color: mappings[i].detail_style.style['color'], weight: mappings[i].detail_style.style['weight'] });
             layer.bindTooltip(
-              mappings[i].label.trim().length ==  0
+              mappings[i].label.trim().length == 0
                 ? attrib_val
                 : mappings[i].label.trim(),
               {
                 sticky: true,
               }
-            ); 
+            );
             //console.log('mapping termine: ' + layer.feature.properties.name + '(' . layer.feature.properties.type + ')');
           }
         }

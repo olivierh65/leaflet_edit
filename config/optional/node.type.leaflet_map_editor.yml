@@ -1,0 +1,17 @@
+uuid: b42ac803-3c7b-4432-b93f-31b394287b42
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+third_party_settings:
+  menu_ui:
+    available_menus: {  }
+    parent: ''
+name: 'Leaflet Map Editor'
+type: leaflet_map_editor
+description: "Carte Leaflet avec fonction d'édition et sauvegarde de fichiers Geojson"
+help: null
+new_revision: true
+preview_mode: 1
+display_submitted: true

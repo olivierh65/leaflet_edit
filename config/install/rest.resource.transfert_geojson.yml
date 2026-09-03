@@ -6,8 +6,8 @@ dependencies:
     - leaflet_edit
     - serialization
     - user
-id: get_geojson
-plugin_id: get_geojson
+id: transfert_geojson
+plugin_id: transfert_geojson
 granularity: resource
 configuration:
   methods:

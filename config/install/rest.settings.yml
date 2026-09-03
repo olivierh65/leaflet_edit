@@ -1,0 +1,10 @@
+resources:
+  transfert_geojson:
+    supported_formats:
+      - json
+    supported_auth:
+      - basic_auth
+      - cookie
+    methods:
+      - GET
+      - PUT

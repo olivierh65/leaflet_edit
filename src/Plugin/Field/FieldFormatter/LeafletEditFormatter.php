@@ -5,7 +5,7 @@ namespace Drupal\leaflet_edit\Plugin\Field\FieldFormatter;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\leaflet\Plugin\Field\FieldFormatter\LeafletDefaultFormatter;
-use Drupal\leaflet_edit\LeafletEditService;
+use Drupal\leaflet_edit\Service\LeafletEditService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -39,7 +39,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    * @param $label
    * @param $view_mode
    * @param array $third_party_settings
-   * @param \Drupal\leaflet_edit\LeafletEditService $leaflet_service
+   * @param \Drupal\leaflet_edit\Service\LeafletEditService $leaflet_service
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
    * @param \Drupal\Core\Utility\Token $token
    * @param \Drupal\core\Render\Renderer $renderer
@@ -343,7 +343,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     $settings['leaflet_edit']['permissions']['save'] = \Drupal::currentUser()->hasPermission('LeafletEditor Save');
     $settings['leaflet_edit']['permissions']['exportGPX'] = \Drupal::currentUser()->hasPermission('LeafletEditor Export_GPX');
     $settings['leaflet_edit']['permissions']['importGPX'] = \Drupal::currentUser()->hasPermission('LeafletEditor Import_GPX');
-    $settings['leaflet_edit']['permissions']['read'] = \Drupal::currentUser()->hasPermission('restful get get_geojson');
+    $settings['leaflet_edit']['permissions']['read'] = \Drupal::currentUser()->hasPermission('restful get transfert_geojson');
 
     // Always render the map, even if we do not have any data.
     $map = leaflet_map_get_info($settings['leaflet_map']);
@@ -375,6 +375,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         $feature['entity'] = $entity_id;
         $feature['description'] = $item->description;
         $feature['title'] = $entity->getTitle();
+        $feature['overlay'] = $item->overlay ?? 0;
         $style = [];
 
         $_filename = $this->leafletService->leafletProcessGeofieldFilename($fid);

@@ -1,0 +1,28 @@
+uuid: b8ce81f9-129c-4181-9987-3f72d37f7c6b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leafletedit_description
+    - filter.format.full_html
+    - filter.format.plain_text
+    - node.type.leaflet_map_editor
+  module:
+    - text
+id: node.leaflet_map_editor.field_leafletedit_description
+field_name: field_leafletedit_description
+entity_type: node
+bundle: leaflet_map_editor
+label: Description
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  display_summary: false
+  required_summary: false
+  allowed_formats:
+    - full_html
+    - plain_text
+field_type: text_with_summary

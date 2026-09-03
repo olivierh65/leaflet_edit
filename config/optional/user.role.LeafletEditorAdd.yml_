@@ -9,4 +9,4 @@ weight: 2
 is_admin: null
 permissions:
   - 'LeafletEditor_Add'
-  - 'restful get get_geojson'
+  - 'restful get transfert_geojson'

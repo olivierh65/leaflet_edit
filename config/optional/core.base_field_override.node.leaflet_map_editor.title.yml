@@ -1,0 +1,18 @@
+uuid: f2f5745b-09bc-432e-bbb1-5af51bce96a7
+langcode: en
+status: true
+dependencies:
+  config:
+    - node.type.leaflet_map_editor
+id: node.leaflet_map_editor.title
+field_name: title
+entity_type: node
+bundle: leaflet_map_editor
+label: Titre
+description: ''
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

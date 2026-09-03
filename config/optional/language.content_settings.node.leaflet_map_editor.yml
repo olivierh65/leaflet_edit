@@ -1,0 +1,11 @@
+uuid: aac071b3-3f27-4435-821c-8123ccb01e07
+langcode: en
+status: true
+dependencies:
+  config:
+    - node.type.leaflet_map_editor
+id: node.leaflet_map_editor
+target_entity_type_id: node
+target_bundle: leaflet_map_editor
+default_langcode: fr
+language_alterable: false

@@ -9,5 +9,5 @@ weight: 5
 is_admin: null
 permissions:
   - 'LeafletEditor_Export_GPX'
-  - 'restful get get_geojson'
+  - 'restful get transfert_geojson'
 

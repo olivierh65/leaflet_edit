@@ -1,0 +1,157 @@
+uuid: 72a954a8-c6e3-4a9e-9933-8c1a09cb562c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.leaflet_map_editor.field_leaflet_geojson_files
+    - field.field.node.leaflet_map_editor.field_leafletedit_description
+    - node.type.leaflet_map_editor
+  module:
+    - leaflet_edit
+    - text
+    - user
+id: node.leaflet_map_editor.default
+targetEntityType: node
+bundle: leaflet_map_editor
+mode: default
+content:
+  field_leaflet_geojson_files:
+    type: leaflet_edit_formatter
+    label: above
+    settings:
+      leaflet_map: '~Cartes Topo'
+      height: '400'
+      height_unit: px
+      map_position:
+        center:
+          lat: '0'
+          lon: '0'
+        force: 0
+        zoomControlPosition: topleft
+        zoom: 5
+        minZoom: 2
+        maxZoom: 18
+        zoomFiner: 0
+      leaflet_edit:
+        leaflet:
+          tolerance: '10'
+        locatecontrol:
+          control: '1'
+          position: bottomright
+        geoman:
+          control: '1'
+          position: topleft
+          options:
+            drawControls: drawControls
+            drawMarker: drawMarker
+            drawPolyline: drawPolyline
+            customControls: customControls
+            drawCircleMarker: 0
+            drawRectangle: 0
+            drawPolygon: 0
+            drawCircle: 0
+            drawText: 0
+            editControls: 0
+            editMode: 0
+            dragMode: 0
+            cutPolygon: 0
+            removalMode: 0
+            rotateMode: 0
+            oneBlock: 0
+      hide_empty_map: 0
+      disable_wheel: 0
+      multiple_map: false
+      gesture_handling: false
+      fitbounds_options: '{"padding":[0,0]}'
+      popup: false
+      popup_content: ''
+      leaflet_popup:
+        value: ''
+        options: '{"maxWidth":"300","minWidth":"50", "autoPan": true}'
+        view_mode: full
+        control: false
+        content: ''
+      leaflet_tooltip:
+        value: ''
+        options: '{"permanent":false,"direction":"center"}'
+      weight: 0
+      icon:
+        iconType: marker
+        iconUrl: ''
+        shadowUrl: ''
+        className: ''
+        iconSize:
+          x: null
+          'y': null
+        iconAnchor:
+          x: null
+          'y': null
+        shadowSize:
+          x: null
+          'y': null
+        shadowAnchor:
+          x: null
+          'y': null
+        popupAnchor:
+          x: null
+          'y': null
+        html: '<div></div>'
+        html_class: leaflet-map-divicon
+        circle_marker_options: '{"radius": 100, "color": "red", "fillColor": "#f03", "fillOpacity": 0.5}'
+      leaflet_markercluster:
+        control: false
+        options: '{"spiderfyOnMaxZoom":true,"showCoverageOnHover":true,"removeOutsideVisibleBounds": false}'
+        excluded: false
+        include_path: false
+      fullscreen:
+        control: false
+        options: '{"position":"topleft","pseudoFullscreen":false}'
+      reset_map:
+        control: false
+        options: '{"position": "topleft", "title": "Reset View"}'
+      map_scale:
+        control: false
+        options: '{"position":"bottomright","maxWidth":100,"metric":true,"imperial":false,"updateWhenIdle":false}'
+      locate:
+        control: false
+        options: '{"position": "topright", "setView": "untilPanOrZoom", "returnToPrevBounds":true, "keepCurrentZoomLevel": true, "strings": {"title": "Locate my position"}}'
+        automatic: false
+      path: '{"color":"#3388ff","opacity":"1.0","stroke":true,"weight":3,"fill":"depends","fillColor":"*","fillOpacity":"0.2","radius":"6"}'
+      feature_properties:
+        values: ''
+      geocoder:
+        control: false
+        settings:
+          autocomplete:
+            placeholder: 'Search Address'
+            title: 'Search an Address on the Map'
+          position: topright
+          input_size: 20
+          providers: {  }
+          min_terms: 4
+          delay: 800
+          zoom: 16
+          popup: false
+          options: ''
+      map_lazy_load:
+        lazy_load: 0
+    third_party_settings: {  }
+    weight: 102
+    region: content
+  field_leafletedit_description:
+    type: text_default
+    label: above
+    settings: {  }
+    third_party_settings: {  }
+    weight: 101
+    region: content
+  links:
+    settings: {  }
+    third_party_settings: {  }
+    weight: 100
+    region: content
+hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
+  langcode: true

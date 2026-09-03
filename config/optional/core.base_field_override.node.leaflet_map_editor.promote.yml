@@ -1,0 +1,22 @@
+uuid: bd3ed5e5-c39c-4157-a81e-a3691d01ec60
+langcode: en
+status: true
+dependencies:
+  config:
+    - node.type.leaflet_map_editor
+id: node.leaflet_map_editor.promote
+field_name: promote
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Promoted to front page'
+description: ''
+required: false
+translatable: true
+default_value:
+  -
+    value: 0
+default_value_callback: ''
+settings:
+  on_label: 'On'
+  off_label: 'Off'
+field_type: boolean

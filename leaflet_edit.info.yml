@@ -10,3 +10,4 @@ dependencies:
   - geophp
   - jquery_ui_selectmenu
   - jquery_ui_dialog
+  - rest:rest
