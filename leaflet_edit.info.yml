@@ -1,13 +1,14 @@
 name: 'Leaflet Map Editor'
 type: module
-description: 'Leaflet Map Editor'
-core_version_requirement: ^9 || ^10
+description: 'Display and edit GeoJSON files on a Leaflet map, with save and revision history.'
+core_version_requirement: ^10.2
 package: 'Custom'
+configure: leaflet_edit.settings
 dependencies:
-  - leaflet (>=10.2.0)
-  - fontawesome
-  - geojsonfile_field
-  - geophp
-  - jquery_ui_selectmenu
-  - jquery_ui_dialog
-  - rest:rest
+  - drupal:leaflet
+  - drupal:rest
+  - drupal:serialization
+  - geofield:geofield
+  - geojsonfile_field:geojsonfile_field
+  - jquery_ui_dialog:jquery_ui_dialog
+  - jquery_ui_selectmenu:jquery_ui_selectmenu

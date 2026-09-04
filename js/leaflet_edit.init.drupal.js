@@ -28,77 +28,79 @@
 
     // Geoman
     console.log("Init geoman_");
+    var editSettings = (drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit) || {};
+    var geomanSettings = editSettings.geoman || {};
+    var editPermissions = editSettings.permissions || {};
     if (
-      drupalSettings.leaflet_edit.geoman &&
-      drupalSettings.leaflet_edit.geoman.control &&
-      drupalSettings.leaflet_edit.permissions["edit"]
+      geomanSettings.control &&
+      editPermissions["edit"]
     ) {
       L.PM.reInitLayer(map.lMap);
 
       map.lMap.pm.addControls({
-        position: drupalSettings.leaflet_edit.geoman.position,
+        position: geomanSettings.position,
         drawMarker:
-          drupalSettings.leaflet_edit.geoman.options["drawMarker"] == 0
+          geomanSettings.options["drawMarker"] == 0
             ? false
             : true,
         drawCircleMarker:
-          drupalSettings.leaflet_edit.geoman.options["drawCircleMarker"] == 0
+          geomanSettings.options["drawCircleMarker"] == 0
             ? false
             : true,
         drawPolyline:
-          drupalSettings.leaflet_edit.geoman.options["drawPolyline"] == 0
+          geomanSettings.options["drawPolyline"] == 0
             ? false
             : true,
         drawRectangle:
-          drupalSettings.leaflet_edit.geoman.options["drawRectangle"] == 0
+          geomanSettings.options["drawRectangle"] == 0
             ? false
             : true,
         drawPolygon:
-          drupalSettings.leaflet_edit.geoman.options["drawPolygon"] == 0
+          geomanSettings.options["drawPolygon"] == 0
             ? false
             : true,
         drawCircle:
-          drupalSettings.leaflet_edit.geoman.options["drawCircle"] == 0
+          geomanSettings.options["drawCircle"] == 0
             ? false
             : true,
         drawText:
-          drupalSettings.leaflet_edit.geoman.options["drawText"] == 0
+          geomanSettings.options["drawText"] == 0
             ? false
             : true,
         editMode:
-          drupalSettings.leaflet_edit.geoman.options["editMode"] == 0
+          geomanSettings.options["editMode"] == 0
             ? false
             : true,
         dragMode:
-          drupalSettings.leaflet_edit.geoman.options["dragMode"] == 0
+          geomanSettings.options["dragMode"] == 0
             ? false
             : true,
         cutPolygon:
-          drupalSettings.leaflet_edit.geoman.options["cutPolygon"] == 0
+          geomanSettings.options["cutPolygon"] == 0
             ? false
             : true,
         removalMode:
-          drupalSettings.leaflet_edit.geoman.options["removalMode"] == 0
+          geomanSettings.options["removalMode"] == 0
             ? false
             : true,
         rotateMode:
-          drupalSettings.leaflet_edit.geoman.options["rotateMode"] == 0
+          geomanSettings.options["rotateMode"] == 0
             ? false
             : true,
         oneBlock:
-          drupalSettings.leaflet_edit.geoman.options["oneBlock"] == 0
+          geomanSettings.options["oneBlock"] == 0
             ? false
             : true,
         drawControls:
-          drupalSettings.leaflet_edit.geoman.options["drawControls"] == 0
+          geomanSettings.options["drawControls"] == 0
             ? false
             : true,
         editControls:
-          drupalSettings.leaflet_edit.geoman.options["editControls"] == 0
+          geomanSettings.options["editControls"] == 0
             ? false
             : true,
         customControls:
-          drupalSettings.leaflet_edit.geoman.options["customControls"] == 0
+          geomanSettings.options["customControls"] == 0
             ? false
             : true,
       });
@@ -161,14 +163,14 @@
     //Locate control
     console.log("event locateconrol");
     if (
-      drupalSettings.leaflet_edit.locatecontrol &&
-      drupalSettings.leaflet_edit.locatecontrol.control
+      editSettings.locatecontrol &&
+      editSettings.locatecontrol.control
     ) {
       map.lMap.addControl(
         L.control.locate({
           strings: { title: "Où suis-je ???" },
-          position: drupalSettings.leaflet_edit.locatecontrol.position
-            ? drupalSettings.leaflet_edit.locatecontrol.position
+          position: editSettings.locatecontrol.position
+            ? editSettings.locatecontrol.position
             : "topright",
         })
       );
@@ -258,8 +260,9 @@
 
     //
 
-    if (drupalSettings.leaflet_edit.permissions["read"]) {
+    if (editPermissions["read"]) {
       console.log("Chargement geojson");
+      console.log("[leaflet_edit] mapid =", mapid, "| features_url =", drupalSettings[mapid].features_url);
 
       var geojsonLayer = null;
       /* var geojsonLayer = new L.GeoJSON.AJAX(
@@ -287,10 +290,35 @@
         tolerance: 10,
       });
 
-      drupalSettings[mapid].features_url.forEach(function add(feature) {
+      drupalSettings[mapid].features_url.forEach(function add(feature, idx) {
+        console.log("[leaflet_edit] feature #" + idx + " =", JSON.stringify(feature));
+        var parsedStyle = null;
+        var parsedMapping = null;
+        try {
+          parsedStyle = JSON.parse(feature.style);
+          console.log("[leaflet_edit] feature #" + idx + " style OK, keys =", Object.keys(parsedStyle || {}));
+        } catch (e) {
+          console.error("[leaflet_edit] feature #" + idx + " style JSON invalide :", feature.style, e);
+        }
+        try {
+          parsedMapping = feature.mapping ? JSON.parse(feature.mapping) : null;
+          console.log("[leaflet_edit] feature #" + idx + " mapping OK =", parsedMapping);
+        } catch (e) {
+          console.error("[leaflet_edit] feature #" + idx + " mapping JSON invalide :", feature.mapping, e);
+        }
+        console.log("[leaflet_edit] feature #" + idx + " url =", feature.url, "| description =", JSON.stringify(feature.description), "| filename =", feature.filename);
+        // Fallback pour le titre : description > filename > "Trace <fid>".
+        var traceName = (feature.description && String(feature.description).trim() !== "")
+          ? feature.description
+          : ((feature.filename && String(feature.filename).trim() !== "")
+            ? feature.filename
+            : ("Trace " + feature.id));
+        if (traceName !== feature.description) {
+          console.log("[leaflet_edit] feature #" + idx + " description vide, fallback titre =", JSON.stringify(traceName));
+        }
         lay = new L.GeoJSON.AJAX(feature.url, {
-          style: JSON.parse(feature.style),
-          mapping: JSON.parse(feature.mapping),
+          style: parsedStyle,
+          mapping: parsedMapping,
           renderer: canvasRenderer,
           distanceMarkers: {
             lazy: true,
@@ -307,7 +335,12 @@
             _updated: false,
           },
         }).on("data:loaded", function (e) {
-          for (const [lid, value] of Object.entries(this.getLayers())) {
+          var layers = this.getLayers();
+          console.log("[leaflet_edit] data:loaded pour fid =", feature.id, "| nb layers =", layers.length, "| event =", e);
+          if (layers.length === 0) {
+            console.warn("[leaflet_edit] AUCUNE géométrie chargée pour fid =", feature.id, "url =", feature.url, "— réponse vide ou GeoJSON sans features ?");
+          }
+          for (const [lid, value] of Object.entries(layers)) {
             processLoadedData(value);
             if (map.bounds && map.bounds.isValid()) {
               map.bounds = map.bounds.extend(
@@ -321,6 +354,15 @@
           map.lMap.fitBounds(map.bounds);
         });
 
+        lay.on("data:loading", function () {
+          console.log("[leaflet_edit] data:loading fid =", feature.id, "url =", feature.url);
+        });
+        lay.on("data:progress", function () {
+          console.log("[leaflet_edit] data:progress fid =", feature.id);
+        });
+        lay.on("data:loaderror", function (e) {
+          console.error("[leaflet_edit] data:loaderror fid =", feature.id, "url =", feature.url, e);
+        });
         lay.on("pm:edit", function (e) {
           evtLayerEdit(e);
         });
@@ -336,9 +378,10 @@
 
         over_trace.push({
           layer: lay,
-          name: feature.description,
+          name: traceName,
           active: true,
         });
+        console.log("[leaflet_edit] entrée panelLayers #" + idx + " name =", JSON.stringify(traceName), "| active = true");
       });
     }
 

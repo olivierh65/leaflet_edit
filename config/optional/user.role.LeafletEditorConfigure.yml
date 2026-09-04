@@ -1,0 +1,10 @@
+uuid: 36657194-a18b-4136-9046-6155c8ecc1e3
+langcode: en
+status: true
+id: leaflet_editor_configure
+label: 'Leaflet Editor Configure'
+weight: 1
+is_admin: false
+permissions:
+  - 'administer leaflet edit'
+  - 'restful get transfert_geojson'

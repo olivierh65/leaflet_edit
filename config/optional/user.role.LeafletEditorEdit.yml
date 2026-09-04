@@ -1,0 +1,10 @@
+uuid: 767212de-f7fb-451c-a52f-9d0bdecfcbbb
+langcode: en
+status: true
+id: leaflet_editor_edit
+label: 'Leaflet Editor Edit'
+weight: 3
+is_admin: false
+permissions:
+  - 'edit leaflet tracks'
+  - 'restful get transfert_geojson'

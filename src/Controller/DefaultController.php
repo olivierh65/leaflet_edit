@@ -1,496 +1,396 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\leaflet_edit\Controller;
 
+use Drupal\Component\Serialization\Json;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\File\FileSystemInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Datetime\TimeInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Utility\Token;
+use Drupal\file\FileRepositoryInterface;
+use Drupal\leaflet_edit\Service\GpxExporter;
+use Drupal\leaflet_edit\Service\PermissionChecker;
+use Drupal\node\NodeInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Request;
-use \Drupal\Component\Utility\Bytes;
-use geoPHP;
-use SimpleXMLElement;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Handles GeoJSON save and GPX export for the Leaflet map editor.
+ */
 class DefaultController extends ControllerBase {
 
-    public function hello() {
-        $renderable = [
-            '#theme' => 'uptest',
-            '#cache' => [
-                'max-age' => 0,
-            ],
-            '#attached' => [
-                'library' => [
-                    'uptest/uptest',
-                ],
-            ],
+  /**
+   * The GeoJSON file field on the map content type.
+   *
+   * Must match config/optional/field.field.node.leaflet_map_editor.field_leaflet_geojson_files.yml.
+   */
+  public const GEOJSON_FIELD_NAME = 'field_leaflet_geojson_files';
+
+  /**
+   * Maximum accepted GeoJSON payload size (5 MB).
+   */
+  public const MAX_GEOJSON_BYTES = 5242880;
+
+  /**
+   * Constructs a DefaultController object.
+   */
+  public function __construct(
+    protected EntityTypeManagerInterface $entityTypeManagerService,
+    protected EntityFieldManagerInterface $entityFieldManagerService,
+    protected FileSystemInterface $fileSystemService,
+    protected FileRepositoryInterface $fileRepository,
+    protected Token $token,
+    protected TimeInterface $time,
+    protected PermissionChecker $permissionChecker,
+    protected GpxExporter $gpxExporter,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container): static {
+    return new static(
+      $container->get('entity_type.manager'),
+      $container->get('entity_field.manager'),
+      $container->get('file_system'),
+      $container->get('file.repository'),
+      $container->get('token'),
+      $container->get('datetime.time'),
+      $container->get('leaflet_edit.permission_checker'),
+      $container->get('leaflet_edit.gpx_exporter'),
+    );
+  }
+
+  /**
+   * Displays the map editor for a node.
+   *
+   * @param \Drupal\node\NodeInterface $node
+   *   The map node.
+   *
+   * @return array
+   *   A render array.
+   */
+  public function map(NodeInterface $node): array {
+    return [
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $this->t('Use the @label view display to render the editable map.', ['@label' => $node->label()]),
+      '#cache' => [
+        'tags' => $node->getCacheTags(),
+        'contexts' => ['user.permissions'],
+      ],
+    ];
+  }
+
+  /**
+   * Saves an edited GeoJSON payload as a new file revision on the node.
+   *
+   * The node gets a new revision on each save so the history of changes
+   * (who modified what and when) is preserved.
+   */
+  public function saveFile(Request $request): JsonResponse {
+    if (!$this->permissionChecker->hasAnyPermission(['save leaflet tracks'])) {
+      return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+    }
+
+    $nid = $request->request->get('nid') ?? $request->query->get('nid');
+    $fid = $request->request->get('fid') ?? $request->query->get('fid');
+    $geojson = $request->request->get('geojson') ?? $request->query->get('geojson');
+
+    if (!is_scalar($nid) || !ctype_digit((string) $nid) || (int) $nid <= 0) {
+      return $this->makeUploadErrorResponse('Bad NID format.');
+    }
+    $node = $this->entityTypeManagerService->getStorage('node')->load((int) $nid);
+    if (!$node instanceof NodeInterface) {
+      return $this->makeUploadErrorResponse('No node with nid of ' . $nid);
+    }
+    if (!$node->access('update')) {
+      return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+    }
+    if (!$node->hasField(static::GEOJSON_FIELD_NAME)) {
+      return $this->makeUploadErrorResponse('GeoJSON field is missing on this node.');
+    }
+
+    $fileId = NULL;
+    if ($fid !== NULL && $fid !== '') {
+      if (!ctype_digit((string) $fid)) {
+        return $this->makeUploadErrorResponse('Bad FID format.');
+      }
+      $fileId = (int) $fid;
+      $attached = FALSE;
+      foreach ($node->get(static::GEOJSON_FIELD_NAME) as $item) {
+        if ((int) $item->get('file')->getValue() === $fileId) {
+          $attached = TRUE;
+          break;
+        }
+      }
+      if (!$attached) {
+        return $this->makeUploadErrorResponse('fid and nid mismatch.');
+      }
+    }
+
+    if (!is_string($geojson) || $geojson === '') {
+      return $this->makeUploadErrorResponse('Missing GeoJSON payload.');
+    }
+    if (strlen($geojson) > static::MAX_GEOJSON_BYTES) {
+      return $this->makeUploadErrorResponse('GeoJSON payload too large.');
+    }
+    try {
+      $decoded = Json::decode($geojson);
+    }
+    catch (\InvalidArgumentException) {
+      return $this->makeUploadErrorResponse('Invalid GeoJSON payload.');
+    }
+    if (!is_array($decoded) || ($decoded['type'] ?? NULL) !== 'FeatureCollection') {
+      return $this->makeUploadErrorResponse('Only GeoJSON FeatureCollection payloads are accepted.');
+    }
+
+    $fieldMetadata = $this->getFileFieldMetaData($node->bundle(), static::GEOJSON_FIELD_NAME);
+    if ($fieldMetadata === FALSE) {
+      return $this->makeUploadErrorResponse('Problem loading file field metadata.');
+    }
+
+    $fieldItems = $node->get(static::GEOJSON_FIELD_NAME);
+    $cardinality = $fieldMetadata['cardinality'];
+    if ($cardinality > 0 && count($fieldItems) >= $cardinality && $fileId === NULL) {
+      return $this->makeUploadErrorResponse('Maximum number of files for this node already reached.');
+    }
+
+    $directory = 'public://' . trim($fieldMetadata['directory'] ?? 'leaflet_edit', '/');
+    if (!$this->fileSystemService->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)) {
+      return $this->makeUploadErrorResponse('Error preparing directory.');
+    }
+
+    $savedFile = $this->fileRepository->writeData(
+      $geojson,
+      $directory . '/' . $this->buildGeojsonFilename($node),
+      FileSystemInterface::EXISTS_RENAME
+    );
+    if (!$savedFile) {
+      return $this->makeUploadErrorResponse('Error saving file.');
+    }
+    $savedFile->setPermanent();
+    $savedFile->save();
+
+    if ($fileId !== NULL) {
+      $updated = FALSE;
+      foreach ($node->get(static::GEOJSON_FIELD_NAME) as $item) {
+        if ((int) $item->get('file')->getValue() === $fileId) {
+          $item->set('file', $savedFile->id());
+          $updated = TRUE;
+          break;
+        }
+      }
+      if (!$updated) {
+        return $this->makeUploadErrorResponse('Error updating node file reference.');
+      }
+    }
+    else {
+      $node->get(static::GEOJSON_FIELD_NAME)->appendItem(['file' => $savedFile->id()]);
+    }
+
+    // Create a new node revision on each save to keep the change history
+    // (who modified what and when).
+    $node->setNewRevision(TRUE);
+    $node->setRevisionLogMessage($this->t('GeoJSON file @old saved as @new.', [
+      '@old' => $fileId ?? $this->t('new')->render(),
+      '@new' => $savedFile->id(),
+    ])->render());
+    $node->setRevisionUserId($this->currentUser()->id());
+    $node->setRevisionCreationTime($this->time->getRequestTime());
+    $node->save();
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'fid' => $savedFile->id(),
+    ]);
+  }
+
+  /**
+   * Exports one or more GeoJSON features to GPX.
+   */
+  public function exportToGpx(Request $request): JsonResponse {
+    if (!$this->permissionChecker->hasAnyPermission(['export leaflet tracks to gpx'])) {
+      return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
+    }
+
+    $payload = $request->request->get('geojson') ?? $request->query->get('geojson');
+    $description = (string) ($request->request->get('description') ?? $request->query->get('description') ?? '');
+    $filename = $this->sanitizeFilename((string) ($request->request->get('filename') ?? $request->query->get('filename') ?? 'export'));
+
+    if (!is_string($payload) || $payload === '') {
+      return new JsonResponse(['error' => 'Missing GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
+    }
+    try {
+      $tracks = Json::decode($payload);
+    }
+    catch (\InvalidArgumentException) {
+      return new JsonResponse(['error' => 'Invalid GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
+    }
+    if (!is_array($tracks)) {
+      return new JsonResponse(['error' => 'Invalid GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
+    }
+    // Accept either a single track payload or a list of tracks.
+    if (isset($tracks['geojson'])) {
+      $tracks = [$tracks];
+    }
+
+    $gpxDocuments = [];
+    foreach ($tracks as $track) {
+      if (!is_array($track) || !isset($track['geojson'])) {
+        continue;
+      }
+      $name = $filename
+        . ($description !== '' ? '-' . $description : '')
+        . (!empty($track['type']) && is_string($track['type']) ? '-' . $track['type'] : '');
+      try {
+        $gpxDocuments[] = [
+          'gpx' => $this->gpxExporter->geojsonToGpx($track['geojson'], $name),
+          'filename' => $name,
         ];
-        return $renderable;
+      }
+      catch (\InvalidArgumentException) {
+        continue;
+      }
     }
 
-    public function saveFile(Request $request) {
-
-        // Verification des permissions
-        $permission_checker = \Drupal::service('mymodule.permission_checker');
-        if (! $permission_checker->hasAnyPermission(['LeafletEditor Save'])) {
-            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
-        }
-
-        $nid = $request->get('nid');
-        $fid = $request->get('fid');
-        $geojson = $request->get('geojson');
-
-
-        if (!$nid || !is_numeric($nid) || $nid < 0) {
-            return $this->makeUploadErrorResponse('Bad NID format');
-        }
-        $node = \Drupal::entityTypeManager()->getStorage('node')
-            ->load($nid);
-        if (!$node) {
-            return $this->makeUploadErrorResponse('No node with nid of ' . $nid);
-        }
-
-        if (isset($fid)) {
-            // Check that this fid is attached to this nid
-            $chk = \Drupal::entityQuery('node')->condition('nid', $nid)->condition('field_leaflet_edit_geojsonfile.target_id', $fid)->accessCheck(FALSE)->execute();
-
-            if (count($chk) != 1) {
-                return $this->makeUploadErrorResponse('fid and nid mismatch');
-            }
-        }
-
-        //Get node field metadata.
-        $nodeFieldMetadata = $this->getFileFieldMetaData('leaflet_edit', 'field_leaflet_edit_geojsonfile');
-        if (!$nodeFieldMetadata) {
-            return $this->makeUploadErrorResponse('Problem loading file field metadata.');
-        }
-        //Check the file size.
-        /* $maxSizeAllowed = Bytes::toInt($nodeFieldMetadata['max file size']);
-        if ($uploadedFileSize > $maxSizeAllowed) {
-            return $this->makeUploadErrorResponse('File too large.');
-        } */
-        //Check cardinality.
-        /** @var \Drupal\file\Plugin\Field\FieldType\FileFieldItemList $fieldValueInNode */
-        $fieldValueInNode = $node->get('field_leaflet_edit_geojsonfile');
-        $fieldAttachedFileItemList = $fieldValueInNode->getValue();
-        $nodeFileFieldNumAttachments = count($fieldAttachedFileItemList);
-        $allowedCardinality = $nodeFieldMetadata['cardinality'];
-        if ($nodeFileFieldNumAttachments >= $allowedCardinality) {
-            return $this->makeUploadErrorResponse('Maximum number of files for this node already reached.');
-        }
-        //OK. Attach the file.
-        //Prepare the directory.
-        $directory = 'public://' . $nodeFieldMetadata['directory'];
-        $result = \Drupal::service('file_system')->prepareDirectory($directory, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY);
-        if (!$result) {
-            return $this->makeUploadErrorResponse('Error preparing directory.');
-        }
-        //Read the file's contents.
-        $fileData = $geojson;
-        //Save in right dir, creating a file entity instance.
-        $savedFile = \Drupal::service('file.repository')->writeData(
-            $fileData,
-            $directory . '/' . 'test.geojson',
-            FileSystemInterface::EXISTS_RENAME
-        );
-        if (!$savedFile) {
-            return $this->makeUploadErrorResponse('Error saving file.');
-        }
-
-        if (isset($fid)) {
-            // update node
-            $updated = false;
-            for ($i = 0; $i < $node->field_leaflet_edit_geojsonfile->count(); $i++) {
-                if ($fid == $node->field_leaflet_edit_geojsonfile->get($i)->get('target_id')->getValue()) {
-                    $node->field_leaflet_edit_geojsonfile->get($i)->get('target_id')->setValue($savedFile->id());
-                    $updated = true;
-                    break;
-                }
-            }
-            if (!$updated) {
-                return $this->makeUploadErrorResponse('Error updating node file reference.');
-            }
-        } else {
-            //Attach to the node.
-            $node->field_leaflet_edit_geojsonfile[] = [
-                'target_id' => $savedFile->id(),
-            ];
-        }
-
-        $node->save();
-        return new JsonResponse([
-            'success' => TRUE,
-            'fid' => $savedFile->id(),
-        ]);
+    if ($gpxDocuments === []) {
+      return new JsonResponse(['error' => 'No convertible track found.'], Response::HTTP_BAD_REQUEST);
     }
 
-    public function exportToGpx__(Request $request) {
+    return new JsonResponse([
+      'success' => TRUE,
+      'gpx' => $gpxDocuments,
+    ]);
+  }
 
-        // Verification des permissions
-        $permission_checker = \Drupal::service('mymodule.permission_checker');
-        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
-            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
-        }
-
-        $geojson = $request->get('geojson');
-        $filename = $request->get('filename');
-
-        geophp_load();
-
-        $gpx = geoPHP::load($geojson)->out('gpx');
-
-        $response = new Response($gpx);
-        $disposition = $response->headers->makeDisposition(
-            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $filename,
-        );
-
-        // Add filename in GPX file
-        $gpx_temp = simplexml_load_string($gpx);
-        $gpx_temp->addChild('metadata');
-        $gpx_temp->metadata->addChild('name', $filename);
-        $gpx = $gpx_temp->asXML();
-
-        // Set the content disposition
-        $response->headers->set('Content-Disposition', $disposition);
-        $response->headers->set('Content-Type', 'data:text/octet-stream');
-        $response->headers->set('Content-Length', strlen($gpx));
-        $response->headers->set('Content-Description', 'Export GPX');
-        // Dispatch request
-        return $response;
+  /**
+   * Exports several GeoJSON features merged into a single GPX document.
+   */
+  public function exportToGpxMerge(Request $request): JsonResponse {
+    if (!$this->permissionChecker->hasAnyPermission(['export leaflet tracks to gpx'])) {
+      return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
     }
 
-    public function exportToGpx(Request $request) {
+    $payload = $request->request->get('geojson') ?? $request->query->get('geojson');
+    $description = (string) ($request->request->get('description') ?? $request->query->get('description') ?? '');
+    $filename = $this->sanitizeFilename((string) ($request->request->get('filename') ?? $request->query->get('filename') ?? 'export'));
 
-        // Verification des permissions
-        $permission_checker = \Drupal::service('mymodule.permission_checker');
-        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
-            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
-        }
-
-        $geojsons = json_decode($request->get('geojson'), true);
-        $description = $request->get('description');
-        $filename = $request->get('filename');
-
-        geophp_load();
-
-        $gpxs = [];
-        foreach ($geojsons as $geojson) {
-            $gpx = geoPHP::load(json_encode($geojson['geojson']))->out('gpx');
-            $name = $filename .
-                (strlen($description) > 0 ? '-' . $description : '') .
-                (strlen($geojson['type']) > 0 ? '-' . $geojson['type'] : '');
-
-            // Add filename in GPX file
-            $gpx_temp = simplexml_load_string($gpx);
-            $gpx_temp->addChild('metadata');
-            $gpx_temp->metadata->addChild('name', $name);
-            $gpx = $gpx_temp->asXML();
-
-            $gpxs[] =  [
-                'gpx' => $gpx,
-                'filename' => $name,
-            ];
-        }
-
-        $response = new JsonResponse([
-            'success' => TRUE,
-            'gpx' => $gpxs,
-        ]);
-        return $response;
+    if (!is_string($payload) || $payload === '') {
+      return new JsonResponse(['error' => 'Missing GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
+    }
+    try {
+      $tracks = Json::decode($payload);
+    }
+    catch (\InvalidArgumentException) {
+      return new JsonResponse(['error' => 'Invalid GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
+    }
+    if (!is_array($tracks) || $tracks === []) {
+      return new JsonResponse(['error' => 'Invalid GeoJSON payload.'], Response::HTTP_BAD_REQUEST);
     }
 
-    public function exportToGpxMerge(Request $request) {
-
-        // Verification des permissions
-        $permission_checker = \Drupal::service('mymodule.permission_checker');
-        if (! $permission_checker->hasAnyPermission(['LeafletEditor Export_GPX'])) {
-            return new JsonResponse(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
-        }
-
-        $geojsons = json_decode($request->get('geojson'), true);
-        $description = $request->get('description');
-        $filename = $request->get('filename');
-
-        /* foreach ($geojsons as &$geojson) {
-            foreach ($geojson['geojson']['geometry']['coordinates'] as &$coords) {
-                $i=0;
-                foreach ($coords as &$coord) {
-                        $coord[0] = sprintf('%f', $coord[0]);
-                        $coord[1] = sprintf('%f', $coord[1]);
-                    
-                }
-
-            }
-        } */
-        // prepare merge by type
-        $types = [];
-        $i = 0;
-        for ($i = 0; $i < count($geojsons); $i++) {
-            if ($geojsons[$i]['type']) {
-                $types[$geojsons[$i]['type']][] = $i;
-            }
-        }
-
-        geophp_load();
-
-        $gpxs = [];
-
-        $b = new \DOMDocument("1.0", "UTF-8");
-        $gpxRoot = $b->createElement('gpx');
-        $gpxRoot->setAttribute('creator', 'Drupal Leaflet Edit');
-        $gpxRoot->setAttribute('version', '1.1');
-        $gpxRoot->setAttribute('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
-        $gpxRoot->setAttribute('xmlns', 'http://www.topografix.com/GPX/1/1');
-        $gpxRoot->setAttribute('xmlns', 'xmlns:ogr="http://osgeo.org/gdal');
-        $gpxRoot->setAttribute('xsi:schemaLocation', 'http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/WaypointExtension/v1 http://www8.garmin.com/xmlschemas/WaypointExtensionv1.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www8.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/ActivityExtension/v1 http://www8.garmin.com/xmlschemas/ActivityExtensionv1.xsd http://www.garmin.com/xmlschemas/AdventuresExtensions/v1 http://www8.garmin.com/xmlschemas/AdventuresExtensionv1.xsd http://www.garmin.com/xmlschemas/PressureExtension/v1 http://www.garmin.com/xmlschemas/PressureExtensionv1.xsd http://www.garmin.com/xmlschemas/TripExtensions/v1 http://www.garmin.com/xmlschemas/TripExtensionsv1.xsd http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1 http://www.garmin.com/xmlschemas/TripMetaDataExtensionsv1.xsd http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1 http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensionsv1.xsd http://www.garmin.com/xmlschemas/CreationTimeExtension/v1 http://www.garmin.com/xmlschemas/CreationTimeExtensionsv1.xsd http://www.garmin.com/xmlschemas/AccelerationExtension/v1 http://www.garmin.com/xmlschemas/AccelerationExtensionv1.xsd http://www.garmin.com/xmlschemas/PowerExtension/v1 http://www.garmin.com/xmlschemas/PowerExtensionv1.xsd http://www.garmin.com/xmlschemas/VideoExtension/v1 http://www.garmin.com/xmlschemas/VideoExtensionv1.xsd');
-        $gpxRoot->setAttribute('xmlns:wptx1', 'http://www.garmin.com/xmlschemas/WaypointExtension/v1');
-        $gpxRoot->setAttribute('xmlns:gpxtrx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3');
-        $gpxRoot->setAttribute('xmlns:gpxtpx', 'http://www.garmin.com/xmlschemas/TrackPointExtension/v1');
-        $gpxRoot->setAttribute('xmlns:gpxx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3');
-        $gpxRoot->setAttribute('xmlns:trp', 'http://www.garmin.com/xmlschemas/TripExtensions/v1');
-        $gpxRoot->setAttribute('xmlns:adv', 'http://www.garmin.com/xmlschemas/AdventuresExtensions/v1');
-        $gpxRoot->setAttribute('xmlns:prs', 'http://www.garmin.com/xmlschemas/PressureExtension/v1');
-        $gpxRoot->setAttribute('xmlns:tmd', 'http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1');
-        $gpxRoot->setAttribute('xmlns:vptm', 'http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1');
-        $gpxRoot->setAttribute('xmlns:ctx', 'http://www.garmin.com/xmlschemas/CreationTimeExtension/v1');
-        $gpxRoot->setAttribute('xmlns:gpxacc', 'http://www.garmin.com/xmlschemas/AccelerationExtension/v1');
-        $gpxRoot->setAttribute('xmlns:gpxpx', 'http://www.garmin.com/xmlschemas/PowerExtension/v1');
-        $gpxRoot->setAttribute('xmlns:vidx1', 'http://www.garmin.com/xmlschemas/VideoExtension/v1');
-        $gpxRoot->setAttribute('xmlns:ogr', 'http://osgeo.org/gdal');
-
-        $b->appendChild($gpxRoot);
-
-        $XMLRoot = $b->createElement('metadata');
-        $meta = $b->createElement('name', $filename);
-        $XMLRoot->appendChild($meta);
-        $meta = $b->createElement('desc', $description);
-        $XMLRoot->appendChild($meta);
-        $gpxRoot->appendChild($XMLRoot);
-
-
-        foreach ($types as $type => $indexes) {
-
-            $trkRoot = $b->createElement('trk');
-
-            $name_done = false;
-            foreach ($indexes as $index) {
-
-                if (!$name_done) {
-                    $meta = $b->createElement('name', $filename .
-                        (strlen($description) > 0 ? '-' . $description : '') .
-                        (strlen($type) > 0 ? '-' . $type : ''));
-                    $trkRoot->appendChild($meta);
-                    if ($type) {
-                        $meta = $b->createElement('type', $type);
-                        $trkRoot->appendChild($meta);
-                    }
-                    $extRoot = $b->createElement('extensions');
-
-                    if (isset($geojsons[$index]['color'])) {
-                        $gpxxRoot = $b->createElement('gpxx:TrackExtension');
-                        $color = $this->hex2colorName($geojsons[$index]['color']);
-                        $meta = $b->createElement('gpxx:DisplayColor', $color);
-                        $gpxxRoot->appendChild($meta);
-                        $extRoot->appendChild($gpxxRoot);
-                    }
-
-                    if (isset($geojsons[$index]['width'])) {
-                        $lineRoot = $b->createElement('line');
-                        $lineRoot->setAttribute('xmlns', 'http://www.topografix.com/GPX/gpx_style/0/2');
-                        $meta = $b->createElement('width', $geojsons[$index]['width']);
-                        $lineRoot->appendChild($meta);
-                        $extRoot->appendChild($lineRoot);
-                    }
-
-                    if (isset($geojsons[$index]['properties'])) {
-                        $props = json_decode($geojsons[$index]['properties'], true);
-                        foreach ($props as $prop => $value) {
-                            $meta = $b->createElement('ogr:' . $prop, $value);
-                            $extRoot->appendChild($meta);
-                        }
-                    }
-
-                    $trkRoot->appendChild($extRoot);
-
-                    $name_done = true;
-                }
-
-
-                $gpx = geoPHP::load(json_encode($geojsons[$index]['geojson']))->out('gpx');
-
-                $b_tmp = new \DOMDocument();
-                $b_tmp->loadXML($gpx);
-
-                // geoPHP can write numbers in scientific notation (at least when close to greenwitch meridian),
-                // which is not correct with the GPX specification.
-                // Rewrites all coordinates as floats
-                foreach ($b_tmp->getElementsByTagName('trkpt') as $key => $value) {
-                    $b_tmp->getElementsByTagName('trkpt')->item($key)->setAttribute('lon', sprintf('%f', $b_tmp->getElementsByTagName('trkpt')->item($key)->getAttribute('lon')));
-                }
-                // trk
-                foreach ($b_tmp->getElementsByTagName('trkseg') as $trkseg) {
-
-                    // $tr = $b->getElementsByTagName('trk');
-                    // $tr1 = $tr->item($tr->count() - 1);
-                    if ($ti = $b->importNode($trkseg, true)) {
-                        $trkRoot->appendChild($ti);
-                    }
-                }
-                $gpxRoot->appendChild($trkRoot);
-            }
-            $b->appendChild($gpxRoot);
-        }
-
-        $b->preserveWhiteSpace = false;
-        $b->formatOutput = true;
-        $gpxs[] =  [
-            'gpx' => $b->saveXML(),
-            'filename' => $filename,
-        ];
-
-        $response = new JsonResponse([
-            'success' => TRUE,
-            'gpx' => $gpxs,
-        ]);
-        return $response;
+    $normalized = [];
+    foreach ($tracks as $track) {
+      if (!is_array($track) || !isset($track['geojson'])) {
+        continue;
+      }
+      $normalized[] = [
+        'geojson' => $track['geojson'],
+        'type' => is_string($track['type'] ?? NULL) ? $track['type'] : '',
+        'properties' => is_string($track['properties'] ?? NULL) ? $track['properties'] : '',
+        'color' => is_string($track['color'] ?? NULL) ? $track['color'] : '',
+        'width' => is_string($track['width'] ?? NULL) ? $track['width'] : '',
+      ];
+    }
+    if ($normalized === []) {
+      return new JsonResponse(['error' => 'No convertible track found.'], Response::HTTP_BAD_REQUEST);
     }
 
-    /**
-     * Make a response for file upload attempt with an error message.
-     *
-     * @param string $message The error message.
-     *
-     * @return \Symfony\Component\HttpFoundation\JsonResponse Response to return to client.
-     */
-    protected function makeUploadErrorResponse($message) {
-        $result = [
-            'success' => FALSE,
-            'message' => $message,
-        ];
-        return new JsonResponse($result);
+    $gpx = $this->gpxExporter->mergeTracksToGpx($normalized, $filename, $description);
+
+    return new JsonResponse([
+      'success' => TRUE,
+      'gpx' => [
+        [
+          'gpx' => $gpx,
+          'filename' => $filename,
+        ],
+      ],
+    ]);
+  }
+
+  /**
+   * Makes a JSON response for a file upload attempt with an error message.
+   *
+   * @param string $message
+   *   The error message.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The response to return to the client.
+   */
+  protected function makeUploadErrorResponse(string $message): JsonResponse {
+    return new JsonResponse([
+      'success' => FALSE,
+      'message' => $message,
+    ], Response::HTTP_BAD_REQUEST);
+  }
+
+  /**
+   * Gets metadata for a file field.
+   *
+   * @param string $bundle
+   *   The bundle carrying the field.
+   * @param string $fieldName
+   *   The field name.
+   *
+   * @return array|false
+   *   Metadata, or FALSE on failure.
+   */
+  protected function getFileFieldMetaData(string $bundle, string $fieldName): array|false {
+    if ($bundle === '' || $fieldName === '') {
+      return FALSE;
     }
-
-    /**
-     * Get metadata for a file field.
-     *
-     * @param string $contentType Content type with the field.
-     * @param string $fieldName Name of the field.
-     *
-     * @return array|bool Metadata, or false if a problem.
-     */
-    protected function getFileFieldMetaData($contentType, $fieldName) {
-
-        if ($contentType === '' || $fieldName === '') {
-            return FALSE;
-        }
-        $entityFieldManager = \Drupal::service('entity_field.manager');
-        $fields = $entityFieldManager->getFieldDefinitions('node', $contentType);
-        if (!$fields || count($fields) === 0) {
-            return FALSE;
-        }
-        //Get file field definition.
-        if (!isset($fields[$fieldName])) {
-            return FALSE;
-        }
-        /** @var \Drupal\field\Entity\FieldConfig $fieldDef */
-        $fieldDef = $fields[$fieldName];
-        //Get settings, doesn't include cardinality.
-        $directory = $fieldDef->getSetting('file_directory');
-        //Resolve tokens.
-        /** @var \Drupal\Core\Utility\Token $tokenService */
-        $tokenService = \Drupal::service('token');
-        $directory = $tokenService->replace($directory);
-        $fileExtensions = $fieldDef->getSetting('file_extensions');
-        $maxFileSize = $fieldDef->getSetting('max_filesize');
-        //Get cardinality.
-        /** @var \Drupal\field\Entity\FieldStorageConfig $fieldStorageDef */
-        $fieldStorageDef = $fieldDef->getFieldStorageDefinition();
-        $cardinality = $fieldStorageDef->getCardinality();
-        //Return results.
-        $result = [
-            'content type' => $contentType,
-            'field' => $fieldName,
-            'directory' => $directory,
-            'extensions' => $fileExtensions,
-            'max file size' => $maxFileSize,
-            'cardinality' => $cardinality,
-            'uri_scheme' => $fieldDef->getSetting('uri_scheme'),
-        ];
-        return $result;
+    $fields = $this->entityFieldManagerService->getFieldDefinitions('node', $bundle);
+    if (!isset($fields[$fieldName])) {
+      return FALSE;
     }
-    private function hex2colorName($value) {
-        // Garmin colors
-        $colors = array(
-            "Black"     => array(0, 0, 0),
-            "DarkRed"     => array(139, 0, 0),
-            "DarkGreen"    => array(0, 100, 0),
-            "DarkYellow"      => array(139, 128, 0),
-            "DarkBlue"      => array(0, 0, 139),
-            "DarkMagenta"     => array(139, 0, 139),
-            "DarkCyan"     => array(0, 139, 139),
-            "LightGray"    => array(211, 211, 211),
-            "DarkGray"    => array(169, 169, 169),
-            "Red"      => array(255, 0, 0),
-            "Green"       => array(0, 128, 0),
-            "Yellow"      => array(255, 255, 0),
-            "Blue"    => array(0, 0, 255),
-            "Magenta"      => array(255, 0, 255),
-            "Cyan"   => array(0, 255, 255),
-            "White"      => array(255, 255, 255),
-        );
+    $fieldDefinition = $fields[$fieldName];
+    $directory = $this->token->replace($fieldDefinition->getSetting('file_directory') ?? '');
+    $fieldStorageDefinition = $fieldDefinition->getFieldStorageDefinition();
 
+    return [
+      'bundle' => $bundle,
+      'field' => $fieldName,
+      'directory' => trim($directory, '/'),
+      'extensions' => $fieldDefinition->getSetting('file_extensions'),
+      'max file size' => $fieldDefinition->getSetting('max_filesize'),
+      'cardinality' => $fieldStorageDefinition->getCardinality(),
+      'uri_scheme' => $fieldDefinition->getSetting('uri_scheme'),
+    ];
+  }
 
-        $distances = array();
-        $val = $this->html2rgb($value);
-        foreach ($colors as $name => $c) {
-            $distances[$name] = $this->distancel2($c, $val);
-        }
+  /**
+   * Builds a safe GeoJSON file name for a node.
+   */
+  protected function buildGeojsonFilename(NodeInterface $node): string {
+    $timestamp = $this->time->getRequestTime();
+    return sprintf('leaflet-edit-%d-%d.geojson', $node->id(), $timestamp);
+  }
 
-        $mincolor = "";
-        $minval = pow(2, 30); /*big value*/
-        foreach ($distances as $k => $v) {
-            if ($v < $minval) {
-                $minval = $v;
-                $mincolor = $k;
-            }
-        }
+  /**
+   * Sanitizes a user-provided file name.
+   */
+  protected function sanitizeFilename(string $filename): string {
+    $filename = trim($filename);
+    $filename = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $filename) ?? 'export';
+    $filename = trim($filename, '-.');
+    return $filename !== '' ? substr($filename, 0, 100) : 'export';
+  }
 
-        return $mincolor;
-    }
-    private function html2rgb($color) {
-        if ($color[0] == '#')
-            $color = substr($color, 1);
-
-        if (strlen($color) == 6)
-            list($r, $g, $b) = array(
-                $color[0] . $color[1],
-                $color[2] . $color[3],
-                $color[4] . $color[5]
-            );
-        elseif (strlen($color) == 3)
-            list($r, $g, $b) = array(
-                $color[0] . $color[0],
-                $color[1] . $color[1],
-                $color[2] . $color[2]
-            );
-        else
-            return false;
-
-        $r = hexdec($r);
-        $g = hexdec($g);
-        $b = hexdec($b);
-
-        return array($r, $g, $b);
-    }
-
-    private function distancel2(array $color1, array $color2) {
-        return sqrt(pow($color1[0] - $color2[0], 2) +
-            pow($color1[1] - $color2[1], 2) +
-            pow($color1[2] - $color2[2], 2));
-    }
 }

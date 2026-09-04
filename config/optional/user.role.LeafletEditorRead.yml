@@ -1,0 +1,9 @@
+uuid: 0edd3801-ba51-4dae-b1c9-e8da2793c52b
+langcode: en
+status: true
+id: leaflet_editor_read
+label: 'Leaflet Editor Read'
+weight: 7
+is_admin: false
+permissions:
+  - 'restful get transfert_geojson'

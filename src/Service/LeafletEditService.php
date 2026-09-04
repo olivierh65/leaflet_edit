@@ -1,45 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\leaflet_edit\Service;
 
-use Drupal\Core\Url;
-use Drupal\file\Entity\File;
-use Drupal\Component\Utility\Html;
-use Drupal\leaflet\LeafletService;
-use Drupal\node\NodeInterface;
-
-
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Url;
+use Drupal\Core\Utility\LinkGeneratorInterface;
+use Drupal\file\Entity\File;
 use Drupal\geofield\GeoPHP\GeoPHPInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Utility\LinkGeneratorInterface;
-use Drupal\Component\Serialization\Json;
+use Drupal\leaflet\LeafletService;
+use Drupal\node\NodeInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 
-
 /**
- * Provides a LeafletService class.
+ * Provides Leaflet map rendering with edit capabilities.
  */
 class LeafletEditService extends LeafletService {
 
+  use StringTranslationTrait;
+
   /**
-   * Load all Leaflet required client files and return markup for a map.
-   *
-   * @param array $map
-   *   The map settings array.
-   * @param array $features
-   *   The features array.
-   * @param string $height
-   *   The height value string.
-   *
-   * @return array
-   *   The leaflet_map render array.
+   * Constructs a LeafletEditService object.
    */
   public function __construct(
     AccountInterface $current_user,
@@ -49,7 +38,9 @@ class LeafletEditService extends LeafletService {
     StreamWrapperManagerInterface $stream_wrapper_manager,
     RequestStack $request_stack,
     CacheBackendInterface $cache,
-    FileUrlGeneratorInterface $file_url_generator
+    FileUrlGeneratorInterface $file_url_generator,
+    protected EntityTypeManagerInterface $entityTypeManager,
+    protected ConfigFactoryInterface $configFactory,
   ) {
     parent::__construct(
       $current_user,
@@ -59,147 +50,110 @@ class LeafletEditService extends LeafletService {
       $stream_wrapper_manager,
       $request_stack,
       $cache,
-      $file_url_generator
+      $file_url_generator,
     );
   }
 
-  public function leafletRenderMap(array $map, array $features = [], $height = '400px') {
-    
-    $feat = [];
-    $feat_url = [];
+  /**
+   * {@inheritdoc}
+   */
+  public function leafletRenderMap(array $map, array $features = [], $height = '400px'): array {
+    $inlineFeatures = [];
+    $urlFeatures = [];
     foreach ($features as $feature) {
-      if ($feature['type'] == 'url') {
-        array_push($feat_url, $feature);
-      } else {
-        array_push($feat, $feature);
+      if (($feature['type'] ?? '') === 'url') {
+        $urlFeatures[] = $feature;
+      }
+      else {
+        $inlineFeatures[] = $feature;
       }
     }
 
-    // add features that are not 'url'
-    $par = parent::leafletRenderMap($map, $feat, $height);
-    $config = \Drupal::config('leaflet_edit.settings');
-    $attached_libraries = $par['#attached']['library'];
-    $settings = $par['#attached']['drupalSettings'];
+    $build = parent::leafletRenderMap($map, $inlineFeatures, $height);
+    $attachedLibraries = $build['#attached']['library'] ?? [];
+    $settings = $build['#attached']['drupalSettings'] ?? [];
 
+    $attachedLibraries[] = 'leaflet_edit/leaflet-geoman';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-locatecontrol';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-styleeditor';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-panel-layers';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-notifications';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-toolbar';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-fullscreen';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-edit';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.ajax';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-contextmenu';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.select2';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.Dialog';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.control-window';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-distance-markers';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.GeometryUtil';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.togeojson';
+    $attachedLibraries[] = 'leaflet_edit/leaflet-slider';
+    $attachedLibraries[] = 'jquery_ui_dialog/dialog';
+    $attachedLibraries[] = 'jquery_ui_selectmenu/selectmenu';
 
-    // Geoman
-    $attached_libraries[] = 'leaflet_edit/leaflet-geoman';
-
-    // Locate
-    $attached_libraries[] = 'leaflet_edit/leaflet-locatecontrol';
-
-    // StyleEditor
-    $attached_libraries[] = 'leaflet_edit/leaflet-styleeditor';
-
-
-    // geojson
-    /* $attached_libraries[] = 'leaflet_edit/leaflet-geojson'; */
-
-    // layerJSON
-    /* $attached_libraries[] = 'leaflet_edit/leaflet-layerjson'; */
-
-    // panel-layers
-    $attached_libraries[] = 'leaflet_edit/leaflet-panel-layers';
-
-    // Notifications
-    $attached_libraries[] = 'leaflet_edit/leaflet-notifications';
-
-    // Toolbar
-    $attached_libraries[] = 'leaflet_edit/leaflet-toolbar';
-    //
-    // Fullscreen
-    $attached_libraries[] = 'leaflet_edit/leaflet-fullscreen';
-    //
-    $map_id = $par['#map_id'];
-    $attached_libraries[] = 'leaflet_edit/leaflet-edit';
-    // $attached_libraries[] =  'leaflet/leaflet-drupal';
-    $attached_libraries[] =  'leaflet_edit/leaflet.ajax';
-    // $attached_libraries[] =  'leaflet/general';
-
-    // Context Menu
-    $attached_libraries[] = 'leaflet_edit/leaflet-contextmenu';
-
-    // Select2 
-    $attached_libraries[] =  'leaflet_edit/leaflet.select2';
-
-    // Dialog
-    $attached_libraries[] =  'leaflet_edit/leaflet.Dialog';
-
-    // Control window
-    $attached_libraries[] =  'leaflet_edit/leaflet.control-window';
-
-    //CascadeButtons
-    // $attached_libraries[] =  'leaflet_edit/leaflet.cascadebuttons';
-
-    //togpx
-    // $attached_libraries[] =  'leaflet_edit/togpx';
-
-    // leaflet-distance-markers
-    $attached_libraries[] =  'leaflet_edit/leaflet-distance-markers';
-    // leaflet.GeometryUtil
-    $attached_libraries[] =  'leaflet_edit/leaflet.GeometryUtil';
-
-    // turf
-    
-    //togeojson
-    $attached_libraries[] =  'leaflet_edit/leaflet.togeojson';
-
-    //JQuery UI Dialog
-    $attached_libraries[] = 'jquery_ui_dialog/dialog';
-    $attached_libraries[] = 'jquery_ui_selectmenu/selectmenu';
-
-    //Slider
-    $attached_libraries[] =  'leaflet_edit/leaflet-slider';
-
-    // now add url features
-    $settings[$map_id] = [
-      'mapid' => $map_id,
+    $mapId = $build['#map_id'];
+    // Keep per-map settings namespaced by map ID to support several maps
+    // on the same page.
+    $settings[$mapId] = [
+      'mapid' => $mapId,
       'map' => $map,
-      // JS only works with arrays, make sure we have one with numeric keys.
-      'features_url' => array_values($feat_url),
+      'features_url' => array_values($urlFeatures),
     ];
+
     return [
-      '#theme' => $par['#theme'],
-      '#map_id' => $map_id,
+      '#theme' => $build['#theme'],
+      '#map_id' => $mapId,
       '#height' => $height,
       '#map' => $map,
       '#attached' => [
-        'library' => $attached_libraries,
+        'library' => array_values(array_unique($attachedLibraries)),
         'drupalSettings' => $settings,
+      ],
+      '#cache' => [
+        'contexts' => ['user.permissions'],
       ],
     ];
   }
 
   /**
-   * Returns the relative url of a file.
+   * Returns the REST URL serving a GeoJSON file for a node revision.
    *
-   * @param $fid
+   * @param int $fid
+   *   The file entity ID.
+   * @param \Drupal\node\NodeInterface $entity
+   *   The host node entity.
    *
    * @return string
+   *   The relative REST URL, or an empty string if the file is missing.
    */
-  public function leafletProcessGeofieldFileUrl($fid, NodeInterface $entity) {
-    /** @var \Drupal\file\Entity\File $file */
-    $file = File::load($fid);
-    if ($file) {
-      /** @var \Drupal\Core\Url $file_uri */
-      ///$file_uri = Url::fromUri($file->getFileUri());
-      ///$file_uri->setOption('query', ['v' => $entity->getRevisionId()]);
-      ///return file_url_transform_relative($file_uri->toUriString());
-
-      // return \Drupal::service('file_url_generator')->generateAbsoluteString($file->getFileUri()) . '?v=' . $entity->getRevisionId();
-
-      return \Drupal\Core\Url::fromUserInput('/',  array('absolute' => 'true'))->toString() . 'leaflet_edit/geojson/' . $entity->getRevisionId() . '/' . $fid . '/' . $entity->id() . '?_format=json';
+  public function leafletProcessGeofieldFileUrl(int $fid, NodeInterface $entity): string {
+    $file = $this->entityTypeManager->getStorage('file')->load($fid);
+    if (!$file instanceof File) {
+      return '';
     }
-    return "";
+    return Url::fromUri(
+      'internal:/leaflet_edit/geojson/' . $entity->getRevisionId() . '/' . $fid . '/' . $entity->id(),
+      ['query' => ['_format' => 'json']]
+    )->toString();
   }
 
-  public function leafletProcessGeofieldFilename($fid) {
-    /** @var \Drupal\file\Entity\File $file */
-    $file = File::load($fid);
-    if ($file) {
-      return pathinfo($file->getFilename());
-    } else {
-      return null;
+  /**
+   * Returns the file name parts for a file entity.
+   *
+   * @param int $fid
+   *   The file entity ID.
+   *
+   * @return array|null
+   *   The pathinfo() parts, or NULL if the file is missing.
+   */
+  public function leafletProcessGeofieldFilename(int $fid): ?array {
+    $file = $this->entityTypeManager->getStorage('file')->load($fid);
+    if (!$file instanceof File) {
+      return NULL;
     }
+    return pathinfo($file->getFilename());
   }
+
 }

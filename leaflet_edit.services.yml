@@ -1,7 +1,20 @@
 services:
   leaflet_edit.service:
     class: Drupal\leaflet_edit\Service\LeafletEditService
-    arguments: ['@current_user', '@geofield.geophp', '@module_handler', '@link_generator', '@stream_wrapper_manager', '@request_stack', '@cache.default', '@file_url_generator']
+    arguments:
+      - '@current_user'
+      - '@geofield.geophp'
+      - '@module_handler'
+      - '@link_generator'
+      - '@stream_wrapper_manager'
+      - '@request_stack'
+      - '@cache.leaflet'
+      - '@file_url_generator'
+      - '@entity_type.manager'
+      - '@config.factory'
   leaflet_edit.permission_checker:
     class: Drupal\leaflet_edit\Service\PermissionChecker
     arguments: ['@current_user']
+  leaflet_edit.gpx_exporter:
+    class: Drupal\leaflet_edit\Service\GpxExporter
+    arguments: ['@geofield.geophp']

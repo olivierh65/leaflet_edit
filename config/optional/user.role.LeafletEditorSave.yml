@@ -1,0 +1,10 @@
+uuid: 2773f73a-fda9-4bea-8a5a-8a9d739358a4
+langcode: en
+status: true
+id: leaflet_editor_save
+label: 'Leaflet Editor Save'
+weight: 4
+is_admin: false
+permissions:
+  - 'save leaflet tracks'
+  - 'restful get transfert_geojson'

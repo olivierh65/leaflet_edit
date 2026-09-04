@@ -4,36 +4,55 @@ leaflet_edit.settings:
     _form: '\Drupal\leaflet_edit\Form\SettingsForm'
     _title: 'Leaflet Edit'
   requirements:
-    _permission: 'administer site configuration+LeafletEditor Configure'
+    _permission: 'administer leaflet edit'
+  options:
+    _admin_route: TRUE
 
-leaflet_edit.default_controller_hello:
-  path: '/leaflet_edit/uptest'
+leaflet_edit.map:
+  path: '/leaflet-edit/map/{node}'
   defaults:
-    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::hello'
-    _title: 'uptest'
+    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::map'
+    _title: 'Leaflet map editor'
   requirements:
-    _permission: 'access content'
+    node: '\d+'
+    _entity_access: 'node.view'
+  options:
+    parameters:
+      node:
+        type: entity:node
 
-leaflet_edit.default_controller_upload:
-  path: '/leaflet_edit/uptest-save'
+leaflet_edit.save:
+  path: '/leaflet-edit/save'
   defaults:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::saveFile'
-    _title: 'Save'
+    _title: 'Save GeoJSON'
+  methods: [POST]
   requirements:
-    _permission: 'access content+LeafletEditor Save'
+    _permission: 'save leaflet tracks'
+    _csrf_token: 'TRUE'
+  options:
+    no_cache: 'TRUE'
 
-leaflet_edit.default_controller_toGpx:
-  path: '/leaflet_edit/uptest-toGpx'
+leaflet_edit.export_gpx:
+  path: '/leaflet-edit/export-gpx'
   defaults:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpx'
-    _title: 'Export'
+    _title: 'Export GPX'
+  methods: [POST]
   requirements:
-    _permission: 'LeafletEditor Export GPX'
+    _permission: 'export leaflet tracks to gpx'
+    _csrf_token: 'TRUE'
+  options:
+    no_cache: 'TRUE'
 
-leaflet_edit.default_controller_toGpxMerge:
-  path: '/leaflet_edit/uptest-toGpxMerge'
+leaflet_edit.export_gpx_merge:
+  path: '/leaflet-edit/export-gpx-merge'
   defaults:
     _controller: '\Drupal\leaflet_edit\Controller\DefaultController::exportToGpxMerge'
-    _title: 'Export Merge'
+    _title: 'Export merged GPX'
+  methods: [POST]
   requirements:
-    _permission: 'LeafletEditor Export GPX'
+    _permission: 'export leaflet tracks to gpx'
+    _csrf_token: 'TRUE'
+  options:
+    no_cache: 'TRUE'

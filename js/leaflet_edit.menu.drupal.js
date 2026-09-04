@@ -517,6 +517,16 @@ function removeValidation(obj) {
   return true;
 }
 
+function leafletEditEndpoint(key, fallback) {
+  try {
+    var settings = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit;
+    if (settings && settings.endpoints && settings.endpoints[key]) {
+      return settings.endpoints[key];
+    }
+  } catch (e) {}
+  return fallback;
+}
+
 function saveEntity(e) {
   console.log("Save");
 
@@ -568,21 +578,23 @@ function saveEntity(e) {
   var rsave = [];
 
   jQuery.ajax({
-    url: "/leaflet_edit/uptest-save",
+    url: leafletEditEndpoint("save", "/leaflet-edit/save"),
     type: "post",
     data: fd,
     contentType: false,
     processData: false,
-    async: false,
     success: function (response) {
       rsave = response;
       let result = response.success;
       if (result) {
-        alert("yay!");
+        map.lMap.notification.success("Save", "Saved");
       } else {
         let msg = response.message;
-        alert("file not uploaded: " + msg);
+        map.lMap.notification.error("Save", "file not uploaded: " + msg);
       }
+    },
+    error: function (xhr) {
+      map.lMap.notification.error("Save", "file not uploaded (" + xhr.status + ")");
     },
   });
   if (rsave.success) {
@@ -613,12 +625,11 @@ async function exportGPX(e) {
   );
 
   jQuery.ajax({
-    url: "/leaflet_edit/uptest-toGpx",
+    url: leafletEditEndpoint("exportGpx", "/leaflet-edit/export-gpx"),
     type: "post",
     data: fd,
     contentType: false,
     processData: false,
-    async: false,
     success: function (response) {
       filename =
         response.filename +
@@ -702,12 +713,11 @@ async function exportGPXAll(e) {
   );
 
   jQuery.ajax({
-    url: "/leaflet_edit/uptest-toGpx",
+    url: leafletEditEndpoint("exportGpx", "/leaflet-edit/export-gpx"),
     type: "post",
     data: fd,
     contentType: false,
     processData: false,
-    async: true,
     success: function (response) {
       response.gpx.forEach((g) => {
         filename = g.filename + ".gpx";
@@ -775,12 +785,11 @@ async function exportGPXAllMerge(e) {
   );
 
   jQuery.ajax({
-    url: "/leaflet_edit/uptest-toGpxMerge",
+    url: leafletEditEndpoint("exportGpxMerge", "/leaflet-edit/export-gpx-merge"),
     type: "post",
     data: fd,
     contentType: false,
     processData: false,
-    async: true,
     success: function (response) {
       response.gpx.forEach((g) => {
         filename = g.filename + ".gpx";

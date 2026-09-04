@@ -1,11 +1,11 @@
 langcode: en
 status: true
 dependencies:
+  config:
+    - field.storage.node.field_leaflet_geojson_files
+    - node.type.leaflet_map_editor
   module:
-    - basic_auth
-    - leaflet_edit
-    - serialization
-    - user
+    - rest
 id: transfert_geojson
 plugin_id: transfert_geojson
 granularity: resource
@@ -15,5 +15,4 @@ configuration:
   formats:
     - json
   authentication:
-    - basic_auth
     - cookie

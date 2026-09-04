@@ -1,0 +1,10 @@
+uuid: 42252516-717e-4f9b-8176-3845bbf2900d
+langcode: en
+status: true
+id: leaflet_editor_add
+label: 'Leaflet Editor Add'
+weight: 2
+is_admin: false
+permissions:
+  - 'add leaflet tracks'
+  - 'restful get transfert_geojson'

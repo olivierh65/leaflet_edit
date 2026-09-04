@@ -5,99 +5,38 @@
  * Contains leaflet_edit.module.
  */
 
+declare(strict_types=1);
+
 use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
  * Implements hook_help().
  */
-function leaflet_edit_help($route_name, RouteMatchInterface $route_match) {
+function leaflet_edit_help(string $route_name, RouteMatchInterface $route_match): ?string {
   switch ($route_name) {
-      // Main module help for the leaflet_edit module.
     case 'help.page.leaflet_edit':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('Leaflet Map Editor') . '</p>';
+      $output .= '<p>' . t('Display and edit GeoJSON files on a Leaflet map, with save and revision history.') . '</p>';
       return $output;
 
     default:
+      return NULL;
   }
 }
 
 /**
  * Implements hook_theme().
  */
-function leaflet_edit_theme() {
-
+function leaflet_edit_theme(): array {
   return [
-    // Theme functions to add menu
     'leaflet_edit' => [
       'variables' => [
-        'parent' => NULL,
         'map_id' => NULL,
         'height' => '400px',
         'map' => [],
       ],
+      'template' => 'leaflet-edit',
     ],
   ];
 }
-
-/**
- * Implements hook_install().
- */
-/* function leaflet_edit_install() {
-  $roles = [
-    'config' => [
-      'id' => 'Config Leaflet Edit',
-      'label' => 'Configure Leaflet Map Editor maps',
-    ],
-    'view' => [
-      'id' => 'View Leaflet Edit',
-      'label' => 'View Leaflet Map Editor maps',
-    ],
-    'edit' => [
-      'id' => 'Edit Leaflet Edit',
-      'label' => 'Edit tracks in Leaflet Map Editor maps',
-    ],
-    'add' => [
-      'id' => 'Add Leaflet Edit',
-      'label' => 'Add new tracks in Leaflet Map Editor maps',
-    ],
-    'save' => [
-      'id' => 'Save Leaflet Edit',
-      'label' => 'Save edited tracks in Leaflet Map Editor maps',
-    ],
-    'export' => [
-      'id' => 'Export Leaflet Edit',
-      'label' => 'Export tracks to GPX in Leaflet Map Editor maps',
-    ],
-    'import' => [
-      'id' => 'Import Leaflet Edit',
-      'label' => 'Import tracks to GPX in Leaflet Map Editor maps',
-    ],
-  ];
-
-  foreach ($roles as $role) {
-    $r=\Drupal\user\Entity\Role::create($role);
-    $r->save();
-  }
-} */
-
-/* function leaflet_edit_field_widget_complete_form_alter(&$element, &$form_state, $context) {
-  echo "\n YOUR_THEME_field_widget_form_alter";
-  echo "\n element: ";
-  print_r($element);
-
-  echo "\n widget type: ";
-  print_r($context['instance']['widget']['type']);
-} */
-
-/**
- * Implements hook_field_widget_info_alter().
- */
-/* function leaflet_edit_field_widget_info_alter(array &$info) {
-  // Allows using the 'uri' widget for the 'file_uri' field type, which uses it
-  // as the default widget.
-  // @see \Drupal\file\Plugin\Field\FieldType\FileUriItem
-  $info['uri']['field_types'][] = 'file_uri';
-}
- */

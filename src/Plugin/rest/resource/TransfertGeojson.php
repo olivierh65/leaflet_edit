@@ -1,97 +1,117 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\leaflet_edit\Plugin\rest\resource;
 
-use Drupal\rest\ModifiedResourceResponse;
-use Drupal\rest\Plugin\ResourceBase;
-use Drupal\rest\ResourceResponse;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\file\Entity\File;
+use Drupal\node\NodeInterface;
+use Drupal\rest\Attribute\RestResource;
+use Drupal\rest\Plugin\ResourceBase;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Provides a resource to get view modes by entity and bundle.
- *
- * @RestResource(
- *   id = "transfert_geojson",
- *   label = @Translation("Transfert geojson"),
- *   uri_paths = {
- *     "canonical" = "/leaflet_edit/geojson/{vid}/{fid?}/{eid?}",
- *     "https://www.drupal.org/link-relations/edit" = "/leaflet/geojson/{vid}/{fid?}/{eid?}"
- *   }
- * )
+ * Serves GeoJSON files attached to map nodes.
  */
+#[RestResource(
+  id: 'transfert_geojson',
+  label: new TranslatableMarkup('Transfer GeoJSON'),
+  uri_paths: [
+    'canonical' => '/leaflet_edit/geojson/{vid}/{fid}/{eid}',
+  ],
+)]
 class TransfertGeojson extends ResourceBase {
 
   /**
-   * A current user instance.
-   *
-   * @var \Drupal\Core\Session\AccountProxyInterface
+   * Constructs a TransfertGeojson object.
    */
-  protected $currentUser;
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    array $serializer_formats,
+    LoggerInterface $logger,
+    protected AccountProxyInterface $currentUser,
+    protected EntityTypeManagerInterface $entityTypeManager,
+  ) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
+  }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
-    $instance->logger = $container->get('logger.factory')->get('leaflet_edit');
-    $instance->currentUser = $container->get('current_user');
-    return $instance;
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): static {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->getParameter('serializer.formats'),
+      $container->get('logger.factory')->get('leaflet_edit'),
+      $container->get('current_user'),
+      $container->get('entity_type.manager'),
+    );
   }
 
-    /**
-     * Responds to GET requests.
-     *
-     * @param string $payload
-     *
-     * @return \Drupal\rest\ResourceResponse
-     *   The HTTP response object.
-     *
-     * @throws \Symfony\Component\HttpKernel\Exception\HttpException
-     *   Throws exception expected.
-     */
-    public function get($vid, $fid, $eid) {
-
-        // You must to implement the logic of your REST Resource here.
-        // Use current user after pass authentication to validate access.
-        if (!$this->currentUser->hasPermission('access content')) {
-            throw new AccessDeniedHttpException();
-        }
-
-        if ($fid) {
-          $file = File::load($fid);
-        }
-        else {
-          $entity =\Drupal::entityTypeManager()->getStorage('node')->loadRevision($vid);
-          $file = $entity->get('field_leaflet_edit_trace')->entity;
-        }
-        if ($file) {
-          $cont = file_get_contents($file->getFileUri());
-          $resp = new JsonResponse($cont, 200, [], true);
-          return $resp;
-        }
-
-        return new ResourceResponse("", 200);
-    }
-
-      /**
-   * Handles PUT requests.
+  /**
+   * Responds to GET requests.
    *
-   * @param mixed $data
-   *   The data received in the PUT request.
+   * @param int $vid
+   *   The node revision ID.
+   * @param int|null $fid
+   *   The file entity ID.
+   * @param int|null $eid
+   *   The node entity ID.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The HTTP response object.
    */
-  public function put($vid, $fid, $eid, $data) {
-    // Logique pour mettre à jour des données.
-    if (! $vid) {
-      return new JsonResponse(['error' => 'Missing ID'], 400);
+  public function get(int $vid, ?int $fid = NULL, ?int $eid = NULL): JsonResponse {
+    if (!$this->currentUser->hasPermission('access content')) {
+      throw new AccessDeniedHttpException();
     }
 
-    // Simuler une mise à jour réussie.
-    return new JsonResponse(['message' => 'Data updated successfully'], 200);
+    $file = NULL;
+    if ($fid) {
+      $file = $this->entityTypeManager->getStorage('file')->load($fid);
+    }
+    elseif ($eid) {
+      $node = $this->entityTypeManager->getStorage('node')->loadRevision($vid);
+      if ($node instanceof NodeInterface && $node->id() === $eid && $node->hasField('field_leaflet_geojson_files')) {
+        $file = $node->get('field_leaflet_geojson_files')->entity;
+      }
+    }
+    if (!$file instanceof File) {
+      throw new NotFoundHttpException('GeoJSON file not found.');
+    }
+
+    if ($eid) {
+      $node = $this->entityTypeManager->getStorage('node')->load($eid);
+      if ($node instanceof NodeInterface && !$node->access('view', $this->currentUser)) {
+        throw new AccessDeniedHttpException();
+      }
+    }
+    if (!$file->access('download', $this->currentUser)) {
+      throw new AccessDeniedHttpException();
+    }
+
+    $contents = @file_get_contents($file->getFileUri());
+    if (!is_string($contents) || $contents === '') {
+      throw new NotFoundHttpException('GeoJSON file is empty or unreadable.');
+    }
+    if (json_decode($contents) === NULL && json_last_error() !== JSON_ERROR_NONE) {
+      throw new NotFoundHttpException('GeoJSON file is invalid.');
+    }
+
+    $response = new JsonResponse($contents, 200, [], TRUE);
+    $response->headers->set('X-Content-Type-Options', 'nosniff');
+    return $response;
   }
 
 }

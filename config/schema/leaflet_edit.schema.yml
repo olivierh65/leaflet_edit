@@ -1,0 +1,86 @@
+# Schema for Leaflet Edit module configuration.
+# @see https://www.drupal.org/docs/drupal-apis/configuration-api/configuration-schemametadata
+
+leaflet_edit.settings:
+  type: config_object
+  label: 'Leaflet Edit settings'
+  mapping:
+    nb_mapping:
+      type: integer
+      label: 'Number of mapping attributes'
+    feature_control_control:
+      type: integer
+      label: 'Feature control mode'
+    feature_control_position:
+      type: string
+      label: 'Feature control position'
+    styleeditor_control:
+      type: boolean
+      label: 'Enable Style Editor'
+    styleeditor_position:
+      type: string
+      label: 'Style Editor position'
+    locatecontrol_control:
+      type: boolean
+      label: 'Enable LocateControl'
+    locatecontrol_position:
+      type: string
+      label: 'LocateControl position'
+    doubleclick_control:
+      type: boolean
+      label: 'Enable double click'
+    geoman_control:
+      type: boolean
+      label: 'Enable Geoman'
+    geoman_position:
+      type: string
+      label: 'Geoman position'
+    geoman_options:
+      type: sequence
+      label: 'Geoman options'
+      sequence:
+        type: string
+        label: 'Option'
+
+# Formatter settings are stored in entity view displays, but documenting the
+# shape here helps validation and translation UIs.
+field.formatter.settings.leaflet_edit_formatter:
+  type: mapping
+  label: 'Leaflet edit formatter settings'
+  mapping:
+    leaflet_map:
+      type: string
+      label: 'Leaflet map'
+    height:
+      type: string
+      label: 'Height'
+    height_unit:
+      type: string
+      label: 'Height unit'
+    leaflet_edit:
+      type: mapping
+      label: 'Leaflet Edit settings'
+      mapping:
+        leaflet:
+          type: mapping
+          mapping:
+            tolerance:
+              type: integer
+        locatecontrol:
+          type: mapping
+          mapping:
+            control:
+              type: boolean
+            position:
+              type: string
+        geoman:
+          type: mapping
+          mapping:
+            control:
+              type: boolean
+            position:
+              type: string
+            options:
+              type: sequence
+              sequence:
+                type: string

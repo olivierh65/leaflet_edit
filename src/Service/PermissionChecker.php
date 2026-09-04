@@ -1,24 +1,32 @@
 <?php
 
-namespace Drupal\leaflet_edit\Service;
-use Drupal\Core\Session\AccountProxyInterface;
+declare(strict_types=1);
 
+namespace Drupal\leaflet_edit\Service;
+
+use Drupal\Core\Session\AccountInterface;
+
+/**
+ * Checks Leaflet Edit permissions for the current user.
+ */
 class PermissionChecker {
 
-  protected AccountProxyInterface $currentUser;
-
-  public function __construct(AccountProxyInterface $current_user) {
-    $this->currentUser = $current_user;
-  }
+  /**
+   * Constructs a PermissionChecker object.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $currentUser
+   *   The current user.
+   */
+  public function __construct(protected AccountInterface $currentUser) {}
 
   /**
-   * Vérifie si l'utilisateur actuel a l'une des permissions spécifiées.
+   * Checks whether the current user has any of the given permissions.
    *
-   * @param array $permissions
-   *   Tableau de permissions.
+   * @param string[] $permissions
+   *   An array of permission machine names.
    *
    * @return bool
-   *   TRUE si l'utilisateur a l'une des permissions, FALSE sinon.
+   *   TRUE if the user has at least one of the permissions.
    */
   public function hasAnyPermission(array $permissions): bool {
     foreach ($permissions as $permission) {
@@ -28,4 +36,5 @@ class PermissionChecker {
     }
     return FALSE;
   }
+
 }
