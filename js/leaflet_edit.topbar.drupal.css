@@ -1,0 +1,168 @@
+/**
+ * @file
+ * Barre de menu classique Leaflet Map Editor.
+ *
+ * La barre est positionnée en absolute, collée en haut du conteneur de la
+ * carte (z-index au-dessus des tuiles et des contrôles Leaflet) : elle
+ * reste donc visible et fonctionnelle en mode plein écran, puisque c'est
+ * ce conteneur qui passe en fullscreen.
+ * Objectif terrain/téléphone : cibles tactiles >= 44px, menus déroulants
+ * utilisables au doigt.
+ */
+
+.leaflet-edit-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 6px;
+  background: rgba(245, 245, 242, 0.95);
+  border-bottom: 1px solid #c9c9c3;
+  font-size: 13px;
+}
+
+/* Chaque thème = un menu déroulant. */
+.leaflet-edit-topbar-menu {
+  position: relative;
+}
+
+.leaflet-edit-topbar-menubtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #222;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.leaflet-edit-topbar-menubtn:hover,
+.leaflet-edit-topbar-menubtn:focus-visible,
+.leaflet-edit-topbar-menu.open .leaflet-edit-topbar-menubtn {
+  background: #fff;
+  border-color: #aeb0a5;
+  outline: 2px solid #5a8a4d;
+  outline-offset: -2px;
+}
+
+.leaflet-edit-topbar-caret {
+  font-size: 10px;
+  color: #6b6b64;
+}
+
+/* Liste déroulante (collée au bouton : pas de zone morte au survol). */
+.leaflet-edit-topbar-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #aeb0a5;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.leaflet-edit-topbar-menu.open .leaflet-edit-topbar-dropdown {
+  display: block;
+}
+
+.leaflet-edit-topbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #222;
+  font-size: 13px;
+}
+
+.leaflet-edit-topbar-item:hover,
+.leaflet-edit-topbar-item:focus-visible {
+  background: #e8f0e4;
+  outline: none;
+}
+
+.leaflet-edit-topbar-item.is-disabled,
+.leaflet-edit-topbar-item[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.leaflet-edit-topbar-item.is-active {
+  background: #d7e8d2;
+}
+
+.leaflet-edit-topbar-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Pastille de sélection courante, poussée à droite. */
+.leaflet-edit-topbar-selection {
+  margin-left: auto;
+  font-size: 12px;
+  color: #55554e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+/* Panneau couches replié via l'entrée "Couches" du menu Carte. */
+.leaflet-edit-panel-hidden {
+  display: none !important;
+}
+
+/* --- Téléphone : barre compacte, pastille masquée --- */
+@media (max-width: 480px) {
+  .leaflet-edit-topbar {
+    gap: 0;
+    padding: 2px 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .leaflet-edit-topbar-menubtn {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .leaflet-edit-topbar-dropdown {
+    min-width: 200px;
+    /* Évite que le dernier menu (Carte) ne déborde à droite. */
+    left: auto;
+    right: 0;
+  }
+
+  .leaflet-edit-topbar-menu:first-child .leaflet-edit-topbar-dropdown {
+    left: 0;
+    right: auto;
+  }
+
+  .leaflet-edit-topbar-selection {
+    display: none;
+  }
+}
+
+/* --- Geoman latéral masqué sur petit écran (le menu le remplace) --- */
+@media (max-width: 480px) {
+  .leaflet-pm-toolbar {
+    display: none !important;
+  }
+}

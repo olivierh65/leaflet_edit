@@ -415,6 +415,17 @@
     map.lMap.addControl(panel);
     map.lMap.leafletEdit = {
       LAYGROUP_CONTROL: panel,
+      _selectedLayer: null,
     };
+
+    // Barre d'actions haute (Dessin / Édition / Fichiers / Carte).
+    // Construite après leafletEdit pour que la sélection fonctionne.
+    try {
+      if (typeof leafletEditBuildTopbar === "function") {
+        leafletEditBuildTopbar(mapid, editSettings);
+      }
+    } catch (e) {
+      console.error("[leaflet_edit] topbar : construction impossible", e);
+    }
   });
 })(jQuery, Drupal, drupalSettings);

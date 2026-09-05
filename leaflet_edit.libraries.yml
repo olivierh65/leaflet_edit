@@ -5,9 +5,11 @@ leaflet-edit:
     js/leaflet_edit.menu.drupal.js: {}
     js/leaflet_edit.util.drupal.js: {}
     js/leaflet_edit.edit.drupal.js: {}
+    js/leaflet_edit.topbar.drupal.js: {}
   css:
     component:
       js/leaflet_edit.init.drupal.css: {}
+      js/leaflet_edit.topbar.drupal.css: {}
   dependencies:
     - leaflet/leaflet
     - core/jquery

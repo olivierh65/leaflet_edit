@@ -10,6 +10,12 @@ function processLoadedData(layer) {
   layer.on("click", function (e) {
     evtFeatureClick(e);
   });
+  // Sélection au tap pour la barre haute (mobile + desktop).
+  try {
+    if (typeof leafletEditHookLayerTap === "function") {
+      leafletEditHookLayerTap(layer);
+    }
+  } catch (e) {}
   layer.on("dblclick", function (e) {
     evtFeatureDblClick(e);
   });

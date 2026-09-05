@@ -88,6 +88,7 @@ class LeafletEditService extends LeafletService {
     $attachedLibraries[] = 'leaflet_edit/leaflet.control-window';
     $attachedLibraries[] = 'leaflet_edit/leaflet-distance-markers';
     $attachedLibraries[] = 'leaflet_edit/leaflet.GeometryUtil';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.turf';
     $attachedLibraries[] = 'leaflet_edit/leaflet.togeojson';
     $attachedLibraries[] = 'leaflet_edit/leaflet-slider';
     $attachedLibraries[] = 'jquery_ui_dialog/dialog';

@@ -30,83 +30,32 @@ const MENU = {
 
 function evtContextShow(e) {
   console.log(e);
-  if (!e.relatedTarget) {
+  if (!e.relatedTarget || !e.contextmenu) {
     return;
   }
-  if (isUpdated(e.relatedTarget)) {
-    e.contextmenu.setDisabled(MENU.save, false);
-  } else {
-    e.contextmenu.setDisabled(MENU.save, true);
-  }
-  if (e.relatedTarget.pm.enabled()) {
-    e.contextmenu.setDisabled(MENU.editlayer, true);
-    e.contextmenu.setDisabled(MENU.finedit, false);
-  } else {
-    e.contextmenu.setDisabled(MENU.editlayer, false);
-    e.contextmenu.setDisabled(MENU.finedit, true);
-  }
+  // Menu réduit : plus d'entrées Save/Edit à activer/désactiver ici
+  // (c'est la barre haute qui gère les états). Garde-fou conservé
+  // pour ne pas appeler setDisabled sur des index inexistants.
 }
 
 function defineContextMenu() {
-  let menu = [];
-  menu[MENU.showcoord] = {
-    text: "Show coordinates",
-    callback: showCoordinates,
-  };
-  menu[MENU.sep1] = "-";
-  menu[MENU.editlayer] = {
-    text: "Edit layer",
-    iconCls: "fa-regular fa-pen-to-square",
-    callback: editLayer,
-  };
-  menu[MENU.cutline] = {
-    text: "Cut here",
-    iconCls: "fa-regular fa-scissors",
-    callback: cutLine,
-  };
-  menu[MENU.joinline] = {
-    text: "Join",
-    iconCls: "fa-regular fa-link",
-    callback: joinLine,
-  };
-  menu[MENU.deletelay] = {
-    text: "Delete",
-    iconCls: "fa-regular fa-eraser",
-    callback: deleteLay,
-  };
-  menu[MENU.sep2] = "-";
-  menu[MENU.save] = {
-    text: "Save",
-    iconCls: "fa-regular fa-floppy-disk",
-    callback: saveEntity,
-  };
-  menu[MENU.exportgpx] = {
-    text: "Export to GPX",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPX,
-  };
-  menu[MENU.exportgpxall] = {
-    text: "Export to GPX (All)",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPXAll,
-  };
-  menu[MENU.exportgpxallmerge] = {
-    text: "Export to GPX (All Merge)",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPXAllMerge,
-  };
-  menu[MENU.sep3] = "-";
-  menu[MENU.importfile] = {
-    text: "Import GPX file",
-    iconCls: "fa-solid fa-file-import",
-    callback: readLocalFile,
-  };
-  menu[MENU.sep4] = "-";
-  menu[MENU.simplify] = {
-    text: "Simplify",
-    iconCls: "fa-solid fa-minimize",
-    callback: simplify,
-  };
+  // Menu contextuel réduit : la barre haute couvre désormais
+  // Edit / Cut / Delete / Save / Export / Import / Simplify.
+  // Ne restent ici que les actions purement contextuelles (position du clic).
+  // NOTE : tableau dense (sans trous) — Leaflet.contextmenu plante sur
+  // les éléments undefined (Cannot read properties of undefined (reading 'index')).
+  let menu = [
+    {
+      text: "Show coordinates",
+      callback: showCoordinates,
+    },
+    "-",
+    {
+      text: "Cut here",
+      iconCls: "fa-regular fa-scissors",
+      callback: cutLine,
+    },
+  ];
 
   let context_menu = {
     contextmenu: true,
@@ -444,15 +393,64 @@ function showCoordinates(e) {
   );
 }
 
+function leafletEditSetGeomanButtonDisabled(name, disabled) {
+  // Tente d'abord la voie DOM directe (bouton custom le_edit : un <a>
+  // avec la classe leaflet_edit-edit). C'est la plus fiable car elle ne
+  // dépend pas de l'API interne Geoman (setButtonDisabled suppose des
+  // méthodes disable()/enable() que les boutons custom n'ont pas).
+  try {
+    var anchor = jQuery(".leaflet_edit-edit").parents("a")[0];
+    if (anchor && name === "le_edit") {
+      if (disabled) {
+        anchor.classList.add("leaflet-pm-disabled");
+        anchor.setAttribute("aria-disabled", "true");
+      } else {
+        anchor.classList.remove("leaflet-pm-disabled");
+        anchor.removeAttribute("aria-disabled");
+      }
+      return;
+    }
+  } catch (e) {}
+  try {
+    var toolbar = map && map.lMap && map.lMap.pm && map.lMap.pm.Toolbar;
+    if (!toolbar) {
+      return;
+    }
+    if (typeof toolbar.setButtonDisabled === "function") {
+      try {
+        toolbar.setButtonDisabled(name, disabled);
+        return;
+      } catch (e) {
+        console.warn("[leaflet_edit] setButtonDisabled a échoué, fallback DOM", e);
+      }
+    }
+    // Fallback : Geoman sans setButtonDisabled() fonctionnel.
+    if (typeof toolbar._btnNameMapping === "function") {
+      let i = toolbar._btnNameMapping(name);
+      let entry = toolbar.buttons[i];
+      let btn = entry && (entry._button || entry);
+      if (btn) {
+        if (typeof btn.disable === "function" && typeof btn.enable === "function") {
+          disabled ? btn.disable() : btn.enable();
+        } else if (btn._button && btn._button instanceof HTMLElement) {
+          btn._button.disabled = !!disabled;
+        } else if (btn instanceof HTMLElement) {
+          btn.disabled = !!disabled;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[leaflet_edit] setButtonDisabled indisponible", e);
+  }
+}
+
 function editLayer(e) {
   // saveStyle(this.ref_context_menu);
   if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
     jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit = e;
     jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit_orig =
       e.relatedTarget.getLatLngs();
-    // ===> map.lMap.pm.Toolbar.setButtonDisabled("le_edit", false);
-    let i = map.lMap.pm.Toolbar._btnNameMapping("le_edit");
-    map.lMap.pm.Toolbar.buttons[i]._button.disabled = false;
+    leafletEditSetGeomanButtonDisabled("le_edit", false);
 
     jQuery(".leaflet_edit-edit").trigger("click");
   }
@@ -500,7 +498,7 @@ function finEditLayer(e) {
   if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
     ref = jQuery(".leaflet_edit-edit").parents("a")[0];
     jQuery(".leaflet_edit-edit").trigger("click");
-    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
+    leafletEditSetGeomanButtonDisabled("le_edit", true);
     ref._layer_edit = null;
     delete ref._layer_edit;
     ref._layer_edit_orig;
