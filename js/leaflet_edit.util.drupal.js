@@ -1,11 +1,20 @@
 function processLoadedData(layer) {
-  // Add context menu
-  layer.bindContextMenu(defineContextMenu());
-  // Add hide event to close popup menu
-  layer._map.contextmenu.addHooks();
-  layer._map.on("contextmenu.show", function (e) {
-    evtContextShow(e);
-  });
+  // Contextmenu (clic droit) : desktop uniquement. Sur mobile, le tap
+  // ouvre une popup tactile via openTracePopup() (voir menu.drupal.js).
+  var isMobile = (typeof L !== "undefined" && L.Browser && L.Browser.mobile) ||
+    (typeof window !== "undefined" && window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches);
+  if (!isMobile && typeof layer.bindContextMenu === "function") {
+    // Add context menu
+    layer.bindContextMenu(defineContextMenu());
+    // Add hide event to close popup menu
+    if (layer._map && layer._map.contextmenu) {
+      layer._map.contextmenu.addHooks();
+      layer._map.on("contextmenu.show", function (e) {
+        evtContextShow(e);
+      });
+    }
+  }
 
   layer.on("click", function (e) {
     evtFeatureClick(e);
@@ -144,6 +153,9 @@ function addData(layGroupid, lay, origin) {
 }
 
 function saveStyle(feature) {
+  if (feature.orig_style) {
+    return;
+  }
   feature.orig_style = {
     stroke: feature.options["stroke"],
     color: feature.options["color"],
@@ -160,22 +172,118 @@ function saveStyle(feature) {
   };
 }
 
+// Styles d'état (priorité : édition > sélection > modifié > origine).
+var LE_STYLE_EDITING = {
+  color: "#666",
+  weight: 5,
+  opacity: 0.7,
+  fillOpacity: 0.7,
+  dashArray: "10 10",
+};
+var LE_STYLE_SELECTED = {
+  color: "#6a1b9a",
+  weight: 6,
+  opacity: 1,
+  dashArray: null,
+};
+var LE_STYLE_UPDATED = {
+  color: "#ff8f00",
+  weight: 5,
+  opacity: 1,
+  dashArray: "4 6",
+};
+
+function isEditing(layer) {
+  try {
+    return !!(layer.pm && typeof layer.pm.enabled === "function" && layer.pm.enabled());
+  } catch (err) {
+    return false;
+  }
+}
+
+// Applique le style correspondant à l'état courant du layer.
+// À appeler après chaque changement de flag plutôt que restoreStyle().
+function refreshTraceStyle(layer) {
+  if (!layer || typeof layer.setStyle !== "function") {
+    return;
+  }
+  saveStyle(layer);
+  if (isEditing(layer)) {
+    layer.setStyle(LE_STYLE_EDITING);
+  } else if (layer.leafletEditSel) {
+    layer.setStyle(LE_STYLE_SELECTED);
+  } else if (layer.leafletEditUpd) {
+    layer.setStyle(LE_STYLE_UPDATED);
+  } else if (layer.orig_style) {
+    layer.setStyle(layer.orig_style);
+  }
+}
+
 function restoreStyle(feature) {
-  feature.setStyle(feature.orig_style);
-  feature.orig_style = undefined;
-  delete feature.orig_style;
+  // Conservé pour compat : ré-applique le style d'état au lieu d'écraser.
+  if (!feature) {
+    return;
+  }
+  if (!feature.leafletEditSel && !feature.leafletEditUpd && !isEditing(feature)) {
+    if (feature.orig_style) {
+      feature.setStyle(feature.orig_style);
+      feature.orig_style = undefined;
+      try {
+        delete feature.orig_style;
+      } catch (err) {}
+    }
+    return;
+  }
+  refreshTraceStyle(feature);
 }
 
 function setUpdated(layer) {
-  getLayGroup(layer).options.leafletEdit._updated = true;
+  try {
+    getLayGroup(layer).options.leafletEdit._updated = true;
+  } catch (err) {}
+  if (layer) {
+    layer.leafletEditUpd = true;
+    refreshTraceStyle(layer);
+  }
 }
 
 function clearUpdated(layer) {
-  getLayGroup(layer).options.leafletEdit._updated = false;
+  try {
+    getLayGroup(layer).options.leafletEdit._updated = false;
+  } catch (err) {}
+  if (layer) {
+    layer.leafletEditUpd = false;
+    refreshTraceStyle(layer);
+  }
+}
+
+// Efface le flag modifié sur tout le groupe (après sauvegarde réussie).
+function clearUpdatedGroup(layer) {
+  var group = null;
+  try {
+    group = getLayGroup(layer);
+    group.options.leafletEdit._updated = false;
+  } catch (err) {}
+  if (group && group._layers) {
+    Object.values(group._layers).forEach(function (l) {
+      l.leafletEditUpd = false;
+      refreshTraceStyle(l);
+    });
+  } else if (layer) {
+    layer.leafletEditUpd = false;
+    refreshTraceStyle(layer);
+  }
 }
 
 function isUpdated(layer) {
-  return getLayGroup(layer).options.leafletEdit._updated;
+  if (layer && layer.leafletEditUpd) {
+    return true;
+  }
+  try {
+    return !!getLayGroup(layer).options.leafletEdit._updated;
+  } catch (err) {
+    return false;
+  }
 }
 
 function anyUpdated() {
@@ -188,15 +296,34 @@ function anyUpdated() {
 }
 
 function setSelected(layer) {
-  getLayGroup(layer).options.leafletEdit._selected = true;
+  try {
+    getLayGroup(layer).options.leafletEdit._selected = true;
+  } catch (err) {}
+  if (layer) {
+    layer.leafletEditSel = true;
+    refreshTraceStyle(layer);
+  }
 }
 
 function clearSelected(layer) {
-  getLayGroup(layer).options.leafletEdit._selected = false;
+  try {
+    getLayGroup(layer).options.leafletEdit._selected = false;
+  } catch (err) {}
+  if (layer) {
+    layer.leafletEditSel = false;
+    refreshTraceStyle(layer);
+  }
 }
 
 function isSelected(layer) {
-  return getLayGroup(layer).options.leafletEdit._selected;
+  if (layer && layer.leafletEditSel) {
+    return true;
+  }
+  try {
+    return !!getLayGroup(layer).options.leafletEdit._selected;
+  } catch (err) {
+    return false;
+  }
 }
 
 function anySelected() {
@@ -217,29 +344,49 @@ function getLayGroup(layer) {
 }
 
 function select_feature(layer, duree = 0) {
-  if (!layer.orig_style) {
-    //save style only if not already saved
-    saveStyle(layer);
+  if (!layer) {
+    return;
   }
-  layer.setStyle({
-    color: "darkpurple",
-    weight: 5,
-    opacity: 1,
-    dashArray: "10,15",
-  });
+  // Sélection exclusive : une seule trace en surbrillance à la fois.
+  deselectAllFeatures(layer);
+  setSelected(layer);
+  refreshTraceStyle(layer);
 
   if (duree > 0) {
     setTimeout(unselect_feature, duree, layer);
   }
-  setSelected(layer);
 }
 
 function unselect_feature(layer) {
+  if (!layer) {
+    return;
+  }
   if (isSelected(layer)) {
     // already selected
     clearSelected(layer);
-    restoreStyle(layer);
   }
+  refreshTraceStyle(layer);
+}
+
+// Désélectionne toutes les traces sauf (optionnellement) celle donnée.
+function deselectAllFeatures(except) {
+  try {
+    var actives = map.lMap.leafletEdit.LAYGROUP_CONTROL._layersActives || [];
+    actives.forEach(function (laygroup) {
+      Object.values(laygroup._layers || {}).forEach(function (l) {
+        if (except && l._leaflet_id === except._leaflet_id) {
+          return;
+        }
+        if (l.leafletEditSel) {
+          l.leafletEditSel = false;
+          refreshTraceStyle(l);
+        }
+      });
+      try {
+        laygroup.options.leafletEdit._selected = false;
+      } catch (err) {}
+    });
+  } catch (err) {}
 }
 
 function cancel_flash_features(obj) {

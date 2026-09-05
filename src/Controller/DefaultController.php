@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\leaflet_edit\Controller;
 
 use Drupal\Component\Serialization\Json;
+use Drupal\Component\Datetime\Time;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Datetime\TimeInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
@@ -46,7 +46,7 @@ class DefaultController extends ControllerBase {
     protected FileSystemInterface $fileSystemService,
     protected FileRepositoryInterface $fileRepository,
     protected Token $token,
-    protected TimeInterface $time,
+    protected Time $time,
     protected PermissionChecker $permissionChecker,
     protected GpxExporter $gpxExporter,
   ) {}
@@ -123,9 +123,14 @@ class DefaultController extends ControllerBase {
         return $this->makeUploadErrorResponse('Bad FID format.');
       }
       $fileId = (int) $fid;
+      // Note: sur le field type geojsonfile, la colonne 'file' renvoie un
+      // tableau de fids (ex: [5276]), pas un scalaire. On compare donc
+      // avec une appartenance stricte après cast en int.
       $attached = FALSE;
       foreach ($node->get(static::GEOJSON_FIELD_NAME) as $item) {
-        if ((int) $item->get('file')->getValue() === $fileId) {
+        $fileValues = $item->get('file')->getValue();
+        $fids = array_map('intval', (array) $fileValues);
+        if (in_array($fileId, $fids, TRUE)) {
           $attached = TRUE;
           break;
         }
@@ -162,7 +167,14 @@ class DefaultController extends ControllerBase {
       return $this->makeUploadErrorResponse('Maximum number of files for this node already reached.');
     }
 
-    $directory = 'public://' . trim($fieldMetadata['directory'] ?? 'leaflet_edit', '/');
+    // Le widget geojsonfile hardcode 'public://geojson/' comme dossier
+    // d'upload ; le setting file_directory du field est vide. Fallback
+    // sur 'geojson' pour rester cohérent (évite public:/// triple slash).
+    $subdir = trim($fieldMetadata['directory'] ?? '', '/');
+    if ($subdir === '') {
+      $subdir = 'geojson';
+    }
+    $directory = 'public://' . $subdir;
     if (!$this->fileSystemService->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)) {
       return $this->makeUploadErrorResponse('Error preparing directory.');
     }
@@ -178,33 +190,83 @@ class DefaultController extends ControllerBase {
     $savedFile->setPermanent();
     $savedFile->save();
 
+    // IMPORTANT : le field type geojsonfile n'a pas de mainPropertyName()
+    // (retombe sur 'value', inexistante) et GeojsonfileItemList::setValue()
+    // force 'file' en tableau [(int)] alors que la colonne SQL est un INT
+    // scalaire. Toute écriture via l'API Field corrompt les fids en [1]
+    // dès que $node->save() réécrit les tables dédiées (vérifié : même un
+    // save() sans toucher au field réécrit [1] partout).
+    // Stratégie : mise à jour SQL directe de la table courante PUIS
+    // insertion manuelle des lignes de la NOUVELLE révision (sans passer
+    // par $node->save() pour ce field). Les autres fields du node sont
+    // sauvegardés normalement via $node->save() avec le field exclu.
+    // Le nom est conservé : writeData() avec EXISTS_RENAME crée une
+    // version (suffixe _0, _1...) sans écraser le fichier d'origine.
     if ($fileId !== NULL) {
-      $updated = FALSE;
-      foreach ($node->get(static::GEOJSON_FIELD_NAME) as $item) {
-        if ((int) $item->get('file')->getValue() === $fileId) {
-          $item->set('file', $savedFile->id());
-          $updated = TRUE;
-          break;
-        }
-      }
-      if (!$updated) {
+      // Mémorise les fids d'origine AVANT toute écriture : le $node->save()
+      // va corrompre la table en [1] (bug du field type), on les restaure
+      // après (étapes 3a/3b).
+      $origRows = \Drupal::database()->select('node__field_leaflet_geojson_files', 't')
+        ->fields('t', ['delta', 'field_leaflet_geojson_files_file'])
+        ->condition('entity_id', $node->id())
+        ->execute()
+        ->fetchAllKeyed();
+      if (!in_array((int) $fileId, array_map('intval', $origRows), TRUE)) {
         return $this->makeUploadErrorResponse('Error updating node file reference.');
+      }
+      // 1) Table courante : remplace l'ancien fid par le nouveau.
+      \Drupal::database()->update('node__field_leaflet_geojson_files')
+        ->fields(['field_leaflet_geojson_files_file' => $savedFile->id()])
+        ->condition('entity_id', $node->id())
+        ->condition('field_leaflet_geojson_files_file', $fileId)
+        ->execute();
+      // 2) Nouvelle révision du node.
+      // Note: EntityInterface::save() ne prend aucun argument ; on ne
+      // peut pas exclure un field du save. Le field geojson sera donc
+      // réécrit en [1] par le stockage (bug du field type) : on le
+      // répare juste après (étapes 3a/3b) par UPDATE SQL ciblé.
+      $node->setNewRevision(TRUE);
+      $node->setRevisionLogMessage($this->t('GeoJSON file @old saved as @new.', [
+        '@old' => $fileId,
+        '@new' => $savedFile->id(),
+      ])->render());
+      $node->setRevisionUserId($this->currentUser()->id());
+      $node->setRevisionCreationTime($this->time->getRequestTime());
+      $node->save();
+      $newVid = (int) $node->getRevisionId();
+      // 3a) Répare la table courante : restaure les fids d'origine, sauf
+      // l'item ciblé qui reçoit le nouveau fid.
+      foreach ($origRows as $delta => $origFid) {
+        $goodFid = ((int) $origFid === (int) $fileId) ? $savedFile->id() : (int) $origFid;
+        \Drupal::database()->update('node__field_leaflet_geojson_files')
+          ->fields(['field_leaflet_geojson_files_file' => $goodFid])
+          ->condition('entity_id', $node->id())
+          ->condition('delta', $delta)
+          ->execute();
+      }
+      // 3b) Répare les lignes de la nouvelle révision (mêmes valeurs).
+      foreach ($origRows as $delta => $origFid) {
+        $goodFid = ((int) $origFid === (int) $fileId) ? $savedFile->id() : (int) $origFid;
+        \Drupal::database()->update('node_revision__field_leaflet_geojson_files')
+          ->fields(['field_leaflet_geojson_files_file' => $goodFid])
+          ->condition('entity_id', $node->id())
+          ->condition('revision_id', $newVid)
+          ->condition('delta', $delta)
+          ->execute();
       }
     }
     else {
       $node->get(static::GEOJSON_FIELD_NAME)->appendItem(['file' => $savedFile->id()]);
+      // Create a new node revision on each save to keep the change history
+      // (who modified what and when).
+      $node->setNewRevision(TRUE);
+      $node->setRevisionLogMessage($this->t('GeoJSON file new saved as @new.', [
+        '@new' => $savedFile->id(),
+      ])->render());
+      $node->setRevisionUserId($this->currentUser()->id());
+      $node->setRevisionCreationTime($this->time->getRequestTime());
+      $node->save();
     }
-
-    // Create a new node revision on each save to keep the change history
-    // (who modified what and when).
-    $node->setNewRevision(TRUE);
-    $node->setRevisionLogMessage($this->t('GeoJSON file @old saved as @new.', [
-      '@old' => $fileId ?? $this->t('new')->render(),
-      '@new' => $savedFile->id(),
-    ])->render());
-    $node->setRevisionUserId($this->currentUser()->id());
-    $node->setRevisionCreationTime($this->time->getRequestTime());
-    $node->save();
 
     return new JsonResponse([
       'success' => TRUE,

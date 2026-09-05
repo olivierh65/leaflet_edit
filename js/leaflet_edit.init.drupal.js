@@ -31,6 +31,9 @@
     var editSettings = (drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit) || {};
     var geomanSettings = editSettings.geoman || {};
     var editPermissions = editSettings.permissions || {};
+    // Geoman : barre de dessin/édition à gauche (topleft forcé).
+    // Les boutons métier (import/save/export) ont migré vers la barre
+    // cascadeButtons topcenter (addBusinessBar) : plus de custom controls.
     if (
       geomanSettings.control &&
       editPermissions["edit"]
@@ -38,7 +41,7 @@
       L.PM.reInitLayer(map.lMap);
 
       map.lMap.pm.addControls({
-        position: geomanSettings.position,
+        position: "topleft",
         drawMarker:
           geomanSettings.options["drawMarker"] == 0
             ? false
@@ -104,8 +107,9 @@
             ? false
             : true,
       });
-      // Add Geoman Custom buttons
-      addGeomanCustom();
+      // Barre métier (Fichier/Édition/Vue) en haut : sous-menus
+      // cascadeButtons, fullscreen inclus. Voir edit.drupal.js.
+      addBusinessBar();
 
       // Event geoman Draw
       map.lMap.on("pm:drawstart", function (e) {
@@ -143,37 +147,32 @@
       console.error("Notification : " + error);
     }
 
-    // full  screen
-    var fullScreen = new L.control.fullscreen({
-      position: "bottomleft", // change the position of the button. It can be topleft, topright,
-      //bottomright or bottomleft, defaut topleft
-      title: "Show me in full screen !", // change the title of the button, default Full
-      //Screen
-      titleCancel: "Exit full screen mode", // change the title of the button when
-      //fullscreen is on, default Exit Full Screen
-      content: null, // change the content of the button, can be HTML, default null
-      forceSeparateButton: true, // force seperate button to detach from zoom
-      //buttons, default false
-      forcePseudoFullscreen: false, // force use of pseudo full screen even if
-      //full screen API is available, default false
-      fullscreenElement: false, // Dom element to render in full screen, false by
-      //default, fallback to map._container
-    }).addTo(map.lMap);
+    // full screen : bouton intégré à la barre métier ("Vue").
+    // Ancien contrôle bottomleft supprimé pour éviter le doublon.
 
-    //Locate control
-    console.log("event locateconrol");
+    //Locate control : pas de bouton carte dédié, il est piloté depuis
+    // le menu "Outils" de la barre métier (locateMe). On conserve
+    // l'instance dans leafletEdit.locateControl pour pouvoir la démarrer.
+    // console.log("event locatecontrol");
     if (
       editSettings.locatecontrol &&
       editSettings.locatecontrol.control
     ) {
-      map.lMap.addControl(
-        L.control.locate({
-          strings: { title: "Où suis-je ???" },
-          position: editSettings.locatecontrol.position
-            ? editSettings.locatecontrol.position
-            : "topright",
-        })
-      );
+      var locateCtrl = L.control.locate({
+        strings: { title: "Où suis-je ???" },
+        // Position neutre : le contrôle reste masqué, seul start() est utilisé.
+        position: "bottomright",
+      });
+      // map.lMap.addControl(locateCtrl);
+      // map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+      // map.lMap.leafletEdit.locateControl = locateCtrl;
+      // Masque le bouton carte : l'accès se fait via le menu Outils.
+      try {
+        var locateEl = locateCtrl.getContainer ? locateCtrl.getContainer() : null;
+        if (locateEl) {
+          locateEl.style.display = "none";
+        }
+      } catch (err) {}
     }
 
     // load datas
@@ -385,6 +384,7 @@
       });
     }
 
+    // Gestion des couches à droite (topright), replié par défaut.
     panel = L.control.panelLayers(
       [
         {
@@ -409,6 +409,7 @@
         collapsed: true,
         compact: true,
         collapsibleGroups: true,
+        position: "topright",
       }
     );
 

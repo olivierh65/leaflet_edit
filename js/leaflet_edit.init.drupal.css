@@ -11,3 +11,314 @@ input.leaflet-panel-layers-selector[type="radio"] {
 .leaflet-panel-layers-title {
     padding-left: 3px;
 }
+
+/* Popup tactile des actions de trace (tap) : remplace le contextmenu sur mobile. */
+.leaflet-edit-trace-popup-wrap .leaflet-popup-content {
+    margin: 12px 14px;
+    line-height: 1.4;
+}
+
+.leaflet-edit-trace-popup-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+.leaflet-edit-trace-popup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.leaflet-edit-trace-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
+    text-align: left;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.leaflet-edit-trace-btn i {
+    width: 18px;
+    text-align: center;
+}
+
+.leaflet-edit-trace-btn:not(:disabled):hover,
+.leaflet-edit-trace-btn:not(:disabled):focus-visible {
+    background: #f4f4f4;
+}
+
+.leaflet-edit-trace-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .leaflet-edit-trace-popup-wrap .leaflet-popup-content {
+        margin: 10px 12px;
+    }
+
+    .leaflet-edit-trace-btn {
+        min-height: 48px;
+        font-size: 15px;
+    }
+}
+
+/* Fenêtre "opération en cours" : spinner + overlay modal. */
+.leaflet-edit-busy {
+    text-align: center;
+    padding: 12px 8px;
+    min-width: 220px;
+}
+
+.leaflet-edit-busy p {
+    margin: 12px 0 4px;
+    font-size: 14px;
+}
+
+.leaflet-edit-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto;
+    border: 4px solid #ddd;
+    border-top-color: #333;
+    border-radius: 50%;
+    animation: leaflet-edit-spin 0.8s linear infinite;
+}
+
+@keyframes leaflet-edit-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Fenêtre Infos / Style : tableau + champs tactiles. */
+.leaflet-edit-info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.leaflet-edit-info-table th,
+.leaflet-edit-info-table td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.leaflet-edit-info-table th {
+    width: 40%;
+    color: #555;
+    font-weight: 600;
+}
+
+.leaflet-edit-info-group {
+    margin-bottom: 10px;
+}
+
+.leaflet-edit-info-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.leaflet-edit-info-group input[type="color"] {
+    width: 100%;
+    min-height: 44px;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    touch-action: manipulation;
+}
+
+.leaflet-edit-info-group input[type="number"],
+.leaflet-edit-info-group select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    touch-action: manipulation;
+}
+
+/* Fenêtres L.control.window : formulaires tactiles (affectation de trace). */
+.leaflet-edit-assign-group {
+    margin-bottom: 10px;
+}
+
+.leaflet-edit-assign-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.leaflet-edit-assign-group select {
+    min-height: 44px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    touch-action: manipulation;
+}
+
+.leaflet-control-window .promptButtons button {
+    min-height: 44px;
+    min-width: 88px;
+    font-size: 15px;
+    opacity: 1;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+    .leaflet-control-window {
+        margin: 4px;
+    }
+
+    .leaflet-edit-assign-group select,
+    .leaflet-control-window .promptButtons button {
+        min-height: 48px;
+    }
+}
+
+/* Layout 3 barres : Geoman à gauche, layers à droite, métier en haut. */
+.leaflet-top.leaflet-center,
+.leaflet-top-center,
+.leaflet-bottom.leaflet-center,
+.leaflet-bottom-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.leaflet-top.leaflet-center,
+.leaflet-top-center {
+    top: 0;
+}
+
+.leaflet-bottom.leaflet-center,
+.leaflet-bottom-center {
+    bottom: 0;
+}
+
+.leaflet-top.leaflet-center .leaflet-control,
+.leaflet-top-center .leaflet-control,
+.leaflet-bottom.leaflet-center .leaflet-control,
+.leaflet-bottom-center .leaflet-control {
+    pointer-events: auto;
+    float: none;
+    display: inline-block;
+    vertical-align: top;
+}
+
+/* Barre métier : groupes horizontaux, sous-menus verticaux, icones SVG.
+   Le conteneur porte les 2 classes (base + metier) : on cible les deux
+   pour survivre a la specificite du CSS Leaflet (.leaflet-top .leaflet-control). */
+.leaflet-control-cascadeButtons.leaflet-control-businessBar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start;
+    gap: 6px;
+    float: none !important;
+    clear: none !important;
+}
+
+.leaflet-control-cascadeButtons.leaflet-control-businessBar > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center;
+    float: none !important;
+    clear: none !important;
+}
+
+.leaflet-control-businessBar button {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 16px;
+    touch-action: manipulation;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+}
+
+.leaflet-control-businessBar button svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    pointer-events: none;
+}
+
+.leaflet-control-businessBar .hidden,
+.leaflet-control-editConfirm .hidden {
+    display: none !important;
+}
+
+/* Barre Valider / Annuler : 2 gros boutons verts / rouges en bas. */
+.leaflet-control-cascadeButtons.leaflet-control-editConfirm {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px;
+    float: none !important;
+    clear: none !important;
+}
+
+.leaflet-control-editConfirm button {
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 50%;
+    font-size: 20px;
+    touch-action: manipulation;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 5px rgb(0 0 0 / 65%);
+    background: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.leaflet-control-editConfirm button svg {
+    width: 26px;
+    height: 26px;
+    display: block;
+    pointer-events: none;
+}
+
+.leaflet-control-editConfirm .cascade-main-btn[title*="Valider"] {
+    background: #2e7d32;
+    color: #fff;
+}
+
+.leaflet-control-editConfirm .cascade-main-btn[title*="Annuler"] {
+    background: #c62828;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .leaflet-control-businessBar button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Sur petit écran, la barre métier passe sous la barre de zoom. */
+    .leaflet-top.leaflet-center,
+    .leaflet-top-center {
+        top: 44px;
+    }
+}

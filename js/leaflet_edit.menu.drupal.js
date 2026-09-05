@@ -1,11 +1,134 @@
-/// context menu
+/// context menu (desktop uniquement : sur mobile, voir openTracePopup)
 function evtMenuShow() {
   map.lMap.on("contextmenu.show", function refer_context_menu(e) {
+    if (isTouchDevice()) {
+      // Sur tactile, l'appui long ne doit pas ouvrir le contextmenu :
+      // le tap ouvre déjà la popup tactile.
+      if (e.contextmenu && typeof e.contextmenu.hide === "function") {
+        e.contextmenu.hide();
+      }
+      return;
+    }
     // Double appel, avec la 2eme fois relatedTarget vide !!
     if (e.contextmenu._showLocation.relatedTarget) {
       this.ref_context_menu = e.contextmenu._showLocation.relatedTarget;
     } else {
       e.contextmenu._showLocation.relatedTarget = this.ref_context_menu;
+    }
+  });
+}
+
+/// Détection tactile partagée (mobile / tablette).
+function isTouchDevice() {
+  if (typeof L !== "undefined" && L.Browser && L.Browser.mobile) {
+    return true;
+  }
+  if (typeof window !== "undefined" && window.matchMedia) {
+    try {
+      return window.matchMedia("(pointer: coarse)").matches;
+    } catch (err) {
+      return false;
+    }
+  }
+  return false;
+}
+
+/// Permissions d'édition exposées par le formatter (drupalSettings[mapid].leaflet_edit.permissions).
+function leafletEditCan(action) {
+  try {
+    var perms = drupalSettings[mapid] &&
+      drupalSettings[mapid].leaflet_edit &&
+      drupalSettings[mapid].leaflet_edit.permissions;
+    if (!perms) {
+      return true;
+    }
+    if (typeof perms[action] === "undefined") {
+      return true;
+    }
+    return !!perms[action];
+  } catch (e) {
+    return true;
+  }
+}
+
+/// Construit la liste d'actions métier d'une trace, partagée entre le
+/// contextmenu desktop et la popup tactile (tap). Chaque entrée :
+/// { key, text, iconCls, enabled, callback }.
+function buildTraceActions(evtLike) {
+  var layer = evtLike && evtLike.relatedTarget ? evtLike.relatedTarget : null;
+  var editing = !!(layer && layer.pm && typeof layer.pm.enabled === "function" && layer.pm.enabled());
+  var updated = false;
+  try {
+    updated = layer ? isUpdated(layer) : false;
+  } catch (e) {
+    updated = false;
+  }
+  return [
+    { key: "showcoord", text: "Show coordinates", iconCls: "fa-solid fa-location-dot", enabled: !!layer, callback: showCoordinates },
+    { key: "editlayer", text: editing ? "Finish edit" : "Edit layer", iconCls: "fa-regular fa-pen-to-square", enabled: !!layer && leafletEditCan("edit"), callback: editing ? finEditLayer : editLayer },
+    { key: "cutline", text: "Cut here", iconCls: "fa-regular fa-scissors", enabled: !!layer && leafletEditCan("edit"), callback: cutLine },
+    { key: "joinline", text: "Join", iconCls: "fa-regular fa-link", enabled: !!layer && leafletEditCan("edit"), callback: joinLine },
+    { key: "deletelay", text: "Delete", iconCls: "fa-regular fa-eraser", enabled: !!layer && leafletEditCan("edit"), callback: deleteLay },
+    { key: "save", text: "Save", iconCls: "fa-regular fa-floppy-disk", enabled: !!layer && updated && leafletEditCan("save"), callback: saveEntity },
+    { key: "exportgpx", text: "Export to GPX", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPX },
+    { key: "exportgpxall", text: "Export to GPX (All)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPXAll },
+    { key: "exportgpxallmerge", text: "Export to GPX (All Merge)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPXAllMerge },
+    { key: "importfile", text: "Import GPX file", iconCls: "fa-solid fa-file-import", enabled: leafletEditCan("importGPX"), callback: readLocalFile },
+    { key: "simplify", text: "Simplify", iconCls: "fa-solid fa-minimize", enabled: !!layer && leafletEditCan("edit"), callback: simplify },
+  ];
+}
+
+/// Ouvre la popup tactile (tap) avec les actions métier de la trace.
+/// Remplace le contextmenu sur mobile : 1 tap = ouvre, 1 tap = action.
+function openTracePopup(e) {
+  if (!e || !e.relatedTarget || !map || !map.lMap) {
+    return;
+  }
+  var layer = e.relatedTarget;
+  var latlng = e.latlng || (layer.getBounds ? layer.getBounds().getCenter() : map.lMap.getCenter());
+  var evtLike = { relatedTarget: layer, latlng: latlng };
+  var actions = buildTraceActions(evtLike);
+
+  var title = "Trace";
+  try {
+    var opts = layer.defaultOptions && layer.defaultOptions.leafletEdit;
+    if (opts && opts.description) {
+      title = opts.description;
+    } else if (opts && opts.filename) {
+      title = opts.filename;
+    }
+  } catch (err) {}
+
+  var html = '<div class="leaflet-edit-trace-popup" data-leaflet-id="' + layer._leaflet_id + '">';
+  html += '<div class="leaflet-edit-trace-popup-title">' + jQuery("<div>").text(title).html() + "</div>";
+  html += '<div class="leaflet-edit-trace-popup-actions">';
+  actions.forEach(function (action) {
+    var disabled = action.enabled ? "" : " disabled";
+    var icon = action.iconCls ? '<i class="' + action.iconCls + '" aria-hidden="true"></i> ' : "";
+    html += '<button type="button" class="leaflet-edit-trace-btn" data-action="' +
+      action.key + '"' + disabled + ">" + icon + jQuery("<span>").text(action.text).html() + "</button>";
+  });
+  html += "</div></div>";
+
+  var popup = L.popup({ closeButton: true, maxWidth: 280, className: "leaflet-edit-trace-popup-wrap" })
+    .setLatLng(latlng)
+    .setContent(html)
+    .openOn(map.lMap);
+
+  // Délégation : un seul listener, compatible tactile.
+  jQuery(".leaflet-edit-trace-popup-actions .leaflet-edit-trace-btn").off("click.leafletEdit").on("click.leafletEdit", function (clickEvt) {
+    clickEvt.preventDefault();
+    clickEvt.stopPropagation();
+    var key = jQuery(this).data("action");
+    var target = actions.filter(function (a) { return a.key === key; })[0];
+    if (!target || !target.enabled) {
+      return;
+    }
+    map.lMap.closePopup(popup);
+    try {
+      target.callback(evtLike);
+    } catch (err) {
+      console.error("[leaflet_edit] popup action " + key + " failed:", err);
     }
   });
 }
@@ -30,6 +153,9 @@ const MENU = {
 
 function evtContextShow(e) {
   console.log(e);
+  if (isTouchDevice()) {
+    return;
+  }
   if (!e.relatedTarget) {
     return;
   }
@@ -48,65 +174,34 @@ function evtContextShow(e) {
 }
 
 function defineContextMenu() {
+  // Construit depuis la source unique buildTraceActions() pour rester
+  // synchronisé avec la popup tactile. Les séparateurs gardent les
+  // index MENU.* existants utilisés par evtContextShow().
+  var evtLike = { relatedTarget: null, latlng: null };
+  var byKey = {};
+  buildTraceActions(evtLike).forEach(function (a) {
+    byKey[a.key] = a;
+  });
+  function item(key) {
+    var a = byKey[key];
+    return { text: a.text, iconCls: a.iconCls, callback: a.callback };
+  }
   let menu = [];
-  menu[MENU.showcoord] = {
-    text: "Show coordinates",
-    callback: showCoordinates,
-  };
+  menu[MENU.showcoord] = item("showcoord");
   menu[MENU.sep1] = "-";
-  menu[MENU.editlayer] = {
-    text: "Edit layer",
-    iconCls: "fa-regular fa-pen-to-square",
-    callback: editLayer,
-  };
-  menu[MENU.cutline] = {
-    text: "Cut here",
-    iconCls: "fa-regular fa-scissors",
-    callback: cutLine,
-  };
-  menu[MENU.joinline] = {
-    text: "Join",
-    iconCls: "fa-regular fa-link",
-    callback: joinLine,
-  };
-  menu[MENU.deletelay] = {
-    text: "Delete",
-    iconCls: "fa-regular fa-eraser",
-    callback: deleteLay,
-  };
+  menu[MENU.editlayer] = item("editlayer");
+  menu[MENU.cutline] = item("cutline");
+  menu[MENU.joinline] = item("joinline");
+  menu[MENU.deletelay] = item("deletelay");
   menu[MENU.sep2] = "-";
-  menu[MENU.save] = {
-    text: "Save",
-    iconCls: "fa-regular fa-floppy-disk",
-    callback: saveEntity,
-  };
-  menu[MENU.exportgpx] = {
-    text: "Export to GPX",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPX,
-  };
-  menu[MENU.exportgpxall] = {
-    text: "Export to GPX (All)",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPXAll,
-  };
-  menu[MENU.exportgpxallmerge] = {
-    text: "Export to GPX (All Merge)",
-    iconCls: "fa-solid fa-file-export",
-    callback: exportGPXAllMerge,
-  };
+  menu[MENU.save] = item("save");
+  menu[MENU.exportgpx] = item("exportgpx");
+  menu[MENU.exportgpxall] = item("exportgpxall");
+  menu[MENU.exportgpxallmerge] = item("exportgpxallmerge");
   menu[MENU.sep3] = "-";
-  menu[MENU.importfile] = {
-    text: "Import GPX file",
-    iconCls: "fa-solid fa-file-import",
-    callback: readLocalFile,
-  };
+  menu[MENU.importfile] = item("importfile");
   menu[MENU.sep4] = "-";
-  menu[MENU.simplify] = {
-    text: "Simplify",
-    iconCls: "fa-solid fa-minimize",
-    callback: simplify,
-  };
+  menu[MENU.simplify] = item("simplify");
 
   let context_menu = {
     contextmenu: true,
@@ -125,193 +220,126 @@ function evtMapDrawend(e) {
 }
 
 function evtMapCreate(e) {
-  if (jQuery(".leaflet-confirm-dialog").length == 0) {
-    container = L.DomUtil.create(
-      "div",
-      "leaflet-confirm-dialog",
-      map.lMap.getContainer()
-    );
-    // container.style.zIndex = 99999;
-    // container.style.position = "relative";
-    container.style.opacity = 0.85;
-  }
+  // Fenêtre Leaflet native (L.control.window) : fonctionne en plein écran
+  // et sur mobile, contrairement au dialog jQuery UI. Les <select> sont
+  // natifs (pas de select2) pour éviter les problèmes de dropdown.
+  var drawnLayer = e.layer;
 
-  dialog = jQuery(".leaflet-confirm-dialog")
-    .data("levt", e)
-    .dialog({
-      autoOpen: false,
-      height: "auto",
-      width: 300,
-      modal: true,
-      draggable: true,
-      resizable: true,
-      title: "Affectation de la trace",
-      buttons: [
-        {
-          text: "Ok",
-          icon: "fa-solid fa-check",
-          click: function (e, evt) {
-            jQuery(this).dialog("close");
-            // alert("OK");
-            _type_t = jQuery(
-              ".leaflet-confirm-dialog-types option:selected"
-            ).text();
-            _type_v = jQuery(
-              ".leaflet-confirm-dialog-types option:selected"
-            ).val();
-            _lay_t = jQuery(
-              ".leaflet-confirm-dialog-layers option:selected"
-            ).text();
-            _lay_v = jQuery(
-              ".leaflet-confirm-dialog-layers option:selected"
-            ).val();
-            // ajoute le nouveau tracé
+  var contentHtml =
+    '<div class="leaflet-edit-assign">' +
+    '<div class="leaflet-edit-assign-group">' +
+    "<label><b>Quel groupe de traces</b></label>" +
+    '<select class="leaflet-edit-assign-layers" style="width:100%"></select>' +
+    "</div>" +
+    '<div class="leaflet-edit-assign-group">' +
+    "<label><b>Quel type de trace</b></label>" +
+    '<select class="leaflet-edit-assign-types" style="width:100%"></select>' +
+    "</div>" +
+    "</div>";
 
-            // copies les proprietes 
-            trace=jQuery(this).data("levt").layer.toGeoJSON();
-            try {
-              trace.properties=l._layers[_type_v].feature.properties;
-            }
-            catch (error) {
-              console.error(error);
-            }
-            addData(
-              _lay_v,
-              trace,
-              l._layers[_type_v]
-            );
+  var win = L.control.window(map.lMap, {
+    title: "Affectation de la trace",
+    content: contentHtml,
+    modal: true,
+    visible: false,
+    prompt: {
+      buttonOK: "Ok",
+      buttonCancel: "Cancel",
+      callback: function () {
+        var layersSel = win.getContainer().querySelector(".leaflet-edit-assign-layers");
+        var typesSel = win.getContainer().querySelector(".leaflet-edit-assign-types");
+        var layId = layersSel ? layersSel.value : "-1";
+        var typeKey = typesSel ? typesSel.value : null;
+        var laygroup = panel._layersActives.find(function (_l) {
+          return String(_l._leaflet_id) === String(layId);
+        });
+        if (!laygroup || typeKey === null || typeKey === "") {
+          drawnLayer.remove();
+          return;
+        }
+        // Copie les propriétés du type choisi.
+        var trace = drawnLayer.toGeoJSON();
+        try {
+          trace.properties = laygroup._layers[typeKey].feature.properties;
+        } catch (error) {
+          console.error(error);
+        }
+        addData(layId, trace, laygroup._layers[typeKey]);
+        // Autorise la sauvegarde de ce calque.
+        setUpdated(laygroup._layers[typeKey]);
+        drawnLayer.remove();
+      },
+    },
+  });
+  // Annulation via la croix : retire le tracé dessiné.
+  win.on("close hide", function () {
+    try {
+      if (map.lMap.hasLayer(drawnLayer)) {
+        drawnLayer.remove();
+      }
+    } catch (err) {}
+  });
+  win.show();
 
-            // allow to save this layer
-            setUpdated(l._layers[_type_v]);
+  var box = win.getContainer();
+  var layersSel = box.querySelector(".leaflet-edit-assign-layers");
+  var typesSel = box.querySelector(".leaflet-edit-assign-types");
 
-            jQuery(this).data("levt").layer.remove();
-
-            // L.DomUtil.remove('.leaflet-confirm-dialog');
-            jQuery(".leaflet-confirm-dialog-grplayers").remove();
-            jQuery(".leaflet-confirm-dialog-grptrace").remove();
-            jQuery(".leaflet-confirm-dialog").remove();
-          },
-        },
-        {
-          text: "Cancel",
-          icon: "fa-solid fa-xmark",
-          click: function (e) {
-            jQuery(this).dialog("close");
-            // alert("Cancel");
-
-            jQuery(this).data("levt").layer.remove();
-
-            // L.DomUtil.remove('.leaflet-confirm-dialog');
-            jQuery(".leaflet-confirm-dialog-grplayers").remove();
-            jQuery(".leaflet-confirm-dialog-grptrace").remove();
-            jQuery(".leaflet-confirm-dialog").remove();
-          },
-        },
-      ],
+  function fillLayers() {
+    layersSel.innerHTML = "";
+    var empty = document.createElement("option");
+    empty.value = "-1";
+    empty.textContent = "";
+    layersSel.appendChild(empty);
+    Object.values(panel._layersActives).forEach(function (value) {
+      var opt = document.createElement("option");
+      opt.value = value._leaflet_id;
+      opt.textContent = value.options.leafletEdit.description;
+      layersSel.appendChild(opt);
     });
-
-  // jQuery(".leaflet-confirm-dialog").dialog('open');
-
-  // Groupe de trace
-  grp_layers = L.DomUtil.create(
-    "div",
-    "leaflet-confirm-dialog-grplayers",
-    container
-  );
-  label = L.DomUtil.create("label", "label-grp-layers", grp_layers);
-  label.innerHTML = "<b> Quel groupe de traces</b><br>";
-
-  if (jQuery(".leaflet-confirm-dialog-layers").length == 0) {
-    layers = L.DomUtil.create(
-      "select",
-      "leaflet-confirm-dialog-layers",
-      grp_layers
-    );
   }
 
-  layers = jQuery(".leaflet-confirm-dialog-layers").select2({
-    width: "60%", // need to override the changed default
-    placeholder: "Groupe de traces",
-  });
-
-  layers.empty();
-  layers.append(new Option("", -1)); // To not select first entry on open
-  for (const value of Object.values(panel._layersActives)) {
-    layers.append(
-      new Option(value.options.leafletEdit.description, value._leaflet_id)
-    );
+  function fillTypes(laygroup) {
+    typesSel.innerHTML = "";
+    var listeTypes = {};
+    Object.entries(laygroup._layers).forEach(function (entry) {
+      var key = entry[0];
+      var value = entry[1];
+      var typeVal = value.feature && value.feature.properties && value.feature.properties.type
+        ? value.feature.properties.type
+        : "N/A";
+      if (!(typeVal in listeTypes)) {
+        listeTypes[typeVal] = { key: key, layers: [] };
+        var opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = typeVal;
+        typesSel.appendChild(opt);
+      }
+      listeTypes[typeVal].layers.push(value);
+    });
+    return listeTypes;
   }
 
-  // Type de trace
-  grp_trace = L.DomUtil.create(
-    "div",
-    "leaflet-confirm-dialog-grptrace",
-    container
-  );
-  label = L.DomUtil.create("label", "label-grp-trace", grp_trace);
-  label.innerHTML = "<br><b> Quel type de trace</b><br>";
-  types = L.DomUtil.create("select", "leaflet-confirm-dialog-types", grp_trace);
-  types = jQuery(".leaflet-confirm-dialog-types").select2({
-    width: "60%", // need to override the changed default
-    placeholder: "Type de trace",
-  });
-
-  // Update liste
-  layers.on("select2:select", function (e) {
-    l = panel._layersActives.find((_l) => _l._leaflet_id == e.params.data.id);
-    types.empty();
-    liste_types = {};
-    for (const [key, value] of Object.entries(l._layers)) {
-      if (!value.feature.properties.type) {
-        type_val = "N/A";
-      } else {
-        type_val = value.feature.properties.type;
-      }
-      if (type_val in liste_types) {
-        liste_types[type_val].push(value);
-      } else {
-        liste_types[type_val] = [value];
-        types.append(new Option(type_val, key));
-      }
+  var currentTypes = {};
+  fillLayers();
+  layersSel.addEventListener("change", function () {
+    var laygroup = panel._layersActives.find(function (_l) {
+      return String(_l._leaflet_id) === String(layersSel.value);
+    });
+    if (!laygroup) {
+      typesSel.innerHTML = "";
+      currentTypes = {};
+      return;
     }
-    types.trigger("change");
+    currentTypes = fillTypes(laygroup);
   });
-  types.on("select2:select", function (e) {
-    flash_features(liste_types[e.params.data.text], 2000);
+  typesSel.addEventListener("change", function () {
+    var selected = typesSel.options[typesSel.selectedIndex];
+    var label = selected ? selected.textContent : null;
+    if (label && currentTypes[label]) {
+      flash_features(currentTypes[label].layers, 2000);
+    }
   });
-
-  if (document.fullscreenElement) {
-    jQuery(".leaflet-confirm-dialog").dialog(
-      "option",
-      "appendTo",
-      "#" + document.fullscreenElement.id
-    );
-    // jQuery('#' + document.fullscreenElement.id).append(jQuery(".leaflet-confirm-dialog").parentNode);
-
-    jQuery(".leaflet-confirm-dialog").dialog("option", "position", {
-      my: "left+50 top+50",
-      at: "left top",
-      of: "#" + document.fullscreenElement.id,
-    });
-
-    // Increase zindex in fullscreen mode
-    container.parentNode.style["zIndex"] = 400;
-
-    layers.select2({
-      dropdownParent: map.lMap.getContainer(),
-      width: "60%",
-    });
-    types.select2({
-      dropdownParent: map.lMap.getContainer(),
-      width: "60%",
-    });
-  }
-
-  jQuery(".leaflet-confirm-dialog").prev(".ui-dialog-titlebar").css("font-size" , '1em');
-  jQuery("label-grp-layers").css("font-size" , '1em');
-  jQuery("label-grp-trace").css("font-size" , '1em');
-  jQuery(".leaflet-confirm-dialog").dialog("open");
-  jQuery(".leaflet-confirm-dialog").dialog("moveToTop");
 }
 
 function requestFullscreen(id) {
@@ -348,6 +376,35 @@ function evtLayerUpdate(e) {
 // var map1 = L.map('map', context_menu);
 function evtFeatureClick(e) {
   console.log(e);
+  // 1 tap/clic sur la trace = sélection (surbrillance) + trace courante
+  // pour la barre métier. Sur tactile, ouvre en plus la popup d'actions.
+  // Le clic droit garde le contextmenu complet sur desktop.
+  if (!e || !e.sourceTarget) {
+    return;
+  }
+  // Ne pas changer la sélection pendant une édition Geoman en cours.
+  var editing = false;
+  try {
+    editing = !!(e.sourceTarget.pm && typeof e.sourceTarget.pm.enabled === "function" && e.sourceTarget.pm.enabled());
+  } catch (err) {}
+  if (!editing) {
+    select_feature(e.sourceTarget);
+  }
+  try {
+    if (typeof setCurrentTrace === "function") {
+      setCurrentTrace(e.sourceTarget);
+    }
+  } catch (err) {}
+  if (!isTouchDevice()) {
+    return;
+  }
+  if (editing) {
+    return;
+  }
+  openTracePopup({
+    relatedTarget: e.sourceTarget,
+    latlng: e.latlng || null,
+  });
 }
 
 function evtFeatureContextmenu(e) {
@@ -356,35 +413,36 @@ function evtFeatureContextmenu(e) {
 
 function evtFeatureDblClick(e) {
   console.log(e);
+  // Double-clic = bascule la sélection (surbrillance on/off).
+  if (!e || !e.sourceTarget) {
+    return;
+  }
   if (isSelected(e.sourceTarget)) {
-    // already selected
     unselect_feature(e.sourceTarget);
   } else {
-    if (!e.sourceTarget.orig_style) {
-      //save style only if not already saved
-      saveStyle(e.sourceTarget);
-    }
     select_feature(e.sourceTarget);
   }
 }
 
 function evtLayerMouseover(e) {
-  console.log("Mouseover: " + e);
+  // Logs désactivés : se déclenchent à chaque survol de trace (bruit console).
+  // console.log("Mouseover: " + e);
   // e.sourceTarget.addDistanceMarkers();
 }
 
 function evtLayerMouseout(e) {
-  console.log("Mouseout: " + e);
+  // Logs désactivés : voir evtLayerMouseover.
+  // console.log("Mouseout: " + e);
   // e.sourceTarget.removeDistanceMarkers();
 }
 
 function evtFeatureTooltipopen(e) {
-  console.log(e);
+  // console.log(e);
   e.sourceTarget.addDistanceMarkers();
 }
 
 function evtFeatureTooltipclose(e) {
-  console.log(e);
+  // console.log(e);
   e.sourceTarget.removeDistanceMarkers();
 }
 
@@ -445,37 +503,16 @@ function showCoordinates(e) {
 }
 
 function editLayer(e) {
-  // saveStyle(this.ref_context_menu);
-  if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
-    jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit = e;
-    jQuery(".leaflet_edit-edit").parents("a")[0]._layer_edit_orig =
-      e.relatedTarget.getLatLngs();
-    // ===> map.lMap.pm.Toolbar.setButtonDisabled("le_edit", false);
-    let i = map.lMap.pm.Toolbar._btnNameMapping("le_edit");
-    map.lMap.pm.Toolbar.buttons[i]._button.disabled = false;
-
-    jQuery(".leaflet_edit-edit").trigger("click");
+  var layer = e.relatedTarget;
+  // Mémorise les positions d'origine pour une annulation éventuelle.
+  if (!layer.leafletEditOrigLatLngs) {
+    try {
+      layer.leafletEditOrigLatLngs = JSON.parse(JSON.stringify(layer.getLatLngs()));
+    } catch (err) {
+      layer.leafletEditOrigLatLngs = layer.getLatLngs();
+    }
   }
-
-  if (!e.relatedTarget.orig_style) {
-    //save style only if not already saved
-    saveStyle(e.relatedTarget);
-  }
-  if (isSelected(e.relatedTarget)) {
-    // deselect feature
-    clearSelected(e.relatedTarget);
-  }
-  // this.ref_context_menu.setStyle({color: 'yellow'});
-  e.relatedTarget.setStyle({
-    color: "#666",
-    weight: 5,
-    opacity: 0.7,
-    fillOpacity: 0.7,
-    dashArray: "10 10",
-  });
-  // this.ref_context_menu.pm.enable({
-
-  e.relatedTarget.pm.enable({
+  layer.pm.enable({
     allowSelfIntersection: true,
     allowEditing: true,
     snapDistance: 10,
@@ -487,24 +524,39 @@ function editLayer(e) {
     limitMarkersToCount: 25,
     removeVertexOn: "dblclick",
   });
+  // Style d'édition via le gestionnaire d'état (prioritaire).
+  refreshTraceStyle(layer);
+  // Affiche la barre Valider / Annuler.
+  if (typeof showEditConfirmBar === "function") {
+    showEditConfirmBar(layer);
+  }
 }
 
-function finEditLayer(e) {
-  // restoreStyle(this.ref_context_menu);
-  restoreStyle(e.relatedTarget);
-  // this.ref_context_menu.pm.enable({
-  e.relatedTarget.pm.enable({
-    allowSelfIntersection: false,
-    allowEditing: false,
-  });
-  if (jQuery(".leaflet_edit-edit").parents("a")[0]) {
-    ref = jQuery(".leaflet_edit-edit").parents("a")[0];
-    jQuery(".leaflet_edit-edit").trigger("click");
-    map.lMap.pm.Toolbar.setButtonDisabled("le_edit", true);
-    ref._layer_edit = null;
-    delete ref._layer_edit;
-    ref._layer_edit_orig;
-    delete ref._layer_edit_orig;
+function finEditLayer(e, save) {
+  var layer = e.relatedTarget;
+  if (save === false) {
+    // Annulation : restaure la géométrie d'origine.
+    try {
+      if (layer.leafletEditOrigLatLngs) {
+        layer.setLatLngs(layer.leafletEditOrigLatLngs);
+      }
+    } catch (err) {
+      console.error("[leaflet_edit] cancel edit:", err);
+    }
+  } else if (save === true) {
+    // Validation : la géométrie a changé, marque à sauvegarder.
+    setUpdated(layer);
+  }
+  layer.leafletEditOrigLatLngs = null;
+  try {
+    delete layer.leafletEditOrigLatLngs;
+  } catch (err) {}
+  layer.pm.disable();
+  // Ré-applique le style d'état (sélectionné / modifié / origine).
+  refreshTraceStyle(layer);
+  // Masque la barre Valider / Annuler.
+  if (typeof hideEditConfirmBar === "function") {
+    hideEditConfirmBar();
   }
 }
 
@@ -527,6 +579,56 @@ function leafletEditEndpoint(key, fallback) {
   return fallback;
 }
 
+function leafletEditNotify(type, title, message) {
+  try {
+    var n = map && map.lMap && map.lMap.notification;
+    if (n && typeof n[type] === "function") {
+      n[type](title, message);
+      return;
+    }
+  } catch (e) {}
+  // Fallback si le plugin notifications n'est pas (encore) initialisé.
+  try {
+    if (type === "error") {
+      console.error("[leaflet_edit] " + title + ": " + message);
+    } else {
+      console.log("[leaflet_edit] " + title + ": " + message);
+    }
+  } catch (e) {}
+}
+
+// -- Fenêtre modale "opération en cours" (bloque les interactions) ---------
+// Utilisée pendant le Save : empêche l'utilisateur de lancer d'autres
+// opérations tant que la requête AJAX n'a pas répondu.
+function showBusyModal(title, message) {
+  hideBusyModal();
+  if (!map || !map.lMap || typeof L.control.window !== "function") {
+    return null;
+  }
+  var win = L.control.window(map.lMap, {
+    title: title || "Opération en cours",
+    content: '<div class="leaflet-edit-busy"><div class="leaflet-edit-spinner"></div><p>' +
+      jQuery("<div>").text(message || "Veuillez patienter…").html() + "</p></div>",
+    modal: true,
+    visible: false,
+    closeButton: false,
+  });
+  win.show();
+  map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+  map.lMap.leafletEdit.busyModal = win;
+  return win;
+}
+
+function hideBusyModal() {
+  try {
+    if (map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.busyModal) {
+      var win = map.lMap.leafletEdit.busyModal;
+      map.lMap.leafletEdit.busyModal = null;
+      win.close();
+    }
+  } catch (err) {}
+}
+
 function saveEntity(e) {
   console.log("Save");
 
@@ -542,7 +644,7 @@ function saveEntity(e) {
      {
       geojson: e.relatedTarget.toGeoJSON(),
       type: e.relatedTarget.feature.properties["type"],
-    }, 
+    },
 
   ];*/
 
@@ -576,6 +678,9 @@ function saveEntity(e) {
   fd.append("geojson", JSON.stringify(turf.featureCollection(data)));
 
   var rsave = [];
+  // Modale bloquante pendant la sauvegarde (évite les doubles clics /
+  // autres opérations concurrentes). Fermée dans success + error.
+  showBusyModal("Sauvegarde", "Sauvegarde de la trace en cours…");
 
   jQuery.ajax({
     url: leafletEditEndpoint("save", "/leaflet-edit/save"),
@@ -584,21 +689,35 @@ function saveEntity(e) {
     contentType: false,
     processData: false,
     success: function (response) {
+      hideBusyModal();
       rsave = response;
       let result = response.success;
       if (result) {
-        map.lMap.notification.success("Save", "Saved");
+        leafletEditNotify("success", "Save", "Saved");
+        // Sauvegarde OK : le groupe n'est plus "modifié", le style
+        // orange disparaît sur toutes ses traces.
+        e.relatedTarget.defaultOptions.leafletEdit.fid = response.fid;
+        clearUpdatedGroup(e.relatedTarget);
       } else {
         let msg = response.message;
-        map.lMap.notification.error("Save", "file not uploaded: " + msg);
+        leafletEditNotify("error", "Save", "file not uploaded: " + msg);
       }
     },
     error: function (xhr) {
-      map.lMap.notification.error("Save", "file not uploaded (" + xhr.status + ")");
+      hideBusyModal();
+      var detail = "";
+      try {
+        var resp = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+        if (resp && (resp.message || resp.error)) {
+          detail = " - " + (resp.message || resp.error);
+        }
+      } catch (e2) {}
+      leafletEditNotify("error", "Save", "file not uploaded (" + xhr.status + ")" + detail);
     },
   });
   if (rsave.success) {
-    map.lMap.notification.success(
+    leafletEditNotify(
+      "success",
       "Save",
       "Saved (" +
         e.relatedTarget.defaultOptions.leafletEdit.fid +
@@ -607,7 +726,7 @@ function saveEntity(e) {
         ")"
     );
     e.relatedTarget.defaultOptions.leafletEdit.fid = rsave.fid;
-    clearUpdated(e.relatedTarget);
+    clearUpdatedGroup(e.relatedTarget);
   }
 }
 
@@ -886,6 +1005,13 @@ async function writeFile(fileHandle, contents) {
 
 function simplify(e) {
   console.log("Simplify");
+  if (typeof turf === "undefined") {
+    console.error("[leaflet_edit] turf.js non chargé, simplification impossible.");
+    if (map && map.lMap && map.lMap.notification) {
+      map.lMap.notification.error("Simplify", "Librairie turf.js non chargée.");
+    }
+    return;
+  }
 
   a = turf.simplify(e.relatedTarget.toGeoJSON(), {
     tolerance: 0.0001,
@@ -899,12 +1025,16 @@ function simplify(e) {
     before = e.relatedTarget.getLatLngs();
     before_elem = before[before.length - 1].length;
     e.relatedTarget.setLatLngs(b.getLayers()[0].getLatLngs());
+    var after_elem = e.relatedTarget.getLatLngs()[before.length - 1].length;
+    // La géométrie a été réécrite : marque la trace comme modifiée
+    // (style orange + proposée au save), comme après une édition validée.
+    setUpdated(e.relatedTarget);
     map.lMap.notification.success(
       "Simplify",
       "Path simplified (" +
         before_elem +
         " => " +
-        e.relatedTarget.getLatLngs()[before.length - 1].length +
+        after_elem +
         ")"
     );
   } else {
@@ -915,8 +1045,14 @@ function simplify(e) {
   }
 }
 
-function readLocalFile(e, button_name, file_type) {
-  closeGeomanMenu(button_name);
+function readLocalFile(e, file_type) {
+  // Appels possibles : readLocalFile(evtLike) depuis la popup/panel,
+  // ou readLocalFile(null, "GPX") depuis la barre metier.
+  if (typeof e === "string" && !file_type) {
+    file_type = e;
+  } else if (typeof file_type === "undefined" || file_type === null) {
+    file_type = "GPX";
+  }
 
   var conv = document.createElement("input");
   conv.setAttribute("type", "file");
@@ -954,25 +1090,4 @@ function importTrack(track) {
   lay.addTo(map.lMap);
 }
 
-function saveAll(e, button_name) {
-  alert("PAs encore fait");
-  closeGeomanMenu(button_name);
-  // button_save(e);
-}
 
-function button_save(e) {
-  L.control
-    .window(map.lMap, {
-      title: "Hello world!",
-      content: "This is my first control window.",
-      modal: true,
-    })
-    .prompt({
-      callback: function () {
-        alert("This is called after OK click!");
-      },
-      buttonCancel: "Annuler",
-      buttonOK: "Sauver",
-    })
-    .show();
-}

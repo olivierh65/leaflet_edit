@@ -1,5 +1,5 @@
 .hidden {
-    visibility: hidden !important;
+    display: none !important;
 }
 
 .leaflet-control-cascadeButtons{
@@ -8,6 +8,21 @@
     width: auto;
     height: auto;
     border:none;
+}
+
+/* Barre principale : groupes cote a cote (horizontal). */
+.leaflet-control-cascadeButtons.horizontal{
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+/* Chaque groupe : bouton principal + sous-menu vertical en dessous. */
+.leaflet-control-cascadeButtons.horizontal > div{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .leaflet-control-cascadeButtons button{

@@ -10,5 +10,3 @@ dependencies:
   - drupal:serialization
   - geofield:geofield
   - geojsonfile_field:geojsonfile_field
-  - jquery_ui_dialog:jquery_ui_dialog
-  - jquery_ui_selectmenu:jquery_ui_selectmenu

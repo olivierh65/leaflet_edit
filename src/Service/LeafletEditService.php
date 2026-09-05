@@ -78,20 +78,17 @@ class LeafletEditService extends LeafletService {
     $attachedLibraries[] = 'leaflet_edit/leaflet-styleeditor';
     $attachedLibraries[] = 'leaflet_edit/leaflet-panel-layers';
     $attachedLibraries[] = 'leaflet_edit/leaflet-notifications';
-    $attachedLibraries[] = 'leaflet_edit/leaflet-toolbar';
     $attachedLibraries[] = 'leaflet_edit/leaflet-fullscreen';
     $attachedLibraries[] = 'leaflet_edit/leaflet-edit';
     $attachedLibraries[] = 'leaflet_edit/leaflet.ajax';
     $attachedLibraries[] = 'leaflet_edit/leaflet-contextmenu';
-    $attachedLibraries[] = 'leaflet_edit/leaflet.select2';
-    $attachedLibraries[] = 'leaflet_edit/leaflet.Dialog';
     $attachedLibraries[] = 'leaflet_edit/leaflet.control-window';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.cascadebuttons';
     $attachedLibraries[] = 'leaflet_edit/leaflet-distance-markers';
     $attachedLibraries[] = 'leaflet_edit/leaflet.GeometryUtil';
+    $attachedLibraries[] = 'leaflet_edit/leaflet.turf';
     $attachedLibraries[] = 'leaflet_edit/leaflet.togeojson';
     $attachedLibraries[] = 'leaflet_edit/leaflet-slider';
-    $attachedLibraries[] = 'jquery_ui_dialog/dialog';
-    $attachedLibraries[] = 'jquery_ui_selectmenu/selectmenu';
 
     $mapId = $build['#map_id'];
     // Keep per-map settings namespaced by map ID to support several maps

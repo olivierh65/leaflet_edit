@@ -315,16 +315,25 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     $mapHeight = !empty($settings['height']) ? $settings['height'] . ($settings['height_unit'] ?? 'px') : '';
     $build = $this->leafletService->leafletRenderMap($jsSettings['map'], $jsSettings['features'], $mapHeight);
     $build['#attached']['drupalSettings'][$build['#map_id']]['leaflet_edit'] = $settings['leaflet_edit'];
-    // Expose POST endpoints to the map JS. Each URL embeds its own CSRF
-    // token because _csrf_token validation is per route path.
+    // Expose POST endpoints to the map JS. Chaque URL embarque son token
+    // CSRF car la validation _csrf_token est faite par chemin de route.
+    // Note: on NE passe PAS par Url::toString() ici. En contexte de rendu
+    // HTML, RouteProcessorCsrf remplace le token par un placeholder
+    // (Crypt::hashBase64($path)) + #lazy_builder, et ce placeholder n'est
+    // jamais résolu à l'intérieur de drupalSettings -> le JS reçoit un
+    // hash invalide -> 403 'csrf_token invalid' systématique. On génère
+    // donc le vrai token via le service csrf_token et on concatène
+    // manuellement sur le chemin de la route (sans toString()).
+    // Le token est lié à la session : le rendu varie par session.
+    $csrfToken = \Drupal::csrfToken();
     $build['#attached']['drupalSettings'][$build['#map_id']]['leaflet_edit']['endpoints'] = [
-      'save' => Url::fromRoute('leaflet_edit.save')->toString(),
-      'exportGpx' => Url::fromRoute('leaflet_edit.export_gpx')->toString(),
-      'exportGpxMerge' => Url::fromRoute('leaflet_edit.export_gpx_merge')->toString(),
+      'save' => '/leaflet-edit/save?token=' . $csrfToken->get('leaflet-edit/save'),
+      'exportGpx' => '/leaflet-edit/export-gpx?token=' . $csrfToken->get('leaflet-edit/export-gpx'),
+      'exportGpxMerge' => '/leaflet-edit/export-gpx-merge?token=' . $csrfToken->get('leaflet-edit/export-gpx-merge'),
     ];
     $build['#cache'] = [
       'tags' => array_unique($cacheTags),
-      'contexts' => ['user.permissions', 'languages'],
+      'contexts' => ['user.permissions', 'languages', 'session'],
     ];
 
     return [$build];
