@@ -821,6 +821,30 @@ function editStyleInteractive(e) {
     map.lMap.leafletEdit.styleSnapshot = null;
   }
   map.lMap.leafletEdit.styleLayer = layer;
+  // Le formulaire du StyleEditor s'initialise depuis le style VIVANT de
+  // la couche : une trace sélectionnée y présenterait son violet de
+  // surbrillance (et sa largeur) au lieu de son vrai style. On pose
+  // d'abord le style PROPRE (persisté), comme les autres formulaires.
+  // La surbrillance revient en fin de session si besoin
+  // (finishStyleSession(false) appelle refreshTraceStyle()).
+  try {
+    if (typeof getTraceBaseStyle === "function") {
+      var baseSt = getTraceBaseStyle(layer);
+      if (baseSt && typeof baseSt === "object") {
+        var cleanSt = {};
+        Object.keys(baseSt).forEach(function (k) {
+          if (baseSt[k] !== undefined && baseSt[k] !== null) {
+            cleanSt[k] = baseSt[k];
+          }
+        });
+        // dashArray null = trait continu (convention des formulaires).
+        if (!("dashArray" in cleanSt)) {
+          cleanSt.dashArray = null;
+        }
+        layer.setStyle(cleanSt);
+      }
+    }
+  } catch (errBase) {}
   try {
     ctl.enable(layer);
   } catch (err2) {
@@ -870,6 +894,12 @@ function finishStyleSession(commit) {
     } catch (errRevert) {}
     leafletEditNotify("info", "Style interactif", "Modifications de style annulées.");
   } else if (commit !== false) {
+    // La couleur a pu changer : recalcule le contraste des flèches.
+    try {
+      if (layer && typeof refreshArrows === "function") {
+        refreshArrows(layer);
+      }
+    } catch (errArrows) {}
     leafletEditNotify("info", "Style interactif", "Style validé — pensez à Save pour persister.");
   }
   try {
@@ -964,6 +994,7 @@ var LE_ARROWS_FALLBACK = {
   size: "30px",
   frequency: "endonly",
   fill: true,
+  contrast: true,
 };
 var LE_TURF_SIMPLIFY_FALLBACK = {
   tolerance: 0.0001,
@@ -972,12 +1003,77 @@ var LE_TURF_SIMPLIFY_FALLBACK = {
 
 // Reads the Arrowheads settings configured on the content type
 // (formatter 'Arrowheads Settings'), with safe fallbacks.
+// Parse une couleur CSS (hex #rgb/#rrggbb, rgb()/rgba(), noms courants)
+// en {r, g, b} (0-255). Retourne null si illisible.
+function parseCssColor(input) {
+  if (input === undefined || input === null) {
+    return null;
+  }
+  var s = String(input).trim().toLowerCase();
+  if (!s) {
+    return null;
+  }
+  var named = {
+    black: "#000000", white: "#ffffff", red: "#ff0000", lime: "#00ff00",
+    blue: "#0000ff", yellow: "#ffff00", cyan: "#00ffff", aqua: "#00ffff",
+    magenta: "#ff00ff", fuchsia: "#ff00ff", gray: "#808080", grey: "#808080",
+    green: "#008000", maroon: "#800000", navy: "#000080", olive: "#808000",
+    purple: "#800080", silver: "#c0c0c0", teal: "#008080", orange: "#ffa500",
+  };
+  if (named[s]) {
+    s = named[s];
+  }
+  var m = /^#([0-9a-f]{3}|[0-9a-f]{6})([0-9a-f]{2})?$/.exec(s);
+  if (m) {
+    var h = m[1];
+    if (h.length === 3) {
+      h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    }
+    return {
+      r: parseInt(h.substr(0, 2), 16),
+      g: parseInt(h.substr(2, 2), 16),
+      b: parseInt(h.substr(4, 2), 16),
+    };
+  }
+  m = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/.exec(s);
+  if (m) {
+    return { r: Math.min(255, +m[1]), g: Math.min(255, +m[2]), b: Math.min(255, +m[3]) };
+  }
+  return null;
+}
+
+// Couleur contrastée automatique (flèches de sens) : teinte
+// complémentaire de la couleur de l'entité (lisible sur la trace
+// elle-même) ; repli noir/blanc par luminance pour les gris.
+function leafletEditContrastColor(input) {
+  try {
+    var rgb = parseCssColor(input);
+    if (!rgb) {
+      return "#000000";
+    }
+    var mx = Math.max(rgb.r, rgb.g, rgb.b) / 255;
+    var mn = Math.min(rgb.r, rgb.g, rgb.b) / 255;
+    if (mx - mn < 0.12) {
+      var lum = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
+      return lum > 140 ? "#000000" : "#ffffff";
+    }
+    var hx = function (v) {
+      var s = Math.round(Math.max(0, Math.min(255, v))).toString(16);
+      return s.length < 2 ? "0" + s : s;
+    };
+    return "#" + hx(255 - rgb.r) + hx(255 - rgb.g) + hx(255 - rgb.b);
+  } catch (err) {
+    return "#000000";
+  }
+}
+
 function getArrowsDefaults() {
   var out = {
     yawn: LE_ARROWS_FALLBACK.yawn,
     size: LE_ARROWS_FALLBACK.size,
     frequency: LE_ARROWS_FALLBACK.frequency,
     fill: LE_ARROWS_FALLBACK.fill,
+    contrast: LE_ARROWS_FALLBACK.contrast,
   };
   try {
     var cfg = drupalSettings[mapid] &&
@@ -995,6 +1091,8 @@ function getArrowsDefaults() {
       out.size = size;
     }
     out.fill = !!cfg.fill;
+    // Absent des vieux displays : contraste actif (comportement effectif).
+    out.contrast = !(cfg.contrast === false || cfg.contrast === 0 || cfg.contrast === "0");
     var mode = (cfg.frequency_mode || "endonly").toString();
     var value = (cfg.frequency_value || "").toString().trim();
     if (mode === "allvertices" || mode === "endonly") {
@@ -1094,7 +1192,20 @@ function refreshArrows(layer) {
     if (!isArrowsEnabled() || !layer._map) {
       return;
     }
-    layer.arrowheads(getArrowsDefaults());
+    var arrowOpts = getArrowsDefaults();
+    // Flèches en couleur contrastée (vs couleur RÉELLE de l'entité, pas
+    // la surbrillance) pour rester visibles sur la trace elle-même.
+    // Désactivable par la checkbox "Contrasting arrows" des réglages.
+    if (arrowOpts.contrast) {
+      try {
+        var baseSt = (typeof getTraceBaseStyle === "function") ? getTraceBaseStyle(layer) : null;
+        var baseColor = (baseSt && baseSt.color) || (layer.options && layer.options.color) || "#3388ff";
+        var contrast = leafletEditContrastColor(baseColor);
+        arrowOpts.color = contrast;
+        arrowOpts.fillColor = contrast;
+      } catch (eColor) {}
+    }
+    layer.arrowheads(arrowOpts);
     // arrowheads() ne fait que mémoriser les options : force le rendu
     // immédiat (sinon visible seulement au prochain zoom/recentrage).
     if (typeof layer._reset === "function") {

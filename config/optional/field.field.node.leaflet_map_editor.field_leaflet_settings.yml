@@ -1,0 +1,21 @@
+uuid: 0ec228b4-8651-4354-b07f-443a67595328
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leaflet_settings
+    - node.type.leaflet_map_editor
+  module:
+    - leaflet_edit
+id: node.leaflet_map_editor.field_leaflet_settings
+field_name: field_leaflet_settings
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Réglages Leaflet Edit (surcharge par carte)'
+description: 'Préférences de cette carte (tolérance, contrôles, Geoman, Turf, flèches). Pré-remplies depuis le content type à la création ; vide = suit le content type. Outils, positions et fond de carte gardent leurs champs dédiés.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: leaflet_edit_settings

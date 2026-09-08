@@ -9,9 +9,11 @@ dependencies:
     - field.field.node.leaflet_map_editor.field_leaflet_locate_pos
     - field.field.node.leaflet_map_editor.field_leaflet_tools
     - field.field.node.leaflet_map_editor.field_leafletedit_description
+    - field.field.node.leaflet_map_editor.field_leaflet_settings
     - node.type.leaflet_map_editor
   module:
     - geofile_field
+    - leaflet_edit
     - path
     - text
 id: node.leaflet_map_editor.default
@@ -47,6 +49,12 @@ content:
   field_leaflet_locate_pos:
     type: options_select
     weight: 125
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_leaflet_settings:
+    type: leaflet_edit_settings_widget
+    weight: 126
     region: content
     settings: {  }
     third_party_settings: {  }

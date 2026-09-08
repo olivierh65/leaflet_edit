@@ -90,11 +90,13 @@ function _leaflet_edit_snapshot_display_settings(NodeInterface $node): void {
  * tool IDs are dropped, '_none' alone means "no optional tool", and the
  * INHERIT sentinel is used whenever no concrete default applies (invalid
  * basemap/position values, legacy-only tool IDs) instead of propagating
- * staleness.
+ * staleness. The per-map preferences entry holds the same sections
+ * minus tools and control positions (dedicated fields), or NULL when
+ * there is nothing usable to snapshot (dynamic inheritance).
  *
- * @return array<string, string|string[]>
- *   Field names mapped to their default value (never NULL; INHERIT means
- *   "follow the content type").
+ * @return array<string, string|string[]|null>
+ *   Field names mapped to their default value (never NULL except the
+ *   settings field; INHERIT means "follow the content type").
  */
 function _leaflet_edit_content_type_defaults(): array {
   $settings = [];
@@ -121,6 +123,7 @@ function _leaflet_edit_content_type_defaults(): array {
     LeafletEditFormatter::TOOLS_FIELD => LeafletEditFormatter::INHERIT,
     LeafletEditFormatter::GEOMAN_POS_FIELD => LeafletEditFormatter::INHERIT,
     LeafletEditFormatter::LOCATE_POS_FIELD => LeafletEditFormatter::INHERIT,
+    LeafletEditFormatter::SETTINGS_FIELD => NULL,
   ];
 
   // 1. Basemap: only known map keys.
@@ -159,6 +162,23 @@ function _leaflet_edit_content_type_defaults(): array {
     $position = trim((string) ($settings['leaflet_edit'][$section][$key] ?? ''));
     if (in_array($position, $valid_positions, TRUE)) {
       $defaults[$field_name] = $position;
+    }
+  }
+
+  // 4. Per-map preferences (JSON): same sections as the widget renders,
+  // minus tools and control positions (dedicated fields above), so the
+  // stored shape always matches the form (round-trip stable).
+  $sections = $settings['leaflet_edit'] ?? NULL;
+  if (!is_array($sections)) {
+    $formatter_defaults = LeafletEditFormatter::defaultSettings();
+    $sections = $formatter_defaults['leaflet_edit'] ?? [];
+  }
+  unset($sections['tools']);
+  unset($sections['geoman']['position'], $sections['locatecontrol']['position']);
+  if (is_array($sections) && $sections !== []) {
+    $json = json_encode($sections, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (is_string($json) && $json !== '') {
+      $defaults[LeafletEditFormatter::SETTINGS_FIELD] = $json;
     }
   }
 
@@ -324,10 +344,12 @@ function _leaflet_edit_refresh_widgets(FormStateInterface $form_state, array $fi
 /**
  * Submit handler for the "Restore defaults" button.
  *
- * Overwrites the four per-node override fields with the current content
- * type defaults (INHERIT where the content type offers nothing concrete)
+ * Overwrites the per-node override fields (basemap, tools, positions,
+ * Leaflet Edit preferences) with the current content type defaults
+ * (INHERIT / empty where the content type offers nothing concrete)
  * and rebuilds the form so the editor sees the restored values
- * (pre-checked checkboxes, pre-selected selects) before saving.
+ * (pre-checked checkboxes, pre-selected selects and preferences)
+ * before saving.
  *
  * @param array $form
  *   The node form.

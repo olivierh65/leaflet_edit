@@ -65,6 +65,7 @@ content:
           size: 16px
           yawn: '35'
           fill: 0
+          contrast: 1
         tools:
           geoman: geoman
           locatecontrol: locatecontrol
@@ -198,5 +199,6 @@ hidden:
   field_leaflet_geoman_pos: true
   field_leaflet_locate_pos: true
   field_leaflet_tools: true
+  field_leaflet_settings: true
   langcode: true
 

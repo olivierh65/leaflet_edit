@@ -14,6 +14,7 @@ use Drupal\field\Entity\FieldStorageConfig;
  */
 function leaflet_edit_install(): void {
   _leaflet_edit_ensure_basemap_field();
+  _leaflet_edit_ensure_settings_field();
 }
 
 /**
@@ -248,22 +249,31 @@ function leaflet_edit_update_10008(): string {
       continue;
     }
     $allowed = $storage->getSetting('allowed_values') ?? [];
-    $flat = [];
-    foreach ($allowed as $key => $value) {
-      if (is_array($value) && array_key_exists('value', $value)) {
-        $flat[$value['value']] = $value['label'] ?? $value['value'];
+    if (!is_array($allowed)) {
+      continue;
+    }
+    // Preserve the stored shape (flat value=>label map or value/label
+    // sequence, depending on how the config was last written): only ADD
+    // the key. Rewriting in the other shape would look like every old
+    // key was removed, tripping the options update guard
+    // ("...with existing data cannot have its keys changed") although
+    // adding a key is safe (no data uses it, no schema change).
+    if (array_is_list($allowed)) {
+      $has = FALSE;
+      foreach ($allowed as $item) {
+        if (is_array($item) && ($item['value'] ?? NULL) === '_default') {
+          $has = TRUE;
+          break;
+        }
       }
-      else {
-        $flat[$key] = $value;
+      if (!$has) {
+        array_unshift($allowed, ['value' => '_default', 'label' => 'Défaut (réglage du content type)']);
+        $storage->setSetting('allowed_values', $allowed)->save();
+        $patched++;
       }
     }
-    if (!array_key_exists('_default', $flat)) {
-      $flat = ['_default' => 'Défaut (réglage du content type)'] + $flat;
-      $normalized = [];
-      foreach ($flat as $value => $label) {
-        $normalized[] = ['value' => $value, 'label' => $label];
-      }
-      $storage->setSetting('allowed_values', $normalized)->save();
+    elseif (!array_key_exists('_default', $allowed)) {
+      $storage->setSetting('allowed_values', ['_default' => 'Défaut (réglage du content type)'] + $allowed)->save();
       $patched++;
     }
   }
@@ -294,6 +304,21 @@ function leaflet_edit_update_10008(): string {
     }
   }
   return (string) t('Explicit "Default" choice added and override fields marked required on @n item(s).', ['@n' => $patched]);
+}
+
+/**
+ * Creates the per-map Leaflet Edit preferences field.
+ *
+ * field_leaflet_settings stores the same preference sections as the
+ * content type display (tolerance, controls, Geoman, Turf, Arrowheads),
+ * minus tools and positions (dedicated fields), merged recursively over
+ * the display at render time. The creation/restore snapshot pre-fills
+ * it on new maps; existing maps keep an empty field (dynamic
+ * inheritance: zero behavior change until edited).
+ */
+function leaflet_edit_update_10009(): string {
+  _leaflet_edit_ensure_settings_field();
+  return (string) t('Per-map Leaflet Edit preferences field (field_leaflet_settings) created and wired into the leaflet_map_editor form display.');
 }
 
 /**
@@ -352,6 +377,76 @@ function _leaflet_edit_ensure_basemap_field(): void {
     $form_display->setComponent($field_name, [
       'type' => 'options_select',
       'weight' => 121,
+      'region' => 'content',
+      'settings' => [],
+    ])->save();
+  }
+
+  // Hide the field in view displays: the formatter consumes the raw value
+  // itself, it must not be rendered as a plain list item.
+  $view_storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  foreach (['default', 'full', 'teaser'] as $mode) {
+    $view_display = $view_storage->load('node.' . $bundle . '.' . $mode);
+    if ($view_display && $view_display->getComponent($field_name)) {
+      $view_display->removeComponent($field_name)->save();
+    }
+  }
+}
+
+/**
+ * Ensures the per-map preferences field exists and is wired.
+ *
+ * Creates the field storage (leaflet_edit_settings JSON, single value)
+ * and the field instance on the leaflet_map_editor bundle, exposes it
+ * in the back-office node form (same sections as the content type
+ * display, minus tools and positions) and hides it from the view
+ * displays (the formatter merges the raw value itself). Idempotent:
+ * safe to run on install and on update.
+ */
+function _leaflet_edit_ensure_settings_field(): void {
+  $field_name = 'field_leaflet_settings';
+  $bundle = 'leaflet_map_editor';
+
+  // The node type itself is provided by optional configuration: nothing to
+  // do when it does not exist (yet).
+  $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo('node');
+  if (!isset($bundles[$bundle])) {
+    return;
+  }
+
+  if (!FieldStorageConfig::loadByName('node', $field_name)) {
+    FieldStorageConfig::create([
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'type' => 'leaflet_edit_settings',
+      'cardinality' => 1,
+      'translatable' => FALSE,
+      'settings' => [],
+    ])->save();
+  }
+
+  if (!FieldConfig::loadByName('node', $bundle, $field_name)) {
+    FieldConfig::create([
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => $bundle,
+      'label' => 'Réglages Leaflet Edit (surcharge par carte)',
+      'description' => "Préférences de cette carte (tolérance, contrôles, Geoman, Turf, flèches). Pré-remplies depuis le content type à la création ; vide = suit le content type. Outils, positions et fond de carte gardent leurs champs dédiés.",
+      'required' => FALSE,
+      'translatable' => FALSE,
+      'settings' => [],
+      'field_type' => 'leaflet_edit_settings',
+    ])->save();
+  }
+
+  // Expose the field in the back-office node form.
+  $form_display = \Drupal::entityTypeManager()
+    ->getStorage('entity_form_display')
+    ->load('node.' . $bundle . '.default');
+  if ($form_display && !$form_display->getComponent($field_name)) {
+    $form_display->setComponent($field_name, [
+      'type' => 'leaflet_edit_settings_widget',
+      'weight' => 126,
       'region' => 'content',
       'settings' => [],
     ])->save();

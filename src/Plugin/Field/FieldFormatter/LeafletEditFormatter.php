@@ -19,6 +19,7 @@ use Drupal\Core\Url;
 use Drupal\Core\Utility\LinkGeneratorInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\leaflet\Plugin\Field\FieldFormatter\LeafletDefaultFormatter;
+use Drupal\leaflet_edit\LeafletEditSettingsFormTrait;
 use Drupal\leaflet_edit\Service\LeafletEditService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -35,6 +36,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * )
  */
 class LeafletEditFormatter extends LeafletDefaultFormatter {
+
+  use LeafletEditSettingsFormTrait;
 
   /**
    * Field name of the per-node basemap override (see leaflet_edit_install).
@@ -67,6 +70,19 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    */
   public const GEOMAN_POS_FIELD = 'field_leaflet_geoman_pos';
   public const LOCATE_POS_FIELD = 'field_leaflet_locate_pos';
+
+  /**
+   * Field name of the per-node Leaflet Edit preferences (JSON).
+   *
+   * Holds the 'leaflet_edit' settings sections (tolerance, controls,
+   * Geoman, Turf, Arrowheads) as a JSON object, merged RECURSIVELY over
+   * the display settings at render time (see resolveNodeOverrides()):
+   * absent keys inherit, explicit values (including 0) win, so disabling
+   * an inherited option is always expressible. Tools, control positions
+   * and basemap keep their dedicated fields and are never stored here.
+   * Empty field = inherit everything dynamically.
+   */
+  public const SETTINGS_FIELD = 'field_leaflet_settings';
 
   /**
    * Constructs a LeafletEditFormatter object.
@@ -170,6 +186,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
           'size' => '30px',
           'yawn' => 50,
           'fill' => TRUE,
+          'contrast' => TRUE,
         ],
         // Un interrupteur par outil JS. Les clés sont des identifiants
         // SANS point (interdit dans les clés de config Drupal) ; la
@@ -219,7 +236,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
       ?? $this->t('Invalid key "@key", fallback used at render time', ['@key' => $displayKey]);
     $summary[] = $this->t('Leaflet Map: @map', ['@map' => $displayLabel]);
     $summary[] = $this->t('Node overrides (win when set): @fields', [
-      '@fields' => implode(', ', [self::BASEMAP_FIELD, self::TOOLS_FIELD, self::GEOMAN_POS_FIELD, self::LOCATE_POS_FIELD]),
+      '@fields' => implode(', ', [self::BASEMAP_FIELD, self::TOOLS_FIELD, self::GEOMAN_POS_FIELD, self::LOCATE_POS_FIELD, self::SETTINGS_FIELD]),
     ]);
     $summary[] = $this->t('Map height: @height @height_unit', [
       '@height' => $settings['height'] ?? '',
@@ -258,11 +275,12 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     ]);
 
     $arrowheads = $effectiveModuleSettings['arrowheads'] ?? [];
-    $summary[] = $this->t('Arrowheads: @frequency, size @size, yawn @yawn, @fill', [
+    $summary[] = $this->t('Arrowheads: @frequency, size @size, yawn @yawn, @fill, contrast @contrast', [
       '@frequency' => $this->describeArrowheadsFrequency($arrowheads),
       '@size' => $arrowheads['size'] ?? '30px',
       '@yawn' => $arrowheads['yawn'] ?? 50,
       '@fill' => !empty($arrowheads['fill'] ?? TRUE) ? $this->t('filled') : $this->t('not filled'),
+      '@contrast' => !empty($arrowheads['contrast'] ?? TRUE) ? $this->t('on') : $this->t('off'),
     ]);
 
     $tools = $effectiveModuleSettings['tools'] ?? [];
@@ -284,57 +302,6 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
       : $this->t('No JS tools enabled');
 
     return $summary;
-  }
-
-  /**
-   * Returns the arrowheads frequency mode options.
-   *
-   * @return array<string, string>
-   *   Frequency modes mapped to human labels.
-   */
-  protected function getArrowheadsFrequencyOptions(): array {
-    return [
-      'endonly' => $this->t('Single arrow at the end (direction of travel)')->render(),
-      'allvertices' => $this->t('One arrow on each vertex')->render(),
-      'count' => $this->t('N arrows evenly distributed (uses the value below)')->render(),
-      'distance' => $this->t('Arrows spaced by distance (uses the value below, e.g. 500m)')->render(),
-    ];
-  }
-
-  /**
-   * Describes the configured arrowheads frequency in one line.
-   *
-   * @param array $arrowheads
-   *   The arrowheads settings.
-   *
-   * @return string
-   *   Human-readable frequency description.
-   */
-  protected function describeArrowheadsFrequency(array $arrowheads): string {
-    $mode = $arrowheads['frequency_mode'] ?? 'endonly';
-    $value = trim((string) ($arrowheads['frequency_value'] ?? ''));
-    if ($mode === 'count') {
-      return ((int) $value > 0 ? (int) $value : $this->t('invalid count')->render()) . ' arrows';
-    }
-    if ($mode === 'distance') {
-      return $value !== '' ? $this->t('every @value', ['@value' => $value])->render() : $this->t('invalid distance')->render();
-    }
-    return (string) $mode;
-  }
-
-  /**
-   * Returns the Turf operations available in the UI.
-   *
-   * @return array<string, string>
-   *   Operation machine names mapped to human labels. 'concatenate' is
-   *   listed for roadmap visibility but not implemented yet (safely
-   *   ignored at runtime).
-   */
-  protected function getTurfOperationOptions(): array {
-    return [
-      'simplify' => $this->t('Simplify (Douglas-Peucker)')->render(),
-      'concatenate' => $this->t('Concatenate (coming soon)')->render(),
-    ];
   }
 
   /**
@@ -364,254 +331,31 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
       '#type' => 'details',
       '#title' => $this->t('Leaflet Edit Settings'),
     ];
-    $element['leaflet_edit']['leaflet'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Leaflet Settings'),
-    ];
-    $element['leaflet_edit']['leaflet']['tolerance'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Click tolerance'),
-      '#description' => $this->t('Click tolerance in pixels.'),
-      '#min' => 0,
-      '#max' => 50,
-      '#step' => 1,
-      '#default_value' => $leafletEdit['leaflet']['tolerance'] ?? 10,
-    ];
+    // Sections partagées avec le widget du champ field_leaflet_settings
+    // (voir LeafletEditSettingsFormTrait) : structure et défauts
+    // strictement identiques des deux côtés.
+    $element['leaflet_edit']['leaflet'] = $this->buildLeafletSection($leafletEdit);
+    $element['leaflet_edit']['locatecontrol'] = $this->buildLocateControlSection($leafletEdit);
+    $element['leaflet_edit']['geoman'] = $this->buildGeomanSection($leafletEdit);
+    $element['leaflet_edit']['turf'] = $this->buildTurfSection($leafletEdit);
+    $element['leaflet_edit']['arrowheads'] = $this->buildArrowheadsSection($leafletEdit);
+    $element['leaflet_edit']['tools'] = $this->buildToolsSection($leafletEdit);
 
-    $element['leaflet_edit']['locatecontrol'] = [
-      '#type' => 'details',
-      '#title' => $this->t('LocateControl Settings'),
-    ];
-    $element['leaflet_edit']['locatecontrol']['control'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable LocateControl'),
-      '#description' => $this->t('Add LocateControl.'),
-      '#default_value' => $leafletEdit['locatecontrol']['control'] ?? TRUE,
-    ];
-    $element['leaflet_edit']['locatecontrol']['position'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Control position.'),
-      '#options' => $this->getControlPositions(),
-      '#default_value' => $leafletEdit['locatecontrol']['position'] ?? 'bottomright',
-    ];
-
-    // Single source of truth: Geoman/Turf/Arrowheads are configured once
-    // on the Default display and inherited at render time (see
+    // Single source of truth: Geoman/Turf/Arrowheads/tools are configured
+    // once on the Default display and inherited at render time (see
     // resolveModuleSettings()). Hide them on other view modes so nobody
     // edits values that would be ignored. Saved per-mode values, if any,
     // are preserved untouched in configuration.
+    // Comme Geoman/Turf/Arrowheads : source unique = display Default du
+    // content type (héritage via resolveModuleSettings). Masqué hors
+    // Default pour ne pas éditer des valeurs ignorées.
     $moduleSettingsAccess = $this->viewMode === 'default';
-    $element['leaflet_edit']['geoman'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Geoman Settings'),
-      '#description' => $this->t('Draw buttons only: all editing lives in the business bar.'),
-      '#access' => $moduleSettingsAccess,
-    ];
-    $element['leaflet_edit']['geoman']['control'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable Geoman functionality'),
-      '#description' => $this->t('Add Geoman.'),
-      '#default_value' => $leafletEdit['geoman']['control'] ?? TRUE,
-    ];
-    $element['leaflet_edit']['geoman']['position'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Control position.'),
-      '#options' => $this->getControlPositions(),
-      '#default_value' => $leafletEdit['geoman']['position'] ?? 'topleft',
-    ];
-    $element['leaflet_edit']['geoman']['options'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('Options'),
-      '#description' => $this->t('Geoman Options.'),
-      '#options' => $this->getGeomanOptions(),
-      '#default_value' => $leafletEdit['geoman']['options'] ?? ['drawMarker', 'drawPolyline', 'drawControls', 'customControls'],
-    ];
-
-    $element['leaflet_edit']['turf'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Turf Settings'),
-      '#description' => $this->t('Parameters of the Turf.js geoprocessing operations.'),
-      '#access' => $moduleSettingsAccess,
-    ];
-    $element['leaflet_edit']['turf']['operations'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('Enabled operations'),
-      '#options' => $this->getTurfOperationOptions(),
-      '#default_value' => array_keys(array_filter($leafletEdit['turf']['operations'] ?? ['simplify' => 'simplify'])),
-    ];
-    $element['leaflet_edit']['turf']['simplify'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Simplify'),
-      '#open' => TRUE,
-    ];
-    $element['leaflet_edit']['turf']['simplify']['tolerance'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Tolerance (degrees)'),
-      '#description' => $this->t('Simplification tolerance in degrees. Smaller preserves more detail (current value is a good default for hiking tracks).'),
-      '#min' => 0,
-      '#max' => 1,
-      '#step' => 0.00001,
-      '#default_value' => $leafletEdit['turf']['simplify']['tolerance'] ?? 0.0001,
-    ];
-    $element['leaflet_edit']['turf']['simplify']['high_quality'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('High quality (slower, better result)'),
-      '#default_value' => !empty($leafletEdit['turf']['simplify']['high_quality'] ?? TRUE),
-    ];
-
-    $element['leaflet_edit']['arrowheads'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Arrowheads Settings'),
-      '#description' => $this->t('Direction arrows shown by the "Flèches de sens" tools menu entry (leaflet-arrowheads).'),
-      '#access' => $moduleSettingsAccess,
-    ];
-    $element['leaflet_edit']['arrowheads']['frequency_mode'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Arrow distribution'),
-      '#options' => $this->getArrowheadsFrequencyOptions(),
-      '#default_value' => $leafletEdit['arrowheads']['frequency_mode'] ?? 'endonly',
-    ];
-    $element['leaflet_edit']['arrowheads']['frequency_value'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Distribution value'),
-      '#description' => $this->t('Only used by the modes above: arrow count (e.g. 20) or spacing distance (e.g. 500m or 50px).'),
-      '#default_value' => $leafletEdit['arrowheads']['frequency_value'] ?? '',
-    ];
-    $element['leaflet_edit']['arrowheads']['size'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Arrow size'),
-      '#description' => $this->t('Pixels (e.g. 30px, constant on screen), meters (e.g. 300m, scales with zoom) or percent of the segment (e.g. 15%).'),
-      '#default_value' => $leafletEdit['arrowheads']['size'] ?? '30px',
-      '#required' => TRUE,
-    ];
-    $element['leaflet_edit']['arrowheads']['yawn'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Opening angle (degrees)'),
-      '#description' => $this->t('Width of the arrowhead opening. Larger angle = wider arrow.'),
-      '#min' => 10,
-      '#max' => 120,
-      '#step' => 1,
-      '#default_value' => $leafletEdit['arrowheads']['yawn'] ?? 50,
-    ];
-    $element['leaflet_edit']['arrowheads']['fill'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Filled arrows'),
-      '#default_value' => !empty($leafletEdit['arrowheads']['fill'] ?? TRUE),
-    ];
-
-    $element['leaflet_edit']['tools'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('JS tools'),
-      '#description' => $this->t('Leaflet plugins loaded on the map. Unchecked tools are not loaded at all (lighter pages). The core (leaflet-edit) is always loaded. StyleEditor is always loaded for the business menu (programmatic use, no map button). Configured once on the Default display, inherited by other view modes.'),
-      '#options' => $this->getToolOptions(),
-      // Comme Geoman/Turf/Arrowheads : source unique = display Default du
-      // content type (héritage via resolveModuleSettings). Masqué hors
-      // Default pour ne pas éditer des valeurs ignorées.
-      '#access' => $moduleSettingsAccess,
-      // Filtre les clés legacy (ex. 'styleeditor') absentes des options.
-      '#default_value' => array_values(array_intersect(array_keys(array_filter($leafletEdit['tools'] ?? $this->defaultTools())), array_keys($this->getToolOptions()))),
-    ];
+    $element['leaflet_edit']['geoman']['#access'] = $moduleSettingsAccess;
+    $element['leaflet_edit']['turf']['#access'] = $moduleSettingsAccess;
+    $element['leaflet_edit']['arrowheads']['#access'] = $moduleSettingsAccess;
+    $element['leaflet_edit']['tools']['#access'] = $moduleSettingsAccess;
 
     return $element;
-  }
-
-  /**
-   * Maps tool IDs (config-safe, no dots) to library suffixes.
-   *
-   * @return array<string, string>
-   *   Tool ID mapped to 'leaflet_edit/<suffix>' suffix.
-   */
-  public static function toolLibraryMap(): array {
-    // NOTE : 'styleeditor' volontairement absent : librairie chargée en dur
-    // par LeafletEditService (menu métier, sans bouton carte).
-    return [
-      'geoman' => 'leaflet-geoman',
-      'locatecontrol' => 'leaflet-locatecontrol',
-      'panel_layers' => 'leaflet-panel-layers',
-      'notifications' => 'leaflet-notifications',
-      'fullscreen' => 'leaflet-fullscreen',
-      'ajax' => 'leaflet.ajax',
-      'contextmenu' => 'leaflet-contextmenu',
-      'control_window' => 'leaflet.control-window',
-      'cascadebuttons' => 'leaflet.cascadebuttons',
-      'distance_markers' => 'leaflet-distance-markers',
-      'geometryutil' => 'leaflet.GeometryUtil',
-      'turf' => 'leaflet.turf',
-      'togeojson' => 'leaflet.togeojson',
-      'slider' => 'leaflet-slider',
-      'arrowheads' => 'leaflet-arrowheads',
-      'feature_control' => 'leaflet-feature-control',
-      'doubleclick' => 'leaflet-doubleclick-drupal',
-      'toolbar' => 'leaflet-toolbar',
-      'select2' => 'leaflet.select2',
-      'dialog' => 'leaflet.Dialog',
-      'togpx' => 'togpx',
-    ];
-  }
-
-  /**
-   * Returns the selectable JS tool options.
-   *
-   * Keys are config-safe IDs (no dots); see toolLibraryMap() for the
-   * library suffix mapping.
-   *
-   * @return array<string, string>
-   *   Tool machine names mapped to human labels.
-   */
-  protected function getToolOptions(): array {
-    // NOTE : pas d'entrée 'styleeditor' : usage programmatique uniquement
-    // via le menu métier (librairie toujours chargée, sans icône carte).
-    return [
-      'geoman' => $this->t('Geoman (draw / edit toolbar)')->render(),
-      'locatecontrol' => $this->t('LocateControl (geolocation)')->render(),
-      'panel_layers' => $this->t('PanelLayers (base maps + traces switcher)')->render(),
-      'notifications' => $this->t('Notifications')->render(),
-      'fullscreen' => $this->t('Fullscreen')->render(),
-      'ajax' => $this->t('leaflet.ajax')->render(),
-      'contextmenu' => $this->t('Contextmenu (right-click, desktop)')->render(),
-      'control_window' => $this->t('Control.Window (modal dialogs)')->render(),
-      'cascadebuttons' => $this->t('CascadeButtons (business bar)')->render(),
-      'distance_markers' => $this->t('Distance markers')->render(),
-      'geometryutil' => $this->t('GeometryUtil')->render(),
-      'turf' => $this->t('Turf (simplify, cut, measure)')->render(),
-      'togeojson' => $this->t('ToGeoJSON (GPX/KML parsing)')->render(),
-      'slider' => $this->t('Slider (basemap opacity)')->render(),
-      'arrowheads' => $this->t('Arrowheads (track direction)')->render(),
-      'feature_control' => $this->t('FeatureControl (legacy)')->render(),
-      'doubleclick' => $this->t('Doubleclick (legacy)')->render(),
-      'toolbar' => $this->t('Toolbar (legacy, unmaintained)')->render(),
-      'select2' => $this->t('Select2 (legacy)')->render(),
-      'dialog' => $this->t('Dialog (legacy)')->render(),
-      'togpx' => $this->t('ToGPX (client-side export)')->render(),
-    ];
-  }
-
-  /**
-   * Returns the default enabled tools.
-   *
-   * @return array<string, string>
-   *   Enabled tool names keyed by tool name.
-   */
-  protected function defaultTools(): array {
-    $defaults = [
-      'geoman' => 'geoman',
-      'locatecontrol' => 'locatecontrol',
-      'panel_layers' => 'panel_layers',
-      'notifications' => 'notifications',
-      'fullscreen' => 'fullscreen',
-      'ajax' => 'ajax',
-      'contextmenu' => 'contextmenu',
-      'control_window' => 'control_window',
-      'cascadebuttons' => 'cascadebuttons',
-      'distance_markers' => 'distance_markers',
-      'geometryutil' => 'geometryutil',
-      'turf' => 'turf',
-      'togeojson' => 'togeojson',
-      'slider' => 'slider',
-      'arrowheads' => 'arrowheads',
-      'togpx' => 'togpx',
-    ];
-    return $defaults;
   }
 
   /**
@@ -684,11 +428,13 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    * Applies per-node overrides onto the effective display settings.
    *
    * Priority (increasing): formatter defaults < content type display <
-   * node fields. A node field only wins when it exists on the bundle AND
-   * holds a concrete value (INHERIT or empty fields fall back to the
-   * display dynamically; new nodes carry a snapshot of the display
-   * settings, so they are explicit by default); unknown values are ignored
-   * (and logged) so a stale node value never breaks the map.
+   * node settings field (SETTINGS_FIELD, recursive merge) < dedicated
+   * node fields (basemap, tools, positions). A node field only wins when
+   * it exists on the bundle AND holds a concrete value (INHERIT or empty
+   * fields fall back to the display dynamically; new nodes carry a
+   * snapshot of the display settings, so they are explicit by default);
+   * unknown values are ignored (and logged) so a stale node value never
+   * breaks the map.
    * - TOOLS_FIELD: explicit enabled tool set (same IDs as the display
    *   'tools'). TOOLS_NONE alone means "no optional tool", INHERIT means
    *   "follow the content type" (both are exclusive, enforced at form
@@ -706,6 +452,20 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    *   The settings with node overrides applied.
    */
   protected function resolveNodeOverrides(array $leafletEdit, $entity): array {
+    // Per-map preferences field (JSON): merged RECURSIVELY over the
+    // display settings (absent keys inherit, explicit values win —
+    // including 0 which disables an inherited option). Tools, positions
+    // and basemap keep their dedicated fields below (always applied
+    // after, preserving existing maps behavior).
+    if ($entity->hasField(self::SETTINGS_FIELD) && !$entity->get(self::SETTINGS_FIELD)->isEmpty()) {
+      $raw = trim((string) ($entity->get(self::SETTINGS_FIELD)->value ?? ''));
+      if ($raw !== '') {
+        $decoded = json_decode($raw, TRUE);
+        if (is_array($decoded) && $decoded !== []) {
+          $leafletEdit = array_replace_recursive($leafletEdit, $decoded);
+        }
+      }
+    }
     if ($entity->hasField(self::TOOLS_FIELD) && !$entity->get(self::TOOLS_FIELD)->isEmpty()) {
       $values = [];
       foreach ($entity->get(self::TOOLS_FIELD) as $item) {
@@ -957,46 +717,6 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     ];
 
     return [$build];
-  }
-
-  /**
-   * Returns the control position options.
-   *
-   * @return array<string, string>
-   *   The position options.
-   */
-  protected function getControlPositions(): array {
-    return [
-      'topleft' => $this->t('Top left')->render(),
-      'topright' => $this->t('Top right')->render(),
-      'bottomleft' => $this->t('Bottom left')->render(),
-      'bottomright' => $this->t('Bottom right')->render(),
-    ];
-  }
-
-  /**
-   * Returns the Geoman options.
-   *
-   * @return array<string, string>
-   *   The Geoman options.
-   */
-  protected function getGeomanOptions(): array {
-    // Draw buttons only. All editing (edit/move/cut/remove/rotate) lives
-    // in the business bar (programmatic layer.pm calls), so the Geoman
-    // edit block is intentionally not configurable anymore (forced off
-    // in init.drupal.js, even for stale saved configs).
-    return [
-      'drawControls' => $this->t('Shows the draw block.')->render(),
-      'drawMarker' => $this->t('Adds button to draw Markers.')->render(),
-      'drawCircleMarker' => $this->t('Adds button to draw CircleMarkers.')->render(),
-      'drawPolyline' => $this->t('Adds button to draw Line.')->render(),
-      'drawRectangle' => $this->t('Adds button to draw Rectangle.')->render(),
-      'drawPolygon' => $this->t('Adds button to draw Polygon.')->render(),
-      'drawCircle' => $this->t('Adds button to draw Circle.')->render(),
-      'drawText' => $this->t('Adds button to draw Text.')->render(),
-      'oneBlock' => $this->t('All buttons will be displayed as one block.')->render(),
-      'customControls' => $this->t('Shows the custom block.')->render(),
-    ];
   }
 
 }

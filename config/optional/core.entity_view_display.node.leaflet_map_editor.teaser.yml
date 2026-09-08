@@ -33,5 +33,6 @@ hidden:
   field_leaflet_locate_pos: true
   field_leaflet_tools: true
   field_leafletedit_description: true
+  field_leaflet_settings: true
   langcode: true
 
