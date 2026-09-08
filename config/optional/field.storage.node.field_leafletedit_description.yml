@@ -17,4 +17,9 @@ default_value: {  }
 default_value_callback: ''
 settings: {  }
 field_type: text_with_summary
+module: text
+locked: false
 cardinality: 1
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false
