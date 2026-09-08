@@ -44,7 +44,9 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
   /**
    * Field name of the per-node tools override (explicit enabled set).
    *
-   * Empty/missing field = inherit the content type display. See
+   * New nodes start with an explicit snapshot of the content type tools
+   * (see leaflet_edit_node_create()), so unchecking is possible. An empty
+   * field on older nodes still means dynamic inheritance. See
    * resolveNodeOverrides().
    */
   public const TOOLS_FIELD = 'field_leaflet_tools';
@@ -669,8 +671,10 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    *
    * Priority (increasing): formatter defaults < content type display <
    * node fields. A node field only wins when it exists on the bundle AND
-   * is non-empty; unknown values are ignored (and logged) so a stale
-   * node value never breaks the map.
+   * is non-empty (new nodes carry a snapshot of the display settings, so
+   * they are explicit by default; empty fields on older nodes still
+   * inherit dynamically); unknown values are ignored (and logged) so a
+   * stale node value never breaks the map.
    * - TOOLS_FIELD: explicit enabled tool set (same IDs as the display
    *   'tools'). TOOLS_NONE alone means "no optional tool" (core +
    *   programmatic StyleEditor are always loaded anyway).

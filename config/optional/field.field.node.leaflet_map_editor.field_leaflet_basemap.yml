@@ -12,7 +12,7 @@ field_name: field_leaflet_basemap
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Fond de carte (surcharge par carte)'
-description: "Fond de carte utilisé pour cette carte. Laissez vide pour utiliser le fond défini dans le mode d'affichage (content type)."
+description: "Fond de carte de cette carte. Recopié depuis le réglage du content type à la création, modifiable ici. Vide = utilise le fond du content type (héritage dynamique)."
 required: false
 translatable: false
 default_value: {  }

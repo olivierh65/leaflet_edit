@@ -197,6 +197,33 @@ function leaflet_edit_update_10006(): string {
 }
 
 /**
+ * Refreshes the per-node override field descriptions (snapshot semantics).
+ *
+ * New nodes now start as an explicit copy of the content type settings
+ * (see leaflet_edit_node_create()): "empty = inherit" is only the dynamic
+ * fallback for pre-existing nodes. Updates the help texts accordingly.
+ * Idempotent: only touches the four override fields when they exist.
+ */
+function leaflet_edit_update_10007(): string {
+  $descriptions = [
+    'field_leaflet_basemap' => "Fond de carte de cette carte. Recopié depuis le réglage du content type à la création, modifiable ici. Vide = utilise le fond du content type (héritage dynamique).",
+    'field_leaflet_tools' => "Outils activés sur cette carte. Recopiés depuis le content type à la création : décochez pour désactiver une option héritée. « Aucun outil » = socle seul. Vide = hérite dynamiquement du content type.",
+    'field_leaflet_geoman_pos' => "Position du contrôle Geoman sur cette carte. Recopiée depuis le content type à la création, modifiable ici. Vide = hérite du content type.",
+    'field_leaflet_locate_pos' => "Position du contrôle LocateControl sur cette carte. Recopiée depuis le content type à la création, modifiable ici. Vide = hérite du content type.",
+  ];
+  $patched = 0;
+  foreach ($descriptions as $field_name => $description) {
+    $field = FieldConfig::loadByName('node', 'leaflet_map_editor', $field_name);
+    if (!$field || $field->getDescription() === $description) {
+      continue;
+    }
+    $field->setDescription($description)->save();
+    $patched++;
+  }
+  return (string) t('Per-node override field descriptions refreshed on @n field(s).', ['@n' => $patched]);
+}
+
+/**
  * Ensures the per-node basemap override field exists and is wired.
  *
  * Creates the field storage (list_string with dynamic allowed values from
@@ -236,7 +263,7 @@ function _leaflet_edit_ensure_basemap_field(): void {
       'entity_type' => 'node',
       'bundle' => $bundle,
       'label' => 'Fond de carte (surcharge par carte)',
-      'description' => "Fond de carte utilisé pour cette carte. Laissez vide pour utiliser le fond défini dans le mode d'affichage (content type).",
+      'description' => "Fond de carte de cette carte. Recopié depuis le réglage du content type à la création, modifiable ici. Vide = utilise le fond du content type (héritage dynamique).",
       'required' => FALSE,
       'translatable' => FALSE,
       'settings' => [],

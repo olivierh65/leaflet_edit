@@ -12,7 +12,7 @@ field_name: field_leaflet_geoman_pos
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Position Geoman (surcharge)'
-description: 'Laissez vide pour hériter du content type.'
+description: 'Position du contrôle Geoman sur cette carte. Recopiée depuis le content type à la création, modifiable ici. Vide = hérite du content type.'
 required: false
 translatable: false
 default_value: {  }

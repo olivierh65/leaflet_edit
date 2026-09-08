@@ -8,6 +8,8 @@
 declare(strict_types=1);
 
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\leaflet_edit\Plugin\Field\FieldFormatter\LeafletEditFormatter;
+use Drupal\node\NodeInterface;
 
 /**
  * Implements hook_help().
@@ -39,6 +41,104 @@ function leaflet_edit_theme(): array {
       'template' => 'leaflet-edit',
     ],
   ];
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_create() for nodes.
+ *
+ * Snapshots the content type (Default view display) map settings into the
+ * per-node override fields. Each new map therefore starts as an explicit,
+ * editable copy of the globals instead of "empty = inherit", which could
+ * never express "disable an inherited option" (e.g. uncheck a single tool).
+ * Only empty fields are filled, so explicit programmatic values win, and
+ * existing nodes (or still-empty fields) keep the historic dynamic
+ * inheritance at render time.
+ */
+function leaflet_edit_node_create(NodeInterface $node): void {
+  if ($node->bundle() !== 'leaflet_map_editor') {
+    return;
+  }
+  _leaflet_edit_snapshot_display_settings($node);
+}
+
+/**
+ * Copies the Default display map settings into empty per-node fields.
+ *
+ * @param \Drupal\node\NodeInterface $node
+ *   The new (unsaved) leaflet_map_editor node.
+ */
+function _leaflet_edit_snapshot_display_settings(NodeInterface $node): void {
+  // Single source of truth: the leaflet_edit_formatter settings on the
+  // bundle Default display. Fall back to the formatter defaults when the
+  // component is missing or misconfigured.
+  $settings = [];
+  try {
+    $display = \Drupal::entityTypeManager()
+      ->getStorage('entity_view_display')
+      ->load('node.leaflet_map_editor.default');
+    $component = $display ? $display->getComponent('field_geofile_traces') : NULL;
+    if (is_array($component)
+      && ($component['type'] ?? '') === 'leaflet_edit_formatter'
+      && isset($component['settings']) && is_array($component['settings'])) {
+      $settings = $component['settings'];
+    }
+  }
+  catch (\Exception) {
+    $settings = [];
+  }
+  if ($settings === []) {
+    $settings = LeafletEditFormatter::defaultSettings();
+  }
+
+  // 1. Basemap: copy only known map keys (a stale display key stays empty
+  // and falls back at render time instead of propagating staleness).
+  if ($node->hasField(LeafletEditFormatter::BASEMAP_FIELD)
+    && $node->get(LeafletEditFormatter::BASEMAP_FIELD)->isEmpty()) {
+    $map_key = trim((string) ($settings['leaflet_map'] ?? ''));
+    if ($map_key !== ''
+      && function_exists('leaflet_map_get_info')
+      && isset(leaflet_map_get_info()[$map_key])) {
+      $node->set(LeafletEditFormatter::BASEMAP_FIELD, $map_key);
+    }
+  }
+
+  // 2. Tools: explicit enabled set (mirrors resolveNodeOverrides(): unknown
+  // IDs are dropped, '_none' alone means "no optional tool").
+  if ($node->hasField(LeafletEditFormatter::TOOLS_FIELD)
+    && $node->get(LeafletEditFormatter::TOOLS_FIELD)->isEmpty()) {
+    $tools = $settings['leaflet_edit']['tools'] ?? NULL;
+    if (!is_array($tools)) {
+      $defaults = LeafletEditFormatter::defaultSettings();
+      $tools = $defaults['leaflet_edit']['tools'] ?? [];
+    }
+    $known = array_keys(LeafletEditFormatter::toolLibraryMap());
+    $enabled = array_values(array_intersect($known, array_keys(array_filter($tools))));
+    if ($enabled !== []) {
+      $node->set(LeafletEditFormatter::TOOLS_FIELD, $enabled);
+    }
+    elseif (array_filter($tools) === []) {
+      // Display enables nothing: snapshot "no optional tool" explicitly so
+      // the node does not silently re-enable tools later.
+      $node->set(LeafletEditFormatter::TOOLS_FIELD, ['_none']);
+    }
+    // Otherwise the display only holds unknown (legacy) IDs: leave empty
+    // and inherit dynamically, exactly as the renderer would.
+  }
+
+  // 3. Control positions.
+  $valid_positions = ['topleft', 'topright', 'bottomleft', 'bottomright'];
+  foreach ([
+    LeafletEditFormatter::GEOMAN_POS_FIELD => ['geoman', 'position'],
+    LeafletEditFormatter::LOCATE_POS_FIELD => ['locatecontrol', 'position'],
+  ] as $field_name => [$section, $key]) {
+    if (!$node->hasField($field_name) || !$node->get($field_name)->isEmpty()) {
+      continue;
+    }
+    $position = trim((string) ($settings['leaflet_edit'][$section][$key] ?? ''));
+    if (in_array($position, $valid_positions, TRUE)) {
+      $node->set($field_name, $position);
+    }
+  }
 }
 
 /**

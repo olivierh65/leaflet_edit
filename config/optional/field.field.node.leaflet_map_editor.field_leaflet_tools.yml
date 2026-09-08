@@ -12,7 +12,7 @@ field_name: field_leaflet_tools
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Outils de la carte (surcharge)'
-description: 'Laissez vide pour hériter du content type. Sinon, liste EXPLICITE des outils activés sur cette carte (+ « Aucun outil » pour tout couper hors socle).'
+description: 'Outils activés sur cette carte. Recopiés depuis le content type à la création : décochez pour désactiver une option héritée. « Aucun outil » = socle seul. Vide = hérite dynamiquement du content type.'
 required: false
 translatable: false
 default_value: {  }
