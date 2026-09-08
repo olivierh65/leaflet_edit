@@ -1127,7 +1127,31 @@ function zoomToTraces() {
 // Si absent (désactivé en config), notifie l'utilisateur.
 function locateMe() {
   try {
-    var locateCtrl = map.lMap.leafletEdit && map.lMap.leafletEdit.locateControl;
+    if (!map || !map.lMap) {
+      return;
+    }
+    map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+    var locateCtrl = map.lMap.leafletEdit.locateControl;
+    if (!locateCtrl) {
+      // Créé à la demande (et une seule fois) : start() exige un contrôle
+      // rattaché à la carte (_map). Son bouton carte reste masqué par CSS
+      // (.leaflet-control-locate) : point d'entrée unique = menu métier.
+      if (typeof L === "undefined" || !L.control || typeof L.control.locate !== "function") {
+        throw new Error("locate lib missing");
+      }
+      locateCtrl = L.control.locate({
+        strings: { title: "Où suis-je ???" },
+        position: "bottomright",
+      });
+      map.lMap.addControl(locateCtrl);
+      try {
+        var el = locateCtrl.getContainer ? locateCtrl.getContainer() : null;
+        if (el) {
+          el.style.display = "none";
+        }
+      } catch (errHide) {}
+      map.lMap.leafletEdit.locateControl = locateCtrl;
+    }
     if (locateCtrl && typeof locateCtrl.start === "function") {
       locateCtrl.start();
       return;
@@ -1138,7 +1162,7 @@ function locateMe() {
       "Outils",
       "Localisation désactivée dans la configuration."
     );
-  } catch (err) {}
+  } catch (err2) {}
 }
 
 // -- Construction de la barre metier ----------------------------------------

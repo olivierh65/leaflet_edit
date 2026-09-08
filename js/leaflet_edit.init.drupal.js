@@ -135,32 +135,10 @@
     // full screen : bouton intégré à la barre métier ("Vue").
     // Ancien contrôle bottomleft supprimé pour éviter le doublon.
 
-    //Locate control : pas de bouton carte dédié, il est piloté depuis
-    // le menu "Outils" de la barre métier (locateMe). On conserve
-    // l'instance dans leafletEdit.locateControl pour pouvoir la démarrer.
-    // console.log("event locatecontrol");
-    if (
-      toolEnabled("leaflet-locatecontrol") &&
-      typeof L.control.locate === "function" &&
-      editSettings.locatecontrol &&
-      editSettings.locatecontrol.control
-    ) {
-      var locateCtrl = L.control.locate({
-        strings: { title: "Où suis-je ???" },
-        // Position neutre : le contrôle reste masqué, seul start() est utilisé.
-        position: "bottomright",
-      });
-      // map.lMap.addControl(locateCtrl);
-      // map.lMap.leafletEdit = map.lMap.leafletEdit || {};
-      // map.lMap.leafletEdit.locateControl = locateCtrl;
-      // Masque le bouton carte : l'accès se fait via le menu Outils.
-      try {
-        var locateEl = locateCtrl.getContainer ? locateCtrl.getContainer() : null;
-        if (locateEl) {
-          locateEl.style.display = "none";
-        }
-      } catch (err) {}
-    }
+    // LocateControl : AUCUNE instance ici (volontaire). Elle est créée à
+    // la demande par locateMe() (menu "Outils") : start() exige un
+    // contrôle rattaché à la carte, et son bouton carte reste masqué
+    // par CSS. Pas de bouton carte dédié.
 
     // load datas
     // map.bounds = emprise cumulée des traces (cadrage initial UNIQUEMENT).

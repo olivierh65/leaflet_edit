@@ -459,12 +459,77 @@ function evtLayerUpdate(e) {
   setUpdated(e.layer);
 }
 // var map1 = L.map('map', context_menu);
+/// Appui long tactile : le 'click' Leaflet ne distingue pas tap et appui
+/// long. On mesure nous-mêmes (touchstart -> click) : durée minimale +
+/// déplacement maximal. Branché une fois par carte, paresseusement.
+/// Tap = sélection seule ; appui long = popup d'actions ; déplacement
+/// (panoramique, pincement) = jamais de popup.
+var LE_LONGPRESS_MS = 550;
+var LE_LONGPRESS_PX = 12;
+var leTouchBegin = null;
+var leTouchMoved = false;
+function wireLongPress() {
+  try {
+    if (!map || !map.lMap || typeof map.lMap.getContainer !== "function") {
+      return;
+    }
+    var le = (map.lMap.leafletEdit = map.lMap.leafletEdit || {});
+    if (le.longPressWired) {
+      return;
+    }
+    var container = map.lMap.getContainer();
+    container.addEventListener("touchstart", function (ev) {
+      try {
+        if (ev.touches && ev.touches.length === 1) {
+          leTouchBegin = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, time: Date.now() };
+          leTouchMoved = false;
+        } else {
+          leTouchBegin = null;
+          leTouchMoved = true;
+        }
+      } catch (e1) {
+        leTouchBegin = null;
+      }
+    }, { passive: true });
+    container.addEventListener("touchmove", function (ev) {
+      try {
+        if (!leTouchBegin || !ev.touches || !ev.touches.length) {
+          return;
+        }
+        var dx = ev.touches[0].clientX - leTouchBegin.x;
+        var dy = ev.touches[0].clientY - leTouchBegin.y;
+        if (dx * dx + dy * dy > LE_LONGPRESS_PX * LE_LONGPRESS_PX) {
+          leTouchMoved = true;
+        }
+      } catch (e2) {}
+    }, { passive: true });
+    le.longPressWired = true;
+  } catch (err) {}
+}
+function leWasLongPress() {
+  var result = false;
+  try {
+    wireLongPress();
+    if (leTouchBegin && !leTouchMoved) {
+      result = Date.now() - leTouchBegin.time >= LE_LONGPRESS_MS;
+    }
+  } catch (err) {
+    result = false;
+  }
+  try {
+    leTouchBegin = null;
+  } catch (e3) {}
+  return result;
+}
+
 function evtFeatureClick(e) {
   console.log(e);
   // 1er clic sur la trace = sélection (surbrillance) + trace courante
   // pour la barre métier. 2e clic sur la MÊME trace = désélection
-  // (toggle). Sur tactile, ouvre en plus la popup d'actions.
-  // Le clic droit garde le contextmenu complet sur desktop.
+  // (toggle). Sur tactile, SEUL un appui long ouvre la popup d'actions
+  // (un tap ne fait que sélectionner : plus ergonomique, évite les
+  // popups intempestives). Le clic droit garde le contextmenu complet
+  // sur desktop.
   if (!e || !e.sourceTarget) {
     return;
   }
@@ -522,6 +587,10 @@ function evtFeatureClick(e) {
     return;
   }
   if (editing) {
+    return;
+  }
+  // Mobile : tap = sélection seule, appui long = popup d'actions.
+  if (!leWasLongPress()) {
     return;
   }
   openTracePopup({
@@ -637,11 +706,12 @@ var LE_STYLE_PATH_KEYS = [
 ];
 
 // Monte (une fois) le contrôle StyleEditor et branche le signal.
-// Usage programmatique doc : L.control.styleEditor() + enable(layer).
-// addControl() est REQUIS (il déclenche onAdd -> createUi qui initialise
-// options.map/controlUI/styleEditorDiv, utilisés par enable()).
-// L'icône de la barre gauche est ensuite masquée (display:none) : point
-// d'entrée unique = barre métier / menu contextuel.
+// Usage programmatique doc : L.control.styleEditor() + enable(layer),
+// SANS addControl : aucun bouton carte n'est créé. On rejoue uniquement
+// ce que onAdd() fait d'utile pour notre version vendored : options.map
+// + createUi() (panneau + styleForm ; le controlDiv bouton reste détaché
+// du DOM, donc invisible par construction, sans CSS spécifique).
+// Point d'entrée unique = barre métier / menu contextuel.
 function ensureStyleEditor() {
   try {
     if (typeof L === "undefined" || !L.control || typeof L.control.styleEditor !== "function") {
@@ -660,24 +730,9 @@ function ensureStyleEditor() {
       // Pas de tooltip "Cliquez sur l'élément..." : la trace est déjà
       // choisie (barre métier / menu contextuel), le formulaire s'ouvre
       // directement dessus.
-      var ctl = L.control.styleEditor({ position: "topleft", showTooltip: false });
-      map.lMap.addControl(ctl);
-      // Masque le bouton natif de la barre gauche (et son Cancel inerte).
-      // On utilise display:none (pas de remove) pour garder le contrôle
-      // fonctionnel. Le panneau (.leaflet-styleeditor, élément séparé)
-      // reste piloté par notre code (enable/disable programmatiques).
-      try {
-        var btnBox = ctl.options && ctl.options.controlDiv;
-        if (btnBox && btnBox.style) {
-          btnBox.style.display = "none";
-        }
-        if (map.lMap.getContainer && typeof map.lMap.getContainer().querySelector === "function") {
-          var native = map.lMap.getContainer().querySelector(".leaflet-control-styleeditor");
-          if (native && native.style) {
-            native.style.display = "none";
-          }
-        }
-      } catch (errBtn) {}
+      var ctl = L.control.styleEditor({ showTooltip: false });
+      ctl.options.map = map.lMap;
+      ctl.createUi();
       map.lMap.leafletEdit.styleEditor = ctl;
       map.lMap.on("styleeditor:changed", onStyleEditorChanged);
     }

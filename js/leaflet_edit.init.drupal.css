@@ -341,6 +341,15 @@ input.leaflet-panel-layers-selector[type="radio"] {
     vertical-align: top;
 }
 
+/* Bouton carte piloté UNIQUEMENT via la barre métier : jamais visible
+   sur la carte. Règle !important (et non masquage JS ponctuel) : survit
+   aux ré-affichages internes de la librairie. (Le StyleEditor, lui, ne
+   crée plus aucun bouton : voir ensureStyleEditor(), usage
+   programmatique sans addControl.) */
+.leaflet-control-locate {
+    display: none !important;
+}
+
 /* Barre métier : groupes horizontaux, sous-menus verticaux, icones SVG.
    Le conteneur porte les 2 classes (base + metier) : on cible les deux
    pour survivre a la specificite du CSS Leaflet (.leaflet-top .leaflet-control). */
@@ -348,7 +357,7 @@ input.leaflet-panel-layers-selector[type="radio"] {
     display: flex !important;
     flex-direction: row !important;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
     float: none !important;
     clear: none !important;
 }
@@ -362,9 +371,9 @@ input.leaflet-panel-layers-selector[type="radio"] {
 }
 
 .leaflet-control-businessBar button {
-    min-width: 40px;
-    min-height: 40px;
-    font-size: 16px;
+    min-width: 34px;
+    min-height: 34px;
+    font-size: 14px;
     touch-action: manipulation;
     display: inline-flex;
     align-items: center;
@@ -373,8 +382,8 @@ input.leaflet-panel-layers-selector[type="radio"] {
 }
 
 .leaflet-control-businessBar button svg {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
     display: block;
     pointer-events: none;
 }
@@ -427,13 +436,14 @@ input.leaflet-panel-layers-selector[type="radio"] {
 
 @media (max-width: 768px) {
     .leaflet-control-businessBar button {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 38px;
+        min-height: 38px;
     }
 
-    /* Sur petit écran, la barre métier passe sous la barre de zoom. */
+    /* Barre métier compacte et haute : remonte près du bord supérieur
+       (les boutons réduits tiennent à côté de la barre de zoom). */
     .leaflet-top.leaflet-center,
     .leaflet-top-center {
-        top: 44px;
+        top: 8px;
     }
 }
