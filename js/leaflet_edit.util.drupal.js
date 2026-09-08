@@ -562,3 +562,25 @@ function flash_features(layers, duree = 1000) {
   );
   return obj;
 }
+
+// Indique si un outil JS est activé sur la carte courante (suffixe de
+// librairie 'leaflet_edit/<suffix>', voir
+// LeafletEditFormatter::toolLibraryMap()). Utilisé pour montrer/cacher les
+// entrées de menu (barre métier, contextmenu) correspondant aux
+// fonctionnalités désactivées dans les réglages. Liste posée à l'init
+// (init.drupal.js) ; inconnue (ancien rendu, carte non leaflet_edit) =
+// tout est montré, comme avant.
+function leafletEditToolEnabled(suffix) {
+  try {
+    if (typeof map === "undefined" || !map || !map.lMap) {
+      return true;
+    }
+    var list = map.lMap.leafletEdit && map.lMap.leafletEdit.toolsEnabled;
+    if (!list) {
+      return true;
+    }
+    return list.indexOf(suffix) !== -1;
+  } catch (err) {
+    return true;
+  }
+}

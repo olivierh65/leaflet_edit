@@ -224,6 +224,79 @@ function leaflet_edit_update_10007(): string {
 }
 
 /**
+ * Explicit "Default" choice + required per-node override fields.
+ *
+ * The implicit "empty = inherit" is gone: every override field is now
+ * required and offers an explicit "_default" ("Défaut") choice that
+ * follows the content type, so disabling an inherited option is always
+ * expressible (creation/restore snapshots stay concrete). Applies to
+ * existing sites:
+ * - prepends "_default" to the tools/geoman_pos/locate_pos storages
+ *   (the basemap storage is dynamic, see
+ *   leaflet_edit_basemap_allowed_values());
+ * - marks the four override fields required;
+ * - refreshes their descriptions.
+ * Idempotent. Empty values on pre-existing nodes keep the historic
+ * dynamic inheritance at render time until re-saved.
+ */
+function leaflet_edit_update_10008(): string {
+  $patched = 0;
+
+  foreach (['field_leaflet_tools', 'field_leaflet_geoman_pos', 'field_leaflet_locate_pos'] as $field_name) {
+    $storage = FieldStorageConfig::loadByName('node', $field_name);
+    if (!$storage) {
+      continue;
+    }
+    $allowed = $storage->getSetting('allowed_values') ?? [];
+    $flat = [];
+    foreach ($allowed as $key => $value) {
+      if (is_array($value) && array_key_exists('value', $value)) {
+        $flat[$value['value']] = $value['label'] ?? $value['value'];
+      }
+      else {
+        $flat[$key] = $value;
+      }
+    }
+    if (!array_key_exists('_default', $flat)) {
+      $flat = ['_default' => 'Défaut (réglage du content type)'] + $flat;
+      $normalized = [];
+      foreach ($flat as $value => $label) {
+        $normalized[] = ['value' => $value, 'label' => $label];
+      }
+      $storage->setSetting('allowed_values', $normalized)->save();
+      $patched++;
+    }
+  }
+
+  $fields = [
+    'field_leaflet_basemap' => "Fond de carte de cette carte. « Défaut » suit le réglage du content type. Valeur initiale recopiée depuis le content type (bouton « Restore defaults » pour réappliquer).",
+    'field_leaflet_tools' => "Outils activés sur cette carte — décochez pour désactiver une option. « Défaut » suit le content type, « Aucun outil » charge le socle seul. Valeurs initiales recopiées depuis le content type.",
+    'field_leaflet_geoman_pos' => "Position du contrôle Geoman sur cette carte. « Défaut » suit le content type. Valeur initiale recopiée depuis le content type.",
+    'field_leaflet_locate_pos' => "Position du contrôle LocateControl sur cette carte. « Défaut » suit le content type. Valeur initiale recopiée depuis le content type.",
+  ];
+  foreach ($fields as $field_name => $description) {
+    $field = FieldConfig::loadByName('node', 'leaflet_map_editor', $field_name);
+    if (!$field) {
+      continue;
+    }
+    $changed = FALSE;
+    if (!$field->isRequired()) {
+      $field->setRequired(TRUE);
+      $changed = TRUE;
+    }
+    if ($field->getDescription() !== $description) {
+      $field->setDescription($description);
+      $changed = TRUE;
+    }
+    if ($changed) {
+      $field->save();
+      $patched++;
+    }
+  }
+  return (string) t('Explicit "Default" choice added and override fields marked required on @n item(s).', ['@n' => $patched]);
+}
+
+/**
  * Ensures the per-node basemap override field exists and is wired.
  *
  * Creates the field storage (list_string with dynamic allowed values from
@@ -263,8 +336,8 @@ function _leaflet_edit_ensure_basemap_field(): void {
       'entity_type' => 'node',
       'bundle' => $bundle,
       'label' => 'Fond de carte (surcharge par carte)',
-      'description' => "Fond de carte de cette carte. Recopié depuis le réglage du content type à la création, modifiable ici. Vide = utilise le fond du content type (héritage dynamique).",
-      'required' => FALSE,
+      'description' => "Fond de carte de cette carte. « Défaut » suit le réglage du content type. Valeur initiale recopiée depuis le content type (bouton « Restore defaults » pour réappliquer).",
+      'required' => TRUE,
       'translatable' => FALSE,
       'settings' => [],
       'field_type' => 'list_string',

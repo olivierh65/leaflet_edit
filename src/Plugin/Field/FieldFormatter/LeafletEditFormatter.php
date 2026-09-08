@@ -38,16 +38,27 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
 
   /**
    * Field name of the per-node basemap override (see leaflet_edit_install).
+   *
+   * The INHERIT sentinel explicitly follows the content type setting.
    */
   public const BASEMAP_FIELD = 'field_leaflet_basemap';
+
+  /**
+   * Explicit "follow the content type" value for the per-node fields.
+   *
+   * Replaces the old implicit "empty = inherit": every field is required
+   * and always holds an explicit value, so disabling an inherited option
+   * is always expressible. Empty values on pre-existing nodes still
+   * inherit dynamically (backward compatibility).
+   */
+  public const INHERIT = '_default';
 
   /**
    * Field name of the per-node tools override (explicit enabled set).
    *
    * New nodes start with an explicit snapshot of the content type tools
-   * (see leaflet_edit_node_create()), so unchecking is possible. An empty
-   * field on older nodes still means dynamic inheritance. See
-   * resolveNodeOverrides().
+   * (see leaflet_edit_node_create()), so unchecking is possible. INHERIT
+   * alone means dynamic inheritance. See resolveNodeOverrides().
    */
   public const TOOLS_FIELD = 'field_leaflet_tools';
 
@@ -626,6 +637,9 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
     $nodeKey = '';
     if ($entity->hasField(self::BASEMAP_FIELD) && !$entity->get(self::BASEMAP_FIELD)->isEmpty()) {
       $nodeKey = trim((string) $entity->get(self::BASEMAP_FIELD)->value);
+      if ($nodeKey === self::INHERIT) {
+        $nodeKey = '';
+      }
     }
     if ($nodeKey !== '' && isset($available[$nodeKey])) {
       return ['key' => $nodeKey, 'source' => 'node'];
@@ -671,14 +685,17 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
    *
    * Priority (increasing): formatter defaults < content type display <
    * node fields. A node field only wins when it exists on the bundle AND
-   * is non-empty (new nodes carry a snapshot of the display settings, so
-   * they are explicit by default; empty fields on older nodes still
-   * inherit dynamically); unknown values are ignored (and logged) so a
-   * stale node value never breaks the map.
+   * holds a concrete value (INHERIT or empty fields fall back to the
+   * display dynamically; new nodes carry a snapshot of the display
+   * settings, so they are explicit by default); unknown values are ignored
+   * (and logged) so a stale node value never breaks the map.
    * - TOOLS_FIELD: explicit enabled tool set (same IDs as the display
-   *   'tools'). TOOLS_NONE alone means "no optional tool" (core +
-   *   programmatic StyleEditor are always loaded anyway).
-   * - GEOMAN_POS_FIELD / LOCATE_POS_FIELD: control position override.
+   *   'tools'). TOOLS_NONE alone means "no optional tool", INHERIT means
+   *   "follow the content type" (both are exclusive, enforced at form
+   *   validation; core + programmatic StyleEditor are always loaded
+   *   anyway).
+   * - GEOMAN_POS_FIELD / LOCATE_POS_FIELD: control position override
+   *   (INHERIT follows the content type).
    *
    * @param array $leafletEdit
    *   The effective leaflet_edit settings (formatter + display).
@@ -693,7 +710,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
       $values = [];
       foreach ($entity->get(self::TOOLS_FIELD) as $item) {
         $value = trim((string) ($item->value ?? ''));
-        if ($value !== '') {
+        if ($value !== '' && $value !== self::INHERIT) {
           $values[] = $value;
         }
       }
@@ -713,6 +730,7 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
             '@id' => $entity->id(),
           ]);
         }
+        // No concrete values (INHERIT alone or empty): display tools kept.
       }
     }
 
@@ -721,6 +739,9 @@ class LeafletEditFormatter extends LeafletDefaultFormatter {
         continue;
       }
       $position = trim((string) $entity->get($fieldName)->value);
+      if ($position === self::INHERIT) {
+        continue;
+      }
       if (in_array($position, self::VALID_POSITIONS, TRUE)) {
         $leafletEdit[$settingsKey] = $leafletEdit[$settingsKey] ?? [];
         $leafletEdit[$settingsKey]['position'] = $position;

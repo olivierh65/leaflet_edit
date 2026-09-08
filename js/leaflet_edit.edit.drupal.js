@@ -1164,9 +1164,18 @@ function addBusinessBar() {
       return true;
     }
   };
+  // Fonctionnalité activée dans les réglages (outils JS) ? Les entrées de
+  // menu des outils désactivés sont masquées (permissions checked first).
+  var tool = function (suffix) {
+    try {
+      return typeof leafletEditToolEnabled === "function" ? leafletEditToolEnabled(suffix) : true;
+    } catch (err) {
+      return true;
+    }
+  };
 
   var fileItems = [];
-  if (can("importGPX")) {
+  if (can("importGPX") && tool("leaflet.togeojson")) {
     fileItems.push({
       icon: LE_ICONS.import,
       title: "Import GPX",
@@ -1190,7 +1199,7 @@ function addBusinessBar() {
       command: saveAllTraces,
     });
   }
-  if (can("exportGPX")) {
+  if (can("exportGPX") && tool("leaflet.togpx")) {
     fileItems.push({
       icon: LE_ICONS.export,
       title: "Export GPX",
@@ -1209,7 +1218,7 @@ function addBusinessBar() {
   }
 
   var editItems = [];
-  if (can("edit")) {
+  if (can("edit") && tool("leaflet-geoman")) {
     editItems.push({
       icon: LE_ICONS.newTrace,
       title: "Nouvelle trace",
@@ -1220,11 +1229,16 @@ function addBusinessBar() {
       title: "Editer la trace",
       command: editCurrentTrace,
     });
-    editItems.push({
-      icon: LE_ICONS.info,
-      title: "Infos / Style",
-      command: showTraceInfo,
-    });
+  }
+  if (can("edit")) {
+    // Infos et Détail fichier ouvrent des fenêtres L.control.window.
+    if (tool("leaflet.control-window")) {
+      editItems.push({
+        icon: LE_ICONS.info,
+        title: "Infos / Style",
+        command: showTraceInfo,
+      });
+    }
     editItems.push({
       icon: LE_ICONS.style,
       title: "Style interactif",
@@ -1232,16 +1246,20 @@ function addBusinessBar() {
     });
     // Détail par fichier : nom + style modifiables pour chaque trace
     // du fichier geojson contenant la trace courante.
-    editItems.push({
-      icon: LE_ICONS.file,
-      title: "Détail fichier (nom + style)",
-      command: openCurrentFileDetail,
-    });
-    editItems.push({
-      icon: LE_ICONS.simplify,
-      title: "Simplifier",
-      command: simplifyCurrentTrace,
-    });
+    if (tool("leaflet.control-window")) {
+      editItems.push({
+        icon: LE_ICONS.file,
+        title: "Détail fichier (nom + style)",
+        command: openCurrentFileDetail,
+      });
+    }
+    if (tool("leaflet.turf")) {
+      editItems.push({
+        icon: LE_ICONS.simplify,
+        title: "Simplifier",
+        command: simplifyCurrentTrace,
+      });
+    }
     editItems.push({
       icon: LE_ICONS.delete,
       title: "Supprimer",
@@ -1249,33 +1267,40 @@ function addBusinessBar() {
     });
   }
 
-  var toolsItems = [
-    {
+  var toolsItems = [];
+  if (tool("leaflet-fullscreen")) {
+    toolsItems.push({
       icon: LE_ICONS.fullscreen,
       title: "Plein ecran",
       command: toggleFullscreen,
-    },
-    {
-      icon: LE_ICONS.fit,
-      title: "Cadrer les traces",
-      command: zoomToTraces,
-    },
-    {
+    });
+  }
+  toolsItems.push({
+    icon: LE_ICONS.fit,
+    title: "Cadrer les traces",
+    command: zoomToTraces,
+  });
+  if (tool("leaflet-locatecontrol")) {
+    toolsItems.push({
       icon: LE_ICONS.locate,
       title: "Me localiser",
       command: locateMe,
-    },
-    {
+    });
+  }
+  if (tool("leaflet-distance-markers")) {
+    toolsItems.push({
       icon: LE_ICONS.km,
       title: "Points km au survol",
       command: toggleKmPoints,
-    },
-    {
+    });
+  }
+  if (tool("leaflet-arrowheads")) {
+    toolsItems.push({
       icon: LE_ICONS.arrows,
       title: "Flèches de sens",
       command: toggleArrows,
-    },
-  ];
+    });
+  }
 
   var buttons = [];
   if (fileItems.length) {

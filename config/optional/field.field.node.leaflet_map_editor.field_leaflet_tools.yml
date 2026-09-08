@@ -12,8 +12,8 @@ field_name: field_leaflet_tools
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Outils de la carte (surcharge)'
-description: 'Outils activés sur cette carte. Recopiés depuis le content type à la création : décochez pour désactiver une option héritée. « Aucun outil » = socle seul. Vide = hérite dynamiquement du content type.'
-required: false
+description: 'Outils activés sur cette carte — décochez pour désactiver une option. « Défaut » suit le content type, « Aucun outil » charge le socle seul. Valeurs initiales recopiées depuis le content type.'
+required: true
 translatable: false
 default_value: {  }
 default_value_callback: ''

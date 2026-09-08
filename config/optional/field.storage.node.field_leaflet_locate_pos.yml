@@ -12,6 +12,9 @@ type: list_string
 settings:
   allowed_values:
     -
+      value: _default
+      label: 'Défaut (réglage du content type)'
+    -
       value: topleft
       label: 'En haut à gauche'
     -

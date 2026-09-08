@@ -12,8 +12,8 @@ field_name: field_leaflet_locate_pos
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Position LocateControl (surcharge)'
-description: 'Position du contrôle LocateControl sur cette carte. Recopiée depuis le content type à la création, modifiable ici. Vide = hérite du content type.'
-required: false
+description: 'Position du contrôle LocateControl sur cette carte. « Défaut » suit le content type. Valeur initiale recopiée depuis le content type.'
+required: true
 translatable: false
 default_value: {  }
 default_value_callback: ''

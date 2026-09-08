@@ -7,7 +7,11 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Entity\EntityFormInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\file\Entity\File;
+use Drupal\geofile_field\Entity\GeofileTrace;
 use Drupal\leaflet_edit\Plugin\Field\FieldFormatter\LeafletEditFormatter;
 use Drupal\node\NodeInterface;
 
@@ -68,9 +72,31 @@ function leaflet_edit_node_create(NodeInterface $node): void {
  *   The new (unsaved) leaflet_map_editor node.
  */
 function _leaflet_edit_snapshot_display_settings(NodeInterface $node): void {
-  // Single source of truth: the leaflet_edit_formatter settings on the
-  // bundle Default display. Fall back to the formatter defaults when the
-  // component is missing or misconfigured.
+  foreach (_leaflet_edit_content_type_defaults() as $field_name => $value) {
+    if (!$node->hasField($field_name) || !$node->get($field_name)->isEmpty()) {
+      continue;
+    }
+    $node->set($field_name, $value);
+  }
+}
+
+/**
+ * Computes the current content type map settings as per-node field values.
+ *
+ * Single source of truth: the leaflet_edit_formatter settings on the bundle
+ * Default display, with fallback to the formatter defaults when the
+ * component is missing or misconfigured. Mirrors the renderer
+ * (LeafletEditFormatter::resolveBasemap()/resolveNodeOverrides()): unknown
+ * tool IDs are dropped, '_none' alone means "no optional tool", and the
+ * INHERIT sentinel is used whenever no concrete default applies (invalid
+ * basemap/position values, legacy-only tool IDs) instead of propagating
+ * staleness.
+ *
+ * @return array<string, string|string[]>
+ *   Field names mapped to their default value (never NULL; INHERIT means
+ *   "follow the content type").
+ */
+function _leaflet_edit_content_type_defaults(): array {
   $settings = [];
   try {
     $display = \Drupal::entityTypeManager()
@@ -90,40 +116,39 @@ function _leaflet_edit_snapshot_display_settings(NodeInterface $node): void {
     $settings = LeafletEditFormatter::defaultSettings();
   }
 
-  // 1. Basemap: copy only known map keys (a stale display key stays empty
-  // and falls back at render time instead of propagating staleness).
-  if ($node->hasField(LeafletEditFormatter::BASEMAP_FIELD)
-    && $node->get(LeafletEditFormatter::BASEMAP_FIELD)->isEmpty()) {
-    $map_key = trim((string) ($settings['leaflet_map'] ?? ''));
-    if ($map_key !== ''
-      && function_exists('leaflet_map_get_info')
-      && isset(leaflet_map_get_info()[$map_key])) {
-      $node->set(LeafletEditFormatter::BASEMAP_FIELD, $map_key);
-    }
+  $defaults = [
+    LeafletEditFormatter::BASEMAP_FIELD => LeafletEditFormatter::INHERIT,
+    LeafletEditFormatter::TOOLS_FIELD => LeafletEditFormatter::INHERIT,
+    LeafletEditFormatter::GEOMAN_POS_FIELD => LeafletEditFormatter::INHERIT,
+    LeafletEditFormatter::LOCATE_POS_FIELD => LeafletEditFormatter::INHERIT,
+  ];
+
+  // 1. Basemap: only known map keys.
+  $map_key = trim((string) ($settings['leaflet_map'] ?? ''));
+  if ($map_key !== ''
+    && function_exists('leaflet_map_get_info')
+    && isset(leaflet_map_get_info()[$map_key])) {
+    $defaults[LeafletEditFormatter::BASEMAP_FIELD] = $map_key;
   }
 
-  // 2. Tools: explicit enabled set (mirrors resolveNodeOverrides(): unknown
-  // IDs are dropped, '_none' alone means "no optional tool").
-  if ($node->hasField(LeafletEditFormatter::TOOLS_FIELD)
-    && $node->get(LeafletEditFormatter::TOOLS_FIELD)->isEmpty()) {
-    $tools = $settings['leaflet_edit']['tools'] ?? NULL;
-    if (!is_array($tools)) {
-      $defaults = LeafletEditFormatter::defaultSettings();
-      $tools = $defaults['leaflet_edit']['tools'] ?? [];
-    }
-    $known = array_keys(LeafletEditFormatter::toolLibraryMap());
-    $enabled = array_values(array_intersect($known, array_keys(array_filter($tools))));
-    if ($enabled !== []) {
-      $node->set(LeafletEditFormatter::TOOLS_FIELD, $enabled);
-    }
-    elseif (array_filter($tools) === []) {
-      // Display enables nothing: snapshot "no optional tool" explicitly so
-      // the node does not silently re-enable tools later.
-      $node->set(LeafletEditFormatter::TOOLS_FIELD, ['_none']);
-    }
-    // Otherwise the display only holds unknown (legacy) IDs: leave empty
-    // and inherit dynamically, exactly as the renderer would.
+  // 2. Tools: explicit enabled set.
+  $tools = $settings['leaflet_edit']['tools'] ?? NULL;
+  if (!is_array($tools)) {
+    $formatter_defaults = LeafletEditFormatter::defaultSettings();
+    $tools = $formatter_defaults['leaflet_edit']['tools'] ?? [];
   }
+  $known = array_keys(LeafletEditFormatter::toolLibraryMap());
+  $enabled = array_values(array_intersect($known, array_keys(array_filter($tools))));
+  if ($enabled !== []) {
+    $defaults[LeafletEditFormatter::TOOLS_FIELD] = $enabled;
+  }
+  elseif (array_filter($tools) === []) {
+    // Display enables nothing: explicit "no optional tool" so the node
+    // does not silently re-enable tools later.
+    $defaults[LeafletEditFormatter::TOOLS_FIELD] = ['_none'];
+  }
+  // Otherwise the display only holds unknown (legacy) IDs: INHERIT, the
+  // node follows the content type dynamically, exactly as the renderer.
 
   // 3. Control positions.
   $valid_positions = ['topleft', 'topright', 'bottomleft', 'bottomright'];
@@ -131,23 +156,327 @@ function _leaflet_edit_snapshot_display_settings(NodeInterface $node): void {
     LeafletEditFormatter::GEOMAN_POS_FIELD => ['geoman', 'position'],
     LeafletEditFormatter::LOCATE_POS_FIELD => ['locatecontrol', 'position'],
   ] as $field_name => [$section, $key]) {
-    if (!$node->hasField($field_name) || !$node->get($field_name)->isEmpty()) {
-      continue;
-    }
     $position = trim((string) ($settings['leaflet_edit'][$section][$key] ?? ''));
     if (in_array($position, $valid_positions, TRUE)) {
-      $node->set($field_name, $position);
+      $defaults[$field_name] = $position;
+    }
+  }
+
+  return $defaults;
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for node forms.
+ *
+ * - On every leaflet_map_editor node form: validates the per-node map
+ *   settings (the INHERIT and "no tool" sentinels are exclusive).
+ * - When the user may import traces: inline "Importer des traces"
+ *   section (upload GeoJSON + kind + import button) that creates the
+ *   traces at once and checks them in the field_geofile_traces widget.
+ * - On existing nodes only: adds a "Restore defaults" button that
+ *   re-copies the current content type settings over the per-node values
+ *   (rebuild only — the editor still has to save). This propagates later
+ *   content type changes to a node on demand.
+ */
+function leaflet_edit_form_node_form_alter(array &$form, FormStateInterface $form_state): void {
+  $form_object = $form_state->getFormObject();
+  if (!$form_object instanceof EntityFormInterface) {
+    return;
+  }
+  $node = $form_object->getEntity();
+  if (!$node instanceof NodeInterface || $node->bundle() !== 'leaflet_map_editor') {
+    return;
+  }
+  $form['#validate'][] = 'leaflet_edit_node_map_validate';
+  // Inline GeoJSON import: upload a file and attach its traces without
+  // leaving the node form (creation or edition). Traces are created
+  // immediately (shared library); the attachment is saved with the node.
+  // The grouped-by-file widget below stays the browser for already
+  // imported files/traces.
+  if ($node->hasField('field_geofile_traces')
+    && \Drupal::currentUser()->hasPermission('add geofile traces')) {
+    $form['geofile_import'] = [
+      '#type' => 'details',
+      '#tree' => TRUE,
+      '#title' => t('Importer des traces (GeoJSON)'),
+      '#description' => t('Sélectionnez un fichier puis cliquez « Importer et rattacher » (téléversement automatique). Les traces sont créées aussitôt et cochées ci-dessous dans « Geofile traces ». Sauvez la carte pour conserver le rattachement. Au-delà de @n traces, utilisez le formulaire d’import dédié.', ['@n' => \Drupal\geofile_field\Service\GeofileImporter::SYNC_IMPORT_MAX]),
+      '#open' => $node->isNew(),
+      '#weight' => 122,
+    ];
+    $form['geofile_import']['file'] = [
+      '#type' => 'managed_file',
+      '#title' => t('Fichier GeoJSON'),
+      '#description' => t('FeatureCollection (.geojson), 50 Mo maximum.'),
+      '#upload_location' => 'public://geofile/',
+      '#upload_validators' => [
+        'file_validate_extensions' => ['geojson'],
+        'file_validate_size' => [50 * 1024 * 1024],
+      ],
+      '#accept' => '.geojson',
+    ];
+    $form['geofile_import']['kind'] = [
+      '#type' => 'radios',
+      '#title' => t('Importer comme'),
+      '#options' => [
+        GeofileTrace::KIND_TRACE => t('Traces éditables'),
+        GeofileTrace::KIND_BACKGROUND => t('Fond (lecture seule)'),
+      ],
+      '#default_value' => GeofileTrace::KIND_TRACE,
+    ];
+    $form['geofile_import']['import'] = [
+      '#type' => 'submit',
+      // NOTE: no explicit #name here. A flat name (e.g. 'geofile_import')
+      // would collide in POST with the #tree children below
+      // (geofile_import[file], …) and break form rebuild with
+      // 'Cannot create key "file" on non-array value'.
+      '#value' => t('Importer et rattacher'),
+      '#button_type' => 'secondary',
+      // Only this section is validated: node fields (title, …) must not
+      // block the import, but upload errors (bad extension, too big, …)
+      // stay visible — unlike [] which would swallow them.
+      '#limit_validation_errors' => [['geofile_import']],
+      '#submit' => ['leaflet_edit_import_traces_submit'],
+    ];
+  }
+  if ($node->isNew() || !isset($form['actions'])) {
+    return;
+  }
+  $form['actions']['restore_defaults'] = [
+    '#type' => 'submit',
+    // NOTE: no explicit #name (same POST-collision reason as above).
+    '#value' => t('Restore defaults'),
+    '#button_type' => 'secondary',
+    '#weight' => 50,
+    '#limit_validation_errors' => [],
+    '#submit' => ['leaflet_edit_restore_defaults_submit'],
+    '#attributes' => [
+      'title' => t('Re-copy the current content type settings into this map, overwriting its own values. You still need to save afterwards.'),
+    ],
+  ];
+}
+
+/**
+ * Validates the per-node map settings.
+ *
+ * The INHERIT ("Default") and "no tool" sentinels cannot be combined with
+ * other values. Skipped for the rebuild-only buttons ("Restore defaults",
+ * inline import): their submit handlers overwrite the fields themselves.
+ *
+ * @param array $form
+ *   The node form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function leaflet_edit_node_map_validate(array &$form, FormStateInterface $form_state): void {
+  $trigger = $form_state->getTriggeringElement();
+  // Rebuild-only buttons overwrite the fields themselves in their submit
+  // handler: nothing to validate here. Buttons are identified by #parents
+  // (their #name defaults to 'op' and cannot be told apart).
+  if (is_array($trigger)) {
+    $parents = $trigger['#parents'] ?? [];
+    if ($parents === ['actions', 'restore_defaults'] || $parents === ['geofile_import', 'import']) {
+      return;
+    }
+  }
+  $raw = $form_state->getValue(LeafletEditFormatter::TOOLS_FIELD);
+  $ids = [];
+  if (is_array($raw)) {
+    array_walk_recursive($raw, static function ($value) use (&$ids): void {
+      if (is_string($value) && $value !== '' && $value !== '0') {
+        $ids[] = $value;
+      }
+    });
+  }
+  $ids = array_unique($ids);
+  foreach ([LeafletEditFormatter::INHERIT => t('"Default" follows the content type and cannot be combined with other tools.'), '_none' => t('"No tool" cannot be combined with other tools.')] as $sentinel => $message) {
+    if (in_array($sentinel, $ids, TRUE) && count($ids) > 1) {
+      $form_state->setErrorByName(LeafletEditFormatter::TOOLS_FIELD, $message);
+      return;
     }
   }
 }
 
 /**
+ * Forces rebuilt widgets to display the entity values for given fields.
+ *
+ * On form rebuild, widgets prefer the (stale) user input over the entity,
+ * so programmatic changes (Restore defaults, inline import) would stay
+ * invisible. Dropping both the input and the processed value makes the
+ * widgets fall back to #default_value, built from the just-updated
+ * entity. All other fields keep their input untouched.
+ *
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ * @param string[] $field_names
+ *   Field names to refresh.
+ */
+function _leaflet_edit_refresh_widgets(FormStateInterface $form_state, array $field_names): void {
+  $input = $form_state->getUserInput();
+  foreach ($field_names as $field_name) {
+    unset($input[$field_name]);
+    if ($form_state->hasValue($field_name)) {
+      $form_state->unsetValue($field_name);
+    }
+  }
+  $form_state->setUserInput($input);
+}
+
+/**
+ * Submit handler for the "Restore defaults" button.
+ *
+ * Overwrites the four per-node override fields with the current content
+ * type defaults (INHERIT where the content type offers nothing concrete)
+ * and rebuilds the form so the editor sees the restored values
+ * (pre-checked checkboxes, pre-selected selects) before saving.
+ *
+ * @param array $form
+ *   The node form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function leaflet_edit_restore_defaults_submit(array &$form, FormStateInterface $form_state): void {
+  $node = $form_state->getFormObject()->getEntity();
+  if (!$node instanceof NodeInterface || $node->bundle() !== 'leaflet_map_editor') {
+    return;
+  }
+  $count = 0;
+  foreach (_leaflet_edit_content_type_defaults() as $field_name => $value) {
+    if (!$node->hasField($field_name)) {
+      continue;
+    }
+    $node->set($field_name, $value);
+    $count++;
+  }
+  // Show the restored values at once (checkboxes re-checked, selects
+  // re-positioned), not only after the next save.
+  _leaflet_edit_refresh_widgets($form_state, array_keys(_leaflet_edit_content_type_defaults()));
+  $form_state->setRebuild();
+  \Drupal::messenger()->addStatus(t('Content type settings restored on @n field(s). Review the values and save the map to apply them.', ['@n' => $count]));
+}
+
+/**
+ * Submit handler for the inline "Importer et rattacher" button.
+ *
+ * Imports the uploaded GeoJSON file synchronously (refused beyond
+ * GeofileImporter::SYNC_IMPORT_MAX features: use the dedicated Batch
+ * form), marks the archive permanent, and appends the new trace IDs to
+ * the node's field_geofile_traces (rebuild only — the editor still has
+ * to save the node). The upload widget is cleared and the file ID
+ * remembered in the form state so a second click cannot import twice.
+ *
+ * @param array $form
+ *   The node form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function leaflet_edit_import_traces_submit(array &$form, FormStateInterface $form_state): void {
+  $node = $form_state->getFormObject()->getEntity();
+  if (!$node instanceof NodeInterface
+    || $node->bundle() !== 'leaflet_map_editor'
+    || !$node->hasField('field_geofile_traces')) {
+    return;
+  }
+  $messenger = \Drupal::messenger();
+  $values = $form_state->getValue('geofile_import') ?? [];
+  $fids = $values['file'] ?? [];
+  // The managed_file value nests fids under a 'fids' key
+  // (['fids' => '12 34']); accept a flat list too.
+  if (is_array($fids) && array_key_exists('fids', $fids)) {
+    $fids = $fids['fids'];
+  }
+  if (is_string($fids)) {
+    $fids = preg_split('/[\s,]+/', trim($fids), -1, PREG_SPLIT_NO_EMPTY);
+  }
+  $fid = (int) (is_array($fids) ? reset($fids) : $fids);
+  $kind = (string) ($values['kind'] ?? GeofileTrace::KIND_TRACE);
+  if (!in_array($kind, [GeofileTrace::KIND_TRACE, GeofileTrace::KIND_BACKGROUND], TRUE)) {
+    $kind = GeofileTrace::KIND_TRACE;
+  }
+  if (!$fid && isset($form['geofile_import']['file'])) {
+    // Single-click flow: the file was selected but never uploaded through
+    // the managed_file "Upload" button, so no fid reached the values (the
+    // hidden fids input still holds the stale empty value). Process the
+    // pending upload now with the exact core flow (same validators and
+    // security). On validation failure core already flagged a specific
+    // form error, kept visible by #limit_validation_errors above.
+    $uploaded = file_managed_file_save_upload($form['geofile_import']['file'], $form_state);
+    if (is_array($uploaded) && $uploaded !== []) {
+      $file = reset($uploaded);
+      if ($file instanceof File) {
+        $fid = (int) $file->id();
+      }
+    }
+  }
+  if (!$fid) {
+    // Genuinely nothing to import (no file selected at all): core set no
+    // upload error, so explain it here.
+    $bag = \Drupal::request()->files->get('files', []);
+    if (empty($bag['geofile_import_file'])) {
+      $messenger->addWarning(t('Sélectionnez un fichier GeoJSON à importer.'));
+    }
+    $form_state->setRebuild();
+    return;
+  }
+  $already = $form_state->get('leaflet_edit_imported_fids') ?? [];
+  if (in_array($fid, $already, TRUE)) {
+    $messenger->addWarning(t('Ce fichier a déjà été importé dans cette session.'));
+    $form_state->setRebuild();
+    return;
+  }
+  $file = \Drupal::entityTypeManager()->getStorage('file')->load($fid);
+  if (!$file instanceof File) {
+    $messenger->addError(t('Fichier téléversé introuvable.'));
+    $form_state->setRebuild();
+    return;
+  }
+  try {
+    /** @var \Drupal\geofile_field\Service\GeofileImporter $importer */
+    $importer = \Drupal::service('geofile_field.importer');
+    $result = $importer->importAll($file, $kind);
+  }
+  catch (\Exception $e) {
+    $messenger->addError(t('Import impossible : @msg', ['@msg' => $e->getMessage()]));
+    $form_state->setRebuild();
+    return;
+  }
+  $file->setPermanent();
+  $file->save();
+
+  $existing = [];
+  foreach ($node->get('field_geofile_traces') as $item) {
+    $existing[(int) ($item->target_id ?? 0)] = TRUE;
+  }
+  $added = 0;
+  foreach ($result['trace_ids'] ?? [] as $tid) {
+    if (!isset($existing[(int) $tid])) {
+      $node->get('field_geofile_traces')->appendItem(['target_id' => (int) $tid]);
+      $added++;
+    }
+  }
+  // Clear the upload widget and remember the file: a second click on
+  // "Importer" must not duplicate the traces.
+  if (isset($form['geofile_import']['file'])) {
+    $form_state->setValueForElement($form['geofile_import']['file'], []);
+  }
+  $already[] = $fid;
+  $form_state->set('leaflet_edit_imported_fids', $already);
+  // Display the newly attached traces as checked at once.
+  _leaflet_edit_refresh_widgets($form_state, ['field_geofile_traces']);
+  $form_state->setRebuild();
+  $messenger->addStatus(t('@n trace(s) importée(s) et rattachée(s) à la carte (@s ignorée(s) sans géométrie). Sauvez la carte pour conserver le rattachement.', [
+    '@n' => $added,
+    '@s' => (int) ($result['skipped'] ?? 0),
+  ]));
+}
+
+/**
  * Allowed values callback for the field_leaflet_basemap field storage.
  *
- * Returns every map definition from hook_leaflet_map_info() (key => label)
- * so the node-level override always offers the current basemaps, including
- * leaflet_more_maps custom maps (e.g. "~Cartes Topo"). The empty value is
- * handled by the widget itself ("- None -" = use the display default).
+ * Returns the explicit INHERIT ("Default") choice first, then every map
+ * definition from hook_leaflet_map_info() (key => label) so the node-level
+ * override always offers the current basemaps, including
+ * leaflet_more_maps custom maps (e.g. "~Cartes Topo"). The field is
+ * required: there is no empty choice, "Default" follows the display.
  *
  * @param \Drupal\Core\Field\FieldStorageDefinitionInterface $definition
  *   The field storage definition.
@@ -164,8 +493,12 @@ function leaflet_edit_basemap_allowed_values($definition, $entity = NULL, &$cach
   $cacheable = FALSE;
   $options = [];
   foreach (leaflet_map_get_info() as $key => $map) {
+    // Never shadow the explicit inherit choice.
+    if ($key === LeafletEditFormatter::INHERIT) {
+      continue;
+    }
     $options[$key] = $map['label'] ?? $key;
   }
   natcasesort($options);
-  return $options;
+  return [LeafletEditFormatter::INHERIT => t('Défaut (réglage du content type)')] + $options;
 }

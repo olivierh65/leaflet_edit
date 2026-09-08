@@ -41,6 +41,14 @@
       }
       return enabledTools.indexOf(name) !== -1;
     }
+    // Expose aux autres fichiers JS (barre métier, contextmenu) la liste
+    // des suffixes de librairies activées, pour montrer/cacher les entrées
+    // de menu correspondant aux fonctionnalités désactivées.
+    // null = rendu legacy, tout est montré (voir leafletEditToolEnabled).
+    try {
+      map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+      map.lMap.leafletEdit.toolsEnabled = enabledTools;
+    } catch (err) {}
     // Dismiss du menu contextuel : fermeture au clic hors menu, au zoom
     // et à Échap + états des entrées. Branché UNE fois par carte (les
     // couches sont traitées avant leur ajout à la carte et ne peuvent

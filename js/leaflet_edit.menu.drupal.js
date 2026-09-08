@@ -63,19 +63,28 @@ function buildTraceActions(evtLike) {
   } catch (e) {
     updated = false;
   }
+  // Comme la barre métier : les actions des fonctionnalités désactivées
+  // dans les réglages sont proposées désactivées (permissions d'abord).
+  var toolOn = function (suffix) {
+    try {
+      return typeof leafletEditToolEnabled === "function" ? leafletEditToolEnabled(suffix) : true;
+    } catch (e2) {
+      return true;
+    }
+  };
   return [
     { key: "showcoord", text: "Show coordinates", iconCls: "fa-solid fa-location-dot", enabled: !!layer, callback: showCoordinates },
-    { key: "editlayer", text: editing ? "Finish edit" : "Edit layer", iconCls: "fa-regular fa-pen-to-square", enabled: !!layer && leafletEditCan("edit"), callback: editing ? finEditLayer : editLayer },
-    { key: "filedetail", text: "Détail fichier (nom + style)", iconCls: "fa-regular fa-folder-open", enabled: !!layer && leafletEditCan("edit"), callback: openLayerFileDetail },
-    { key: "cutline", text: "Cut here", iconCls: "fa-regular fa-scissors", enabled: !!layer && leafletEditCan("edit"), callback: cutLine },
+    { key: "editlayer", text: editing ? "Finish edit" : "Edit layer", iconCls: "fa-regular fa-pen-to-square", enabled: !!layer && leafletEditCan("edit") && toolOn("leaflet-geoman"), callback: editing ? finEditLayer : editLayer },
+    { key: "filedetail", text: "Détail fichier (nom + style)", iconCls: "fa-regular fa-folder-open", enabled: !!layer && leafletEditCan("edit") && toolOn("leaflet.control-window"), callback: openLayerFileDetail },
+    { key: "cutline", text: "Cut here", iconCls: "fa-regular fa-scissors", enabled: !!layer && leafletEditCan("edit") && toolOn("leaflet.turf"), callback: cutLine },
     { key: "joinline", text: "Join", iconCls: "fa-regular fa-link", enabled: !!layer && leafletEditCan("edit"), callback: joinLine },
     { key: "deletelay", text: "Delete", iconCls: "fa-regular fa-eraser", enabled: !!layer && leafletEditCan("edit"), callback: deleteLay },
     { key: "save", text: "Save", iconCls: "fa-regular fa-floppy-disk", enabled: !!layer && updated && leafletEditCan("save"), callback: saveEntity },
-    { key: "exportgpx", text: "Export to GPX", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPX },
-    { key: "exportgpxall", text: "Export to GPX (All)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPXAll },
-    { key: "exportgpxallmerge", text: "Export to GPX (All Merge)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPXAllMerge },
-    { key: "importfile", text: "Import GPX file", iconCls: "fa-solid fa-file-import", enabled: leafletEditCan("importGPX"), callback: readLocalFile },
-    { key: "simplify", text: "Simplify", iconCls: "fa-solid fa-minimize", enabled: !!layer && leafletEditCan("edit"), callback: simplify },
+    { key: "exportgpx", text: "Export to GPX", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX") && toolOn("leaflet.togpx"), callback: exportGPX },
+    { key: "exportgpxall", text: "Export to GPX (All)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX") && toolOn("leaflet.togpx"), callback: exportGPXAll },
+    { key: "exportgpxallmerge", text: "Export to GPX (All Merge)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX") && toolOn("leaflet.togpx"), callback: exportGPXAllMerge },
+    { key: "importfile", text: "Import GPX file", iconCls: "fa-solid fa-file-import", enabled: leafletEditCan("importGPX") && toolOn("leaflet.togeojson"), callback: readLocalFile },
+    { key: "simplify", text: "Simplify", iconCls: "fa-solid fa-minimize", enabled: !!layer && leafletEditCan("edit") && toolOn("leaflet.turf"), callback: simplify },
     { key: "closemenu", text: "Fermer le menu", iconCls: "fa-regular fa-circle-xmark", enabled: true, callback: closeContextMenu },
     { key: "styleedit", text: "Style interactif", iconCls: "fa-solid fa-palette", enabled: !!layer && leafletEditCan("edit"), callback: editStyleInteractive },
   ];

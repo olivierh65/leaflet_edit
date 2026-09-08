@@ -12,8 +12,8 @@ field_name: field_leaflet_basemap
 entity_type: node
 bundle: leaflet_map_editor
 label: 'Fond de carte (surcharge par carte)'
-description: "Fond de carte de cette carte. Recopié depuis le réglage du content type à la création, modifiable ici. Vide = utilise le fond du content type (héritage dynamique)."
-required: false
+description: "Fond de carte de cette carte. « Défaut » suit le réglage du content type. Valeur initiale recopiée depuis le content type (bouton « Restore defaults » pour réappliquer)."
+required: true
 translatable: false
 default_value: {  }
 default_value_callback: ''
