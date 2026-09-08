@@ -3,11 +3,15 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.field.node.leaflet_map_editor.field_leaflet_geojson_files
+    - field.field.node.leaflet_map_editor.field_geofile_traces
+    - field.field.node.leaflet_map_editor.field_leaflet_basemap
+    - field.field.node.leaflet_map_editor.field_leaflet_geoman_pos
+    - field.field.node.leaflet_map_editor.field_leaflet_locate_pos
+    - field.field.node.leaflet_map_editor.field_leaflet_tools
     - field.field.node.leaflet_map_editor.field_leafletedit_description
     - node.type.leaflet_map_editor
   module:
-    - geojsonfile_field
+    - geofile_field
     - path
     - text
 id: node.leaflet_map_editor.default
@@ -21,22 +25,36 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_leaflet_geojson_files:
-    type: geojsonfile_widget
+  field_geofile_traces:
+    type: geofile_traces_by_file
     weight: 122
     region: content
     settings:
-      max_geojson_file: '5'
-      leaflet_style:
-        '#input': true
-        '#process':
-          -
-            - Drupal\Core\Render\Element\FormElement
-            - processGroup
-        '#pre_render':
-          -
-            - Drupal\geojsonfile_field\Element\LeafletStyle
-            - preRenderCustomElement
+      show_attributes: true
+    third_party_settings: {  }
+  field_leaflet_basemap:
+    type: options_select
+    weight: 121
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_leaflet_geoman_pos:
+    type: options_select
+    weight: 124
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_leaflet_locate_pos:
+    type: options_select
+    weight: 125
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_leaflet_tools:
+    type: options_buttons
+    weight: 123
+    region: content
+    settings: {  }
     third_party_settings: {  }
   field_leafletedit_description:
     type: text_textarea_with_summary
@@ -101,3 +119,4 @@ content:
       placeholder: ''
     third_party_settings: {  }
 hidden: {  }
+

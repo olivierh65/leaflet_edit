@@ -1,10 +1,12 @@
-uuid: a6c2fde9-5b61-4597-aadc-6a872c1aa378
+uuid: 3daf829f-4f83-4ee7-a720-c35d48cea474
 langcode: en
 status: true
+dependencies:
+  module:
+    - leaflet_edit
 id: leaflet_editor_export_gpx
 label: 'Leaflet Editor Export GPX'
 weight: 5
 is_admin: false
 permissions:
   - 'export leaflet tracks to gpx'
-  - 'restful get transfert_geojson'

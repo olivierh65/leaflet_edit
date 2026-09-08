@@ -1,8 +1,9 @@
-uuid: 72a954a8-c6e3-4a9e-9933-8c1a09cb562c
+uuid: dd5e4585-0858-4bfc-b96c-64866f067ecb
 langcode: en
 status: true
 dependencies:
   config:
+    - core.entity_view_mode.node.full
     - field.field.node.leaflet_map_editor.field_geofile_traces
     - field.field.node.leaflet_map_editor.field_leaflet_basemap
     - field.field.node.leaflet_map_editor.field_leaflet_geoman_pos
@@ -12,18 +13,17 @@ dependencies:
     - node.type.leaflet_map_editor
   module:
     - leaflet_edit
-    - text
     - user
-id: node.leaflet_map_editor.default
+id: node.leaflet_map_editor.full
 targetEntityType: node
 bundle: leaflet_map_editor
-mode: default
+mode: full
 content:
   field_geofile_traces:
     type: leaflet_edit_formatter
     label: hidden
     settings:
-      leaflet_map: '~Cartes Topo'
+      leaflet_map: openstreetmap
       height: '600'
       height_unit: px
       leaflet_edit:
@@ -32,39 +32,6 @@ content:
         locatecontrol:
           control: true
           position: bottomright
-        geoman:
-          control: true
-          position: topleft
-          options:
-            drawControls: drawControls
-            drawMarker: drawMarker
-            drawPolyline: drawPolyline
-            customControls: customControls
-            drawCircleMarker: '0'
-            drawRectangle: '0'
-            drawPolygon: '0'
-            drawCircle: '0'
-            drawText: '0'
-            editControls: '0'
-            editMode: '0'
-            dragMode: '0'
-            cutPolygon: '0'
-            removalMode: '0'
-            rotateMode: '0'
-            oneBlock: '0'
-        turf:
-          operations:
-            simplify: simplify
-            concatenate: 0
-          simplify:
-            tolerance: '0.0001'
-            high_quality: '1'
-        arrowheads:
-          frequency_mode: distance
-          frequency_value: 80px
-          size: 16px
-          yawn: '35'
-          fill: 0
         tools:
           geoman: geoman
           locatecontrol: locatecontrol
@@ -80,26 +47,11 @@ content:
           turf: turf
           togeojson: togeojson
           slider: slider
-          arrowheads: arrowheads
           togpx: togpx
-          feature_control: 0
-          doubleclick: 0
-          toolbar: 0
-          select2: 0
-          dialog: 0
-      map_position:
-        center:
-          lat: '0'
-          lon: '0'
-        force: 0
-        zoomControlPosition: topleft
-        zoom: 5
-        minZoom: 2
-        maxZoom: 18
-        zoomFiner: 0
-      hide_empty_map: 0
-      disable_wheel: 0
+          arrowheads: arrowheads
       multiple_map: false
+      hide_empty_map: false
+      disable_wheel: false
       gesture_handling: false
       fitbounds_options: '{"padding":[0,0]}'
       popup: false
@@ -113,6 +65,16 @@ content:
       leaflet_tooltip:
         value: ''
         options: '{"permanent":false,"direction":"center"}'
+      map_position:
+        force: false
+        center:
+          lat: 0
+          lon: 0
+        zoomControlPosition: topleft
+        zoom: 5
+        minZoom: 1
+        maxZoom: 18
+        zoomFiner: 0
       weight: 0
       icon:
         iconType: marker
@@ -178,13 +140,6 @@ content:
     third_party_settings: {  }
     weight: 10
     region: content
-  field_leafletedit_description:
-    type: text_default
-    label: above
-    settings: {  }
-    third_party_settings: {  }
-    weight: 101
-    region: content
   links:
     settings: {  }
     third_party_settings: {  }
@@ -198,5 +153,6 @@ hidden:
   field_leaflet_geoman_pos: true
   field_leaflet_locate_pos: true
   field_leaflet_tools: true
+  field_leafletedit_description: true
   langcode: true
 

@@ -2,9 +2,6 @@ administer leaflet edit:
   title: 'Administer Leaflet Map Editor'
   description: 'Configure Leaflet Map Editor maps.'
   restrict access: true
-'view leaflet tracks':
-  title: 'View Leaflet tracks'
-  description: 'View tracks in Leaflet Map Editor maps.'
 'edit leaflet tracks':
   title: 'Edit Leaflet tracks'
   description: 'Edit tracks in Leaflet Map Editor maps.'

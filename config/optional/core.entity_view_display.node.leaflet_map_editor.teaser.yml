@@ -4,7 +4,11 @@ status: true
 dependencies:
   config:
     - core.entity_view_mode.node.teaser
-    - field.field.node.leaflet_map_editor.field_leaflet_geojson_files
+    - field.field.node.leaflet_map_editor.field_geofile_traces
+    - field.field.node.leaflet_map_editor.field_leaflet_basemap
+    - field.field.node.leaflet_map_editor.field_leaflet_geoman_pos
+    - field.field.node.leaflet_map_editor.field_leaflet_locate_pos
+    - field.field.node.leaflet_map_editor.field_leaflet_tools
     - field.field.node.leaflet_map_editor.field_leafletedit_description
     - node.type.leaflet_map_editor
   module:
@@ -23,6 +27,11 @@ hidden:
   entity_print_view_epub: true
   entity_print_view_pdf: true
   entity_print_view_word_docx: true
-  field_leaflet_geojson_files: true
+  field_geofile_traces: true
+  field_leaflet_basemap: true
+  field_leaflet_geoman_pos: true
+  field_leaflet_locate_pos: true
+  field_leaflet_tools: true
   field_leafletedit_description: true
   langcode: true
+

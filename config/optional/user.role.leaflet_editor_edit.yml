@@ -1,10 +1,12 @@
-uuid: 767212de-f7fb-451c-a52f-9d0bdecfcbbb
+uuid: 04f234c1-0d8a-4ab6-86eb-c9b4278fadc2
 langcode: en
 status: true
+dependencies:
+  module:
+    - leaflet_edit
 id: leaflet_editor_edit
 label: 'Leaflet Editor Edit'
 weight: 3
 is_admin: false
 permissions:
   - 'edit leaflet tracks'
-  - 'restful get transfert_geojson'

@@ -1,0 +1,22 @@
+uuid: ac8ee3a3-f14b-465a-aa06-18e54ff16d52
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leaflet_tools
+    - node.type.leaflet_map_editor
+  module:
+    - options
+id: node.leaflet_map_editor.field_leaflet_tools
+field_name: field_leaflet_tools
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Outils de la carte (surcharge)'
+description: 'Laissez vide pour hériter du content type. Sinon, liste EXPLICITE des outils activés sur cette carte (+ « Aucun outil » pour tout couper hors socle).'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string
+

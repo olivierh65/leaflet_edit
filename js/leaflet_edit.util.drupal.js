@@ -1,19 +1,100 @@
+// Boutons d'édition Geoman définitivement masqués : toute l'édition
+// (edit/move/cut/remove/rotate) passe par la barre métier (appels
+// layer.pm programmatiques).
+var GEOMAN_EDIT_BUTTONS = ["editMode", "dragMode", "cutPolygon", "removalMode", "rotateMode", "editControls"];
+// Repli quand la config ne définit pas un bouton de dessin (vieilles
+// configs) : préserve le comportement visible actuel.
+var GEOMAN_DRAW_FALLBACKS = {
+  drawMarker: true,
+  drawCircleMarker: false,
+  drawPolyline: true,
+  drawRectangle: false,
+  drawPolygon: false,
+  drawCircle: false,
+  drawText: false,
+  oneBlock: true,
+  drawControls: true,
+  customControls: true,
+};
+// Lit une option Geoman de façon robuste : une clé absente valait
+// autrefois "activé" avec le test `== 0` (boutons fantômes), et une
+// valeur désactivée vaut 0 / "0" / false / "" selon les sauvegardes.
+function geomanOpt(geomanSettings, name) {
+  if (GEOMAN_EDIT_BUTTONS.indexOf(name) !== -1) {
+    return false;
+  }
+  var opts = (geomanSettings && geomanSettings.options) || {};
+  if (typeof opts[name] === "undefined" || opts[name] === null) {
+    return !!GEOMAN_DRAW_FALLBACKS[name];
+  }
+  return opts[name] !== 0 && opts[name] !== "0" && opts[name] !== false && opts[name] !== "";
+}
+
+// Retire de la barre Geoman tout bouton d'édition résiduel (tool edit),
+// quelle que soit la façon dont il est apparu. L'édition passe
+// uniquement par la barre métier. Ne fait rien si la barre est absente.
+function removeGeomanEditButtons(lMap) {
+  try {
+    var pmToolbar = lMap && lMap.pm && lMap.pm.Toolbar;
+    if (!pmToolbar || typeof pmToolbar.getButtons !== "function") {
+      return false;
+    }
+    var removed = 0;
+    var tbButtons = pmToolbar.getButtons() || {};
+    Object.keys(tbButtons).forEach(function (key) {
+      try {
+        var btn = tbButtons[key];
+        if (btn && btn._button && btn._button.tool === "edit") {
+          btn.remove();
+          try {
+            delete pmToolbar.buttons[key];
+          } catch (errDel) {}
+          removed++;
+        }
+      } catch (errBtn) {}
+    });
+    return removed;
+  } catch (errTb) {
+    return false;
+  }
+}
+
 function processLoadedData(layer) {
-  // Contextmenu (clic droit) : desktop uniquement. Sur mobile, le tap
+  // Contextmenu (clic droit) : desktop uniquement, et seulement si
+  // l'outil leaflet-contextmenu est chargé. Sur mobile, le tap
   // ouvre une popup tactile via openTracePopup() (voir menu.drupal.js).
   var isMobile = (typeof L !== "undefined" && L.Browser && L.Browser.mobile) ||
     (typeof window !== "undefined" && window.matchMedia &&
       window.matchMedia("(pointer: coarse)").matches);
-  if (!isMobile && typeof layer.bindContextMenu === "function") {
+  if (!isMobile && typeof layer.bindContextMenu === "function" && typeof defineContextMenu === "function") {
     // Add context menu
     layer.bindContextMenu(defineContextMenu());
-    // Add hide event to close popup menu
-    if (layer._map && layer._map.contextmenu) {
-      layer._map.contextmenu.addHooks();
-      layer._map.on("contextmenu.show", function (e) {
-        evtContextShow(e);
-      });
+    // Garde anti-empilement : le plugin partage UN seul conteneur de menu
+    // pour toute la carte et y AJOUTE les entrées de la couche à chaque
+    // clic droit (retirées seulement au 'contextmenu.hide' suivant). Si un
+    // menu est déjà ouvert, un nouveau clic droit empilerait un second
+    // menu : dans ce cas on ignore le clic au lieu d'en ouvrir un nouveau.
+    // (Le menu ouvert se ferme au clic gauche / zoom / Échap.)
+    if (typeof layer._showContextMenu === "function") {
+      layer.off("contextmenu", layer._showContextMenu, layer);
+      layer.on("contextmenu", function (e) {
+        try {
+          var menu = layer._map && layer._map.contextmenu;
+          if (menu && menu._visible) {
+            if (e && e.originalEvent && typeof L !== "undefined" && L.DomEvent) {
+              L.DomEvent.preventDefault(e.originalEvent);
+              L.DomEvent.stopPropagation(e.originalEvent);
+            }
+            return;
+          }
+        } catch (err) {}
+        layer._showContextMenu(e);
+      }, layer);
     }
+    // NOTE : les hooks de la carte (fermeture hors menu / zoom / Échap)
+    // ne sont PAS branchés ici : à ce stade la couche n'est pas encore
+    // ajoutée à la carte (layer._map vide). Voir wireMapContextMenuDismiss(),
+    // appelé une fois par carte dans init.drupal.js.
   }
 
   layer.on("click", function (e) {
@@ -128,25 +209,51 @@ function processLoadedData(layer) {
   }
 }
 
-function addData(layGroupid, lay, origin) {
+function addData(traceId, lay, origin) {
+  // Nouveau modèle : 1 trace = 1 layer. Le tracé dessiné (Geoman) est
+  // converti en GeoJSON puis ajouté comme nouvelle trace rattachée au
+  // même fichier source que la trace d'origine (même groupe panel).
   try {
-    laygroup = panel._layersActives.find((_l) => _l._leaflet_id == layGroupid);
-
-    exist_lays = Object.keys(laygroup._layers);
-
-    laygroup.addData(lay);
-
-    // search added layer
-    for (const nl of Object.keys(laygroup._layers)) {
-      if (!exist_lays.includes(nl)) {
-        new_layer = laygroup._layers[nl];
-        break;
-      }
+    var groupName = "Traces";
+    var label = "Trace";
+    try {
+      var le = (origin.defaultOptions && origin.defaultOptions.leafletEdit) || {};
+      groupName = (le.filename && String(le.filename).trim() !== "") ? le.filename : "Traces";
+      label = le.description || label;
+    } catch (err) {}
+    var geo = lay && lay.type === "Feature" ? lay : { type: "Feature", properties: {}, geometry: null };
+    var newLayer = L.geoJSON(geo, {
+      pointToLayer: function (f, latlng) {
+        return L.circleMarker(latlng, f.style || { color: "red", weight: 5 });
+      },
+    });
+    var added = null;
+    newLayer.eachLayer(function (l) {
+      added = l;
+    });
+    if (!added) {
+      return;
     }
-    // recupere les options de l'entite d'origine
-    new_layer.defaultOptions = origin.defaultOptions;
-    // et configure
-    processLoadedData(new_layer);
+    added.defaultOptions = added.defaultOptions || {};
+    try {
+      added.defaultOptions.leafletEdit = JSON.parse(JSON.stringify(origin.defaultOptions.leafletEdit || {}));
+    } catch (err) {
+      added.defaultOptions.leafletEdit = origin.defaultOptions.leafletEdit || {};
+    }
+    added.defaultOptions.style = origin.defaultOptions.style || null;
+    added.feature = added.feature || geo;
+    processLoadedData(added);
+    // Enregistre comme nouvelle trace (nouveau stamp, même groupe).
+    var newTid = "drawn-" + Date.now();
+    if (typeof registerTraceLayer === "function") {
+      registerTraceLayer(added, newTid, label + " (copie)", groupName, false);
+    } else {
+      try {
+        added.addTo(map.lMap);
+      } catch (err) {}
+      map.leafletEditTraces[newTid] = added;
+    }
+    setUpdated(added);
   } catch (error) {
     console.error(error);
   }
@@ -170,6 +277,55 @@ function saveStyle(feature) {
     fillRule: feature.options["fillRule"],
     fill: feature.options["fill"],
   };
+}
+
+// Retourne le style PROPRE de la trace (jamais le style d'état
+// sélectionné / modifié / édition). Priorité : orig_style (capturé avant
+// tout changement d'état) > defaultOptions.style (style persisté) >
+// options courantes filtrées. Utilisé pour l'affichage des formulaires
+// (Détail fichier, Infos/Style) et pour la sauvegarde serveur.
+function getTraceBaseStyle(layer) {
+  try {
+    if (layer && layer.orig_style && (layer.orig_style.color !== undefined || layer.orig_style.weight !== undefined)) {
+      return {
+        color: layer.orig_style.color,
+        weight: layer.orig_style.weight,
+        opacity: layer.orig_style.opacity,
+        lineCap: layer.orig_style.lineCap,
+        lineJoin: layer.orig_style.lineJoin,
+        dashArray: layer.orig_style.dashArray,
+        dashOffset: layer.orig_style.dashOffset,
+        fillColor: layer.orig_style.fillColor,
+        fillOpacity: layer.orig_style.fillOpacity,
+        fillRule: layer.orig_style.fillRule,
+        fill: layer.orig_style.fill,
+      };
+    }
+  } catch (err) {}
+  try {
+    var ds = layer && layer.defaultOptions && layer.defaultOptions.style;
+    if (ds) {
+      if (typeof ds === "string") {
+        try {
+          ds = JSON.parse(ds);
+        } catch (e2) {
+          ds = null;
+        }
+      }
+      if (ds && typeof ds === "object") {
+        return ds;
+      }
+    }
+  } catch (err) {}
+  try {
+    var o = (layer && layer.options) || {};
+    return {
+      color: o.color,
+      weight: o.weight,
+      dashArray: o.dashArray || null,
+    };
+  } catch (err) {}
+  return { color: "#3388ff", weight: 3, dashArray: null };
 }
 
 // Styles d'état (priorité : édition > sélection > modifié > origine).
@@ -238,9 +394,6 @@ function restoreStyle(feature) {
 }
 
 function setUpdated(layer) {
-  try {
-    getLayGroup(layer).options.leafletEdit._updated = true;
-  } catch (err) {}
   if (layer) {
     layer.leafletEditUpd = true;
     refreshTraceStyle(layer);
@@ -248,9 +401,6 @@ function setUpdated(layer) {
 }
 
 function clearUpdated(layer) {
-  try {
-    getLayGroup(layer).options.leafletEdit._updated = false;
-  } catch (err) {}
   if (layer) {
     layer.leafletEditUpd = false;
     refreshTraceStyle(layer);
@@ -258,47 +408,29 @@ function clearUpdated(layer) {
 }
 
 // Efface le flag modifié sur tout le groupe (après sauvegarde réussie).
+// Conservé pour compat : avec 1 trace = 1 layer, équivaut à clearUpdated.
 function clearUpdatedGroup(layer) {
-  var group = null;
-  try {
-    group = getLayGroup(layer);
-    group.options.leafletEdit._updated = false;
-  } catch (err) {}
-  if (group && group._layers) {
-    Object.values(group._layers).forEach(function (l) {
-      l.leafletEditUpd = false;
-      refreshTraceStyle(l);
-    });
-  } else if (layer) {
-    layer.leafletEditUpd = false;
-    refreshTraceStyle(layer);
-  }
+  clearUpdated(layer);
 }
 
 function isUpdated(layer) {
-  if (layer && layer.leafletEditUpd) {
-    return true;
-  }
-  try {
-    return !!getLayGroup(layer).options.leafletEdit._updated;
-  } catch (err) {
-    return false;
-  }
+  return !!(layer && layer.leafletEditUpd);
 }
 
+// Toutes les traces modifiées (registre global par tid).
 function anyUpdated() {
-  a = map.lMap.leafletEdit.LAYGROUP_CONTROL._layersActives.filter(function (
-    lays
-  ) {
-    return lays.options.leafletEdit._updated;
-  });
-  return a;
+  var out = [];
+  try {
+    Object.values((map && map.leafletEditTraces) || {}).forEach(function (l) {
+      if (l && l.leafletEditUpd) {
+        out.push(l);
+      }
+    });
+  } catch (err) {}
+  return out;
 }
 
 function setSelected(layer) {
-  try {
-    getLayGroup(layer).options.leafletEdit._selected = true;
-  } catch (err) {}
   if (layer) {
     layer.leafletEditSel = true;
     refreshTraceStyle(layer);
@@ -306,9 +438,6 @@ function setSelected(layer) {
 }
 
 function clearSelected(layer) {
-  try {
-    getLayGroup(layer).options.leafletEdit._selected = false;
-  } catch (err) {}
   if (layer) {
     layer.leafletEditSel = false;
     refreshTraceStyle(layer);
@@ -316,31 +445,25 @@ function clearSelected(layer) {
 }
 
 function isSelected(layer) {
-  if (layer && layer.leafletEditSel) {
-    return true;
-  }
-  try {
-    return !!getLayGroup(layer).options.leafletEdit._selected;
-  } catch (err) {
-    return false;
-  }
+  return !!(layer && layer.leafletEditSel);
 }
 
+// Toutes les traces sélectionnées (registre global par tid).
 function anySelected() {
-  a = map.lMap.leafletEdit.LAYGROUP_CONTROL._layersActives.filter(function (
-    lays
-  ) {
-    return lays.options.leafletEdit._selected;
-  });
-  return a;
+  var out = [];
+  try {
+    Object.values((map && map.leafletEditTraces) || {}).forEach(function (l) {
+      if (l && l.leafletEditSel) {
+        out.push(l);
+      }
+    });
+  } catch (err) {}
+  return out;
 }
 
+// Compat : avec 1 trace = 1 layer, le "groupe" est la trace elle-même.
 function getLayGroup(layer) {
-  return map.lMap.leafletEdit.LAYGROUP_CONTROL._layersActives.find(function (
-    lays
-  ) {
-    return layer._leaflet_id in lays._layers;
-  });
+  return layer || null;
 }
 
 function select_feature(layer, duree = 0) {
@@ -361,30 +484,21 @@ function unselect_feature(layer) {
   if (!layer) {
     return;
   }
-  if (isSelected(layer)) {
-    // already selected
-    clearSelected(layer);
-  }
+  clearSelected(layer);
   refreshTraceStyle(layer);
 }
 
 // Désélectionne toutes les traces sauf (optionnellement) celle donnée.
 function deselectAllFeatures(except) {
   try {
-    var actives = map.lMap.leafletEdit.LAYGROUP_CONTROL._layersActives || [];
-    actives.forEach(function (laygroup) {
-      Object.values(laygroup._layers || {}).forEach(function (l) {
-        if (except && l._leaflet_id === except._leaflet_id) {
-          return;
-        }
-        if (l.leafletEditSel) {
-          l.leafletEditSel = false;
-          refreshTraceStyle(l);
-        }
-      });
-      try {
-        laygroup.options.leafletEdit._selected = false;
-      } catch (err) {}
+    Object.values((map && map.leafletEditTraces) || {}).forEach(function (l) {
+      if (except && l._leaflet_id === except._leaflet_id) {
+        return;
+      }
+      if (l.leafletEditSel) {
+        l.leafletEditSel = false;
+        refreshTraceStyle(l);
+      }
     });
   } catch (err) {}
 }

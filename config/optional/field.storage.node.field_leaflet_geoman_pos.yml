@@ -1,0 +1,34 @@
+uuid: f8b2aa89-cb1c-4a75-a025-a5a46211eba9
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_leaflet_geoman_pos
+field_name: field_leaflet_geoman_pos
+entity_type: node
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: topleft
+      label: 'En haut à gauche'
+    -
+      value: topright
+      label: 'En haut à droite'
+    -
+      value: bottomleft
+      label: 'En bas à gauche'
+    -
+      value: bottomright
+      label: 'En bas à droite'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false
+

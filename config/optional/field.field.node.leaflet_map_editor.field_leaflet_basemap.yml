@@ -1,0 +1,22 @@
+uuid: 8997419c-daa5-4813-879d-f5a47528485e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leaflet_basemap
+    - node.type.leaflet_map_editor
+  module:
+    - options
+id: node.leaflet_map_editor.field_leaflet_basemap
+field_name: field_leaflet_basemap
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Fond de carte (surcharge par carte)'
+description: "Fond de carte utilisé pour cette carte. Laissez vide pour utiliser le fond défini dans le mode d'affichage (content type)."
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string
+

@@ -36,11 +36,9 @@ leaflet_edit.settings:
       type: string
       label: 'Geoman position'
     geoman_options:
-      type: sequence
+      type: mapping
       label: 'Geoman options'
-      sequence:
-        type: string
-        label: 'Option'
+      mapping: {  }
 
 # Formatter settings are stored in entity view displays, but documenting the
 # shape here helps validation and translation UIs.
@@ -81,6 +79,33 @@ field.formatter.settings.leaflet_edit_formatter:
             position:
               type: string
             options:
-              type: sequence
-              sequence:
-                type: string
+              type: mapping
+              mapping: {  }
+        turf:
+          type: mapping
+          mapping: {  }
+        arrowheads:
+          type: mapping
+          mapping: {  }
+        tools:
+          type: mapping
+          mapping: {  }
+        tools_enabled:
+          type: sequence
+          sequence:
+            type: string
+        permissions:
+          type: mapping
+          mapping: {  }
+        trace_ids:
+          type: sequence
+          sequence:
+            type: integer
+        nid:
+          type: integer
+        basemap:
+          type: mapping
+          mapping: {  }
+        endpoints:
+          type: mapping
+          mapping: {  }

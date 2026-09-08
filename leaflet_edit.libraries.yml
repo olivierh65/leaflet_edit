@@ -1,5 +1,5 @@
 leaflet-edit:
-  version: 0.1
+  version: 0.11
   js:
     js/leaflet_edit.init.drupal.js: {}
     js/leaflet_edit.menu.drupal.js: {}
@@ -238,3 +238,11 @@ leaflet-slider:
   dependencies:
     - leaflet/leaflet
     - core/drupalSettings
+
+leaflet-arrowheads:
+  version: 1.4.0
+  js:
+    js/leaflet-arrowheads/leaflet-arrowheads.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - leaflet_edit/leaflet.GeometryUtil

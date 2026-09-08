@@ -21,18 +21,6 @@ leaflet_edit.map:
       node:
         type: entity:node
 
-leaflet_edit.save:
-  path: '/leaflet-edit/save'
-  defaults:
-    _controller: '\Drupal\leaflet_edit\Controller\DefaultController::saveFile'
-    _title: 'Save GeoJSON'
-  methods: [POST]
-  requirements:
-    _permission: 'save leaflet tracks'
-    _csrf_token: 'TRUE'
-  options:
-    no_cache: 'TRUE'
-
 leaflet_edit.export_gpx:
   path: '/leaflet-edit/export-gpx'
   defaults:

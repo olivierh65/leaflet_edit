@@ -1,0 +1,269 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Leaflet Map Editor module.
+ */
+
+
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+
+/**
+ * Implements hook_install().
+ */
+function leaflet_edit_install(): void {
+  _leaflet_edit_ensure_basemap_field();
+}
+
+/**
+ * Creates the per-node basemap override field (field_leaflet_basemap).
+ *
+ * Priority at render time (LeafletEditFormatter::resolveBasemap()): node
+ * value wins when set, formatter (display / content type) setting otherwise.
+ */
+function leaflet_edit_update_10001(): string {
+  _leaflet_edit_ensure_basemap_field();
+  return (string) t('Per-node basemap override field (field_leaflet_basemap) created and wired into the leaflet_map_editor form/view displays.');
+}
+
+/**
+ * Enables the Arrowheads JS tool on existing map view displays.
+ *
+ * Displays configured before the tool existed store an explicit tools list
+ * without the 'arrowheads' key, so the library would never attach. New
+ * displays get it from LeafletEditFormatter::defaultSettings().
+ */
+function leaflet_edit_update_10002(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $patched = 0;
+  foreach (['node.leaflet_map_editor.default', 'node.leaflet_map_editor.full', 'node.leaflet_map_editor.teaser'] as $id) {
+    $display = $storage->load($id);
+    if (!$display) {
+      continue;
+    }
+    foreach (['field_geofile_traces', 'field_leaflet_geojson_files'] as $field_name) {
+      $component = $display->getComponent($field_name);
+      if (!$component || ($component['type'] ?? '') !== 'leaflet_edit_formatter') {
+        continue;
+      }
+      if (isset($component['settings']['leaflet_edit']['tools']['arrowheads'])) {
+        continue;
+      }
+      $component['settings']['leaflet_edit']['tools']['arrowheads'] = 'arrowheads';
+      $display->setComponent($field_name, $component)->save();
+      $patched++;
+    }
+  }
+  return (string) t('Arrowheads tool enabled on @n map display component(s).', ['@n' => $patched]);
+}
+
+/**
+ * Copies Turf/Arrowheads settings from the default to the other displays.
+ *
+ * Complements the runtime inheritance
+ * (LeafletEditFormatter::resolveModuleSettings()): backfills the keys so
+ * the view-mode configuration forms display the effective values instead
+ * of fallbacks. Only fills missing sections, never overwrites explicit
+ * per-mode values.
+ */
+function leaflet_edit_update_10003(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $default = $storage->load('node.leaflet_map_editor.default');
+  if (!$default) {
+    return (string) t('Default display not found, nothing to copy.');
+  }
+  $source = $default->getComponent('field_geofile_traces');
+  if (($source['type'] ?? '') !== 'leaflet_edit_formatter' || !isset($source['settings']['leaflet_edit'])) {
+    return (string) t('No leaflet_edit_formatter on the default display, nothing to copy.');
+  }
+  $patched = 0;
+  foreach (['node.leaflet_map_editor.full', 'node.leaflet_map_editor.teaser'] as $id) {
+    $display = $storage->load($id);
+    if (!$display) {
+      continue;
+    }
+    $component = $display->getComponent('field_geofile_traces');
+    if (!$component || ($component['type'] ?? '') !== 'leaflet_edit_formatter') {
+      continue;
+    }
+    $changed = FALSE;
+    foreach (['turf', 'arrowheads'] as $key) {
+      if (!isset($component['settings']['leaflet_edit'][$key]) && isset($source['settings']['leaflet_edit'][$key])) {
+        $component['settings']['leaflet_edit'][$key] = $source['settings']['leaflet_edit'][$key];
+        $changed = TRUE;
+      }
+    }
+    if ($changed) {
+      $display->setComponent('field_geofile_traces', $component)->save();
+      $patched++;
+    }
+  }
+  return (string) t('Turf/Arrowheads settings copied to @n display(s).', ['@n' => $patched]);
+}
+
+/**
+ * Removes per-mode Turf/Arrowheads copies (single source of truth).
+ *
+ * Turf/Arrowheads parameters are now ALWAYS inherited from the bundle
+ * default display at render time
+ * (LeafletEditFormatter::resolveModuleSettings()), so per-mode copies
+ * (e.g. backfilled by update 10003) would only create stale divergence.
+ * This removes those two sections from the non-default displays,
+ * preserving everything else.
+ */
+function leaflet_edit_update_10004(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $cleaned = 0;
+  foreach (['node.leaflet_map_editor.full', 'node.leaflet_map_editor.teaser'] as $id) {
+    $display = $storage->load($id);
+    if (!$display) {
+      continue;
+    }
+    $component = $display->getComponent('field_geofile_traces');
+    if (!$component || ($component['type'] ?? '') !== 'leaflet_edit_formatter') {
+      continue;
+    }
+    $changed = FALSE;
+    foreach (['turf', 'arrowheads'] as $key) {
+      if (isset($component['settings']['leaflet_edit'][$key])) {
+        unset($component['settings']['leaflet_edit'][$key]);
+        $changed = TRUE;
+      }
+    }
+    if ($changed) {
+      $display->setComponent('field_geofile_traces', $component)->save();
+      $cleaned++;
+    }
+  }
+  return (string) t('Per-mode Turf/Arrowheads copies removed from @n display(s); Default display is now the single source of truth.', ['@n' => $cleaned]);
+}
+
+/**
+ * Removes the per-mode Geoman section (single source of truth).
+ *
+ * Follows update 10004 (Turf/Arrowheads): Geoman parameters are now
+ * ALWAYS inherited from the bundle default display at render time, so
+ * per-mode copies would only create stale divergence.
+ */
+function leaflet_edit_update_10005(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $cleaned = 0;
+  foreach (['node.leaflet_map_editor.full', 'node.leaflet_map_editor.teaser'] as $id) {
+    $display = $storage->load($id);
+    if (!$display) {
+      continue;
+    }
+    $component = $display->getComponent('field_geofile_traces');
+    if (!$component || ($component['type'] ?? '') !== 'leaflet_edit_formatter') {
+      continue;
+    }
+    if (isset($component['settings']['leaflet_edit']['geoman'])) {
+      unset($component['settings']['leaflet_edit']['geoman']);
+      $display->setComponent('field_geofile_traces', $component)->save();
+      $cleaned++;
+    }
+  }
+  return (string) t('Per-mode Geoman copies removed from @n display(s); Default display is now the single source of truth.', ['@n' => $cleaned]);
+}
+
+/**
+ * Enables the StyleEditor JS tool on map displays.
+ *
+ * The interactive style editing ("Style interactif" business-bar entry
+ * and context menu) requires the leaflet-styleeditor library, which only
+ * loads when the tool is checked. Mounting stays lazy (on first use), so
+ * enabling the tool changes nothing visually until opened.
+ */
+function leaflet_edit_update_10006(): string {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  $patched = 0;
+  foreach (['node.leaflet_map_editor.default', 'node.leaflet_map_editor.full'] as $id) {
+    $display = $storage->load($id);
+    if (!$display) {
+      continue;
+    }
+    $component = $display->getComponent('field_geofile_traces');
+    if (!$component || ($component['type'] ?? '') !== 'leaflet_edit_formatter') {
+      continue;
+    }
+    if (empty($component['settings']['leaflet_edit']['tools']['styleeditor'])) {
+      $component['settings']['leaflet_edit']['tools']['styleeditor'] = 'styleeditor';
+      $display->setComponent('field_geofile_traces', $component)->save();
+      $patched++;
+    }
+  }
+  return (string) t('StyleEditor tool enabled on @n map display component(s).', ['@n' => $patched]);
+}
+
+/**
+ * Ensures the per-node basemap override field exists and is wired.
+ *
+ * Creates the field storage (list_string with dynamic allowed values from
+ * hook_leaflet_map_info) and the field instance on the leaflet_map_editor
+ * bundle, exposes it in the back-office node form and hides it from the
+ * view displays (the formatter reads the value itself). Idempotent: safe
+ * to run on install and on update.
+ */
+function _leaflet_edit_ensure_basemap_field(): void {
+  $field_name = 'field_leaflet_basemap';
+  $bundle = 'leaflet_map_editor';
+
+  // The node type itself is provided by optional configuration: nothing to
+  // do when it does not exist (yet).
+  $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo('node');
+  if (!isset($bundles[$bundle])) {
+    return;
+  }
+
+  if (!FieldStorageConfig::loadByName('node', $field_name)) {
+    FieldStorageConfig::create([
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'type' => 'list_string',
+      'cardinality' => 1,
+      'translatable' => FALSE,
+      'settings' => [
+        'allowed_values' => [],
+        'allowed_values_function' => 'leaflet_edit_basemap_allowed_values',
+      ],
+    ])->save();
+  }
+
+  if (!FieldConfig::loadByName('node', $bundle, $field_name)) {
+    FieldConfig::create([
+      'field_name' => $field_name,
+      'entity_type' => 'node',
+      'bundle' => $bundle,
+      'label' => 'Fond de carte (surcharge par carte)',
+      'description' => "Fond de carte utilisé pour cette carte. Laissez vide pour utiliser le fond défini dans le mode d'affichage (content type).",
+      'required' => FALSE,
+      'translatable' => FALSE,
+      'settings' => [],
+      'field_type' => 'list_string',
+    ])->save();
+  }
+
+  // Expose the field in the back-office node form.
+  $form_display = \Drupal::entityTypeManager()
+    ->getStorage('entity_form_display')
+    ->load('node.' . $bundle . '.default');
+  if ($form_display && !$form_display->getComponent($field_name)) {
+    $form_display->setComponent($field_name, [
+      'type' => 'options_select',
+      'weight' => 121,
+      'region' => 'content',
+      'settings' => [],
+    ])->save();
+  }
+
+  // Hide the field in view displays: the formatter consumes the raw value
+  // itself, it must not be rendered as a plain list item.
+  $view_storage = \Drupal::entityTypeManager()->getStorage('entity_view_display');
+  foreach (['default', 'full', 'teaser'] as $mode) {
+    $view_display = $view_storage->load('node.' . $bundle . '.' . $mode);
+    if ($view_display && $view_display->getComponent($field_name)) {
+      $view_display->removeComponent($field_name)->save();
+    }
+  }
+}

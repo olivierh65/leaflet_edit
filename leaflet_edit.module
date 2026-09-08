@@ -40,3 +40,32 @@ function leaflet_edit_theme(): array {
     ],
   ];
 }
+
+/**
+ * Allowed values callback for the field_leaflet_basemap field storage.
+ *
+ * Returns every map definition from hook_leaflet_map_info() (key => label)
+ * so the node-level override always offers the current basemaps, including
+ * leaflet_more_maps custom maps (e.g. "~Cartes Topo"). The empty value is
+ * handled by the widget itself ("- None -" = use the display default).
+ *
+ * @param \Drupal\Core\Field\FieldStorageDefinitionInterface $definition
+ *   The field storage definition.
+ * @param \Drupal\Core\Entity\FieldableEntityInterface|null $entity
+ *   (optional) The entity being edited, if any.
+ * @param bool|null $cacheable
+ *   (optional) Set to FALSE: map definitions depend on configuration
+ *   (leaflet_more_maps.settings) and must not be statically cached.
+ *
+ * @return array<string, string>
+ *   Map keys mapped to human labels.
+ */
+function leaflet_edit_basemap_allowed_values($definition, $entity = NULL, &$cacheable = NULL): array {
+  $cacheable = FALSE;
+  $options = [];
+  foreach (leaflet_map_get_info() as $key => $map) {
+    $options[$key] = $map['label'] ?? $key;
+  }
+  natcasesort($options);
+  return $options;
+}

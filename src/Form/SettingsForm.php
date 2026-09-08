@@ -28,7 +28,7 @@ class SettingsForm extends ConfigFormBase {
     $form['nb_mapping'] = [
       '#type' => 'number',
       '#title' => $this->t('Number of mapping attributes'),
-      '#default_value' => $config->get('nb_mapping') ?? 2,
+      '#default_value' => $config->get('nb_mapping') ?? 4,
       '#description' => $this->t('Define number of attribute mapping.'),
       '#min' => 1,
       '#max' => 20,
@@ -55,7 +55,7 @@ class SettingsForm extends ConfigFormBase {
         2 => $this->t('Appearance plugin control'),
       ],
       '#description' => $this->t('Select control to use.'),
-      '#default_value' => $config->get('feature_control_control') ?? 0,
+      '#default_value' => $config->get('feature_control_control') ?? 2,
     ];
     $form['plugins']['feature_control']['feature_control_position'] = [
       '#type' => 'select',
@@ -117,7 +117,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Geoman functionality'),
       '#description' => $this->t('Add Geoman.'),
-      '#default_value' => $config->get('geoman_control') ?? FALSE,
+      '#default_value' => $config->get('geoman_control') ?? TRUE,
     ];
     $form['plugins']['geoman']['geoman_position'] = [
       '#type' => 'select',

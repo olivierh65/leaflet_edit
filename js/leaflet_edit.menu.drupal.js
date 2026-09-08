@@ -66,6 +66,7 @@ function buildTraceActions(evtLike) {
   return [
     { key: "showcoord", text: "Show coordinates", iconCls: "fa-solid fa-location-dot", enabled: !!layer, callback: showCoordinates },
     { key: "editlayer", text: editing ? "Finish edit" : "Edit layer", iconCls: "fa-regular fa-pen-to-square", enabled: !!layer && leafletEditCan("edit"), callback: editing ? finEditLayer : editLayer },
+    { key: "filedetail", text: "Détail fichier (nom + style)", iconCls: "fa-regular fa-folder-open", enabled: !!layer && leafletEditCan("edit"), callback: openLayerFileDetail },
     { key: "cutline", text: "Cut here", iconCls: "fa-regular fa-scissors", enabled: !!layer && leafletEditCan("edit"), callback: cutLine },
     { key: "joinline", text: "Join", iconCls: "fa-regular fa-link", enabled: !!layer && leafletEditCan("edit"), callback: joinLine },
     { key: "deletelay", text: "Delete", iconCls: "fa-regular fa-eraser", enabled: !!layer && leafletEditCan("edit"), callback: deleteLay },
@@ -75,7 +76,60 @@ function buildTraceActions(evtLike) {
     { key: "exportgpxallmerge", text: "Export to GPX (All Merge)", iconCls: "fa-solid fa-file-export", enabled: !!layer && leafletEditCan("exportGPX"), callback: exportGPXAllMerge },
     { key: "importfile", text: "Import GPX file", iconCls: "fa-solid fa-file-import", enabled: leafletEditCan("importGPX"), callback: readLocalFile },
     { key: "simplify", text: "Simplify", iconCls: "fa-solid fa-minimize", enabled: !!layer && leafletEditCan("edit"), callback: simplify },
+    { key: "closemenu", text: "Fermer le menu", iconCls: "fa-regular fa-circle-xmark", enabled: true, callback: closeContextMenu },
+    { key: "styleedit", text: "Style interactif", iconCls: "fa-solid fa-palette", enabled: !!layer && leafletEditCan("edit"), callback: editStyleInteractive },
   ];
+}
+
+/// Ferme le menu contextuel sans lancer de commande.
+/// (Le plugin ferme déjà le menu quand on choisit une action ; cette
+/// entrée permet de le refermer explicitement. Clic hors menu, zoom et
+/// Échap le ferment aussi, voir wireMapContextMenuDismiss().)
+function closeContextMenu(e) {
+  try {
+    if (map && map.lMap && map.lMap.contextmenu && typeof map.lMap.contextmenu.hide === "function") {
+      map.lMap.contextmenu.hide();
+    }
+  } catch (err) {}
+}
+
+/// Branche UNE fois par carte les hooks du contextmenu de la carte :
+/// fermeture au clic hors menu (mousedown), à la sortie de la carte, au
+/// zoom et à Échap — plus le rafraîchissement des états (evtContextShow).
+/// Indispensable car le handler 'contextmenu' de la carte n'est jamais
+/// activé par défaut (option map absente) : sans cela, le menu ne se
+/// fermerait qu'en choisissant une action.
+function wireMapContextMenuDismiss(drupalLeaflet) {
+  try {
+    var lMap = drupalLeaflet && drupalLeaflet.lMap;
+    var cm = lMap && lMap.contextmenu;
+    if (!cm || typeof cm.addHooks !== "function" || cm._leDismissWired) {
+      return false;
+    }
+    cm._leDismissWired = true;
+    cm.addHooks();
+    lMap.on("contextmenu.show", function (e) {
+      if (typeof evtContextShow === "function") {
+        evtContextShow(e);
+      }
+    });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Ouvre le détail du fichier geojson contenant la trace visée
+// (panneau nom + style par trace). Utilisé par le contextmenu et la popup.
+function openLayerFileDetail(e) {
+  var fid = 0;
+  try {
+    var layer = e && e.relatedTarget ? e.relatedTarget : null;
+    fid = (layer && layer.defaultOptions && layer.defaultOptions.leafletEdit.source_fid) || 0;
+  } catch (err) {}
+  if (typeof openFileDetail === "function") {
+    openFileDetail(fid);
+  }
 }
 
 /// Ouvre la popup tactile (tap) avec les actions métier de la trace.
@@ -137,18 +191,21 @@ const MENU = {
   showcoord: 0,
   sep1: 1,
   editlayer: 2,
-  cutline: 3,
-  joinline: 4,
-  deletelay: 5,
-  sep2: 6,
-  save: 7,
-  exportgpx: 8,
-  exportgpxall: 9,
-  exportgpxallmerge: 10,
-  sep3: 11,
-  importfile: 12,
-  sep4: 13,
-  simplify: 14,
+  filedetail: 3,
+  cutline: 4,
+  joinline: 5,
+  deletelay: 6,
+  sep2: 7,
+  save: 8,
+  exportgpx: 9,
+  exportgpxall: 10,
+  exportgpxallmerge: 11,
+  sep3: 12,
+  importfile: 13,
+  sep4: 14,
+  simplify: 15,
+  closemenu: 16,
+  styleedit: 17,
 };
 
 function evtContextShow(e) {
@@ -190,6 +247,7 @@ function defineContextMenu() {
   menu[MENU.showcoord] = item("showcoord");
   menu[MENU.sep1] = "-";
   menu[MENU.editlayer] = item("editlayer");
+  menu[MENU.filedetail] = item("filedetail");
   menu[MENU.cutline] = item("cutline");
   menu[MENU.joinline] = item("joinline");
   menu[MENU.deletelay] = item("deletelay");
@@ -202,6 +260,8 @@ function defineContextMenu() {
   menu[MENU.importfile] = item("importfile");
   menu[MENU.sep4] = "-";
   menu[MENU.simplify] = item("simplify");
+  menu[MENU.closemenu] = item("closemenu");
+  menu[MENU.styleedit] = item("styleedit");
 
   let context_menu = {
     contextmenu: true,
@@ -217,9 +277,25 @@ function evtMapDrawstart(e) {
 }
 function evtMapDrawend(e) {
   console.log(e);
+  // Dessin annulé (Échap) avec un fichier en attente : oublie le choix
+  // (après un pm:create réussi, pendingNewTrace est déjà consommé).
+  try {
+    if (map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.pendingNewTrace) {
+      map.lMap.leafletEdit.pendingNewTrace = null;
+      leafletEditNotify("info", "Nouvelle trace", "Dessin annulé.");
+    }
+  } catch (err) {}
 }
 
 function evtMapCreate(e) {
+  // Création guidée ("Nouvelle trace" de la barre métier) : le fichier
+  // a déjà été choisi avant le dessin, on crée directement côté serveur.
+  try {
+    if (map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.pendingNewTrace) {
+      createTraceFromDraw(e);
+      return;
+    }
+  } catch (err) {}
   // Fenêtre Leaflet native (L.control.window) : fonctionne en plein écran
   // et sur mobile, contrairement au dialog jQuery UI. Les <select> sont
   // natifs (pas de select2) pour éviter les problèmes de dropdown.
@@ -242,6 +318,7 @@ function evtMapCreate(e) {
     content: contentHtml,
     modal: true,
     visible: false,
+    position: "top",
     prompt: {
       buttonOK: "Ok",
       buttonCancel: "Cancel",
@@ -250,23 +327,22 @@ function evtMapCreate(e) {
         var typesSel = win.getContainer().querySelector(".leaflet-edit-assign-types");
         var layId = layersSel ? layersSel.value : "-1";
         var typeKey = typesSel ? typesSel.value : null;
-        var laygroup = panel._layersActives.find(function (_l) {
-          return String(_l._leaflet_id) === String(layId);
-        });
-        if (!laygroup || typeKey === null || typeKey === "") {
+        // Nouveau modèle : 1 trace = 1 layer (registre par tid).
+        var origin = (map.leafletEditTraces && map.leafletEditTraces[layId]) || null;
+        if (!origin || typeKey === null || typeKey === "") {
           drawnLayer.remove();
           return;
         }
         // Copie les propriétés du type choisi.
         var trace = drawnLayer.toGeoJSON();
         try {
-          trace.properties = laygroup._layers[typeKey].feature.properties;
+          trace.properties = JSON.parse(JSON.stringify(origin.feature.properties || {}));
         } catch (error) {
           console.error(error);
         }
-        addData(layId, trace, laygroup._layers[typeKey]);
+        addData(layId, trace, origin);
         // Autorise la sauvegarde de ce calque.
-        setUpdated(laygroup._layers[typeKey]);
+        setUpdated(origin);
         drawnLayer.remove();
       },
     },
@@ -291,47 +367,47 @@ function evtMapCreate(e) {
     empty.value = "-1";
     empty.textContent = "";
     layersSel.appendChild(empty);
-    Object.values(panel._layersActives).forEach(function (value) {
+    // Nouveau modèle : 1 trace = 1 layer (registre par tid).
+    Object.keys((map && map.leafletEditTraces) || {}).forEach(function (tid) {
+      var value = map.leafletEditTraces[tid];
+      var label = "Trace " + tid;
+      try {
+        label = (value.defaultOptions && value.defaultOptions.leafletEdit.description) || label;
+      } catch (err) {}
       var opt = document.createElement("option");
-      opt.value = value._leaflet_id;
-      opt.textContent = value.options.leafletEdit.description;
+      opt.value = tid;
+      opt.textContent = label;
       layersSel.appendChild(opt);
     });
   }
 
-  function fillTypes(laygroup) {
+  function fillTypes(origin) {
     typesSel.innerHTML = "";
     var listeTypes = {};
-    Object.entries(laygroup._layers).forEach(function (entry) {
-      var key = entry[0];
-      var value = entry[1];
-      var typeVal = value.feature && value.feature.properties && value.feature.properties.type
-        ? value.feature.properties.type
-        : "N/A";
-      if (!(typeVal in listeTypes)) {
-        listeTypes[typeVal] = { key: key, layers: [] };
-        var opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = typeVal;
-        typesSel.appendChild(opt);
-      }
-      listeTypes[typeVal].layers.push(value);
-    });
+    // Le "type" proposé = le type géométrique / propriété type de la
+    // trace d'origine choisie (1 seule trace, pas un groupe).
+    var typeVal = "N/A";
+    try {
+      typeVal = (origin.feature && origin.feature.properties && origin.feature.properties.type) || "N/A";
+    } catch (err) {}
+    var opt = document.createElement("option");
+    opt.value = "origin";
+    opt.textContent = typeVal;
+    typesSel.appendChild(opt);
+    listeTypes[typeVal] = { key: "origin", layers: [origin] };
     return listeTypes;
   }
 
   var currentTypes = {};
   fillLayers();
   layersSel.addEventListener("change", function () {
-    var laygroup = panel._layersActives.find(function (_l) {
-      return String(_l._leaflet_id) === String(layersSel.value);
-    });
-    if (!laygroup) {
+    var origin = (map.leafletEditTraces && map.leafletEditTraces[layersSel.value]) || null;
+    if (!origin) {
       typesSel.innerHTML = "";
       currentTypes = {};
       return;
     }
-    currentTypes = fillTypes(laygroup);
+    currentTypes = fillTypes(origin);
   });
   typesSel.addEventListener("change", function () {
     var selected = typesSel.options[typesSel.selectedIndex];
@@ -376,23 +452,61 @@ function evtLayerUpdate(e) {
 // var map1 = L.map('map', context_menu);
 function evtFeatureClick(e) {
   console.log(e);
-  // 1 tap/clic sur la trace = sélection (surbrillance) + trace courante
-  // pour la barre métier. Sur tactile, ouvre en plus la popup d'actions.
+  // 1er clic sur la trace = sélection (surbrillance) + trace courante
+  // pour la barre métier. 2e clic sur la MÊME trace = désélection
+  // (toggle). Sur tactile, ouvre en plus la popup d'actions.
   // Le clic droit garde le contextmenu complet sur desktop.
   if (!e || !e.sourceTarget) {
     return;
   }
-  // Ne pas changer la sélection pendant une édition Geoman en cours.
+  // Ne pas changer la sélection pendant une édition Geoman en cours,
+  // ni pendant une édition de style (le panneau StyleEditor gère ses
+  // propres clics ; chaque clic y basculerait sinon la sélection).
   var editing = false;
   try {
     editing = !!(e.sourceTarget.pm && typeof e.sourceTarget.pm.enabled === "function" && e.sourceTarget.pm.enabled());
   } catch (err) {}
-  if (!editing) {
-    select_feature(e.sourceTarget);
+  if (!editing && typeof isStyleEditorActive === "function" && isStyleEditorActive()) {
+    return;
   }
+  if (!editing) {
+    if (isSelected(e.sourceTarget)) {
+      // Toggle : re-cliquer la trace sélectionnée la désélectionne.
+      unselect_feature(e.sourceTarget);
+      try {
+        if (map.lMap.leafletEdit && map.lMap.leafletEdit.currentTrace === e.sourceTarget) {
+          map.lMap.leafletEdit.currentTrace = null;
+        }
+      } catch (err) {}
+    } else {
+      select_feature(e.sourceTarget);
+      try {
+        if (typeof setCurrentTrace === "function") {
+          setCurrentTrace(e.sourceTarget);
+        }
+      } catch (err) {}
+    }
+  } else {
+    try {
+      if (typeof setCurrentTrace === "function") {
+        setCurrentTrace(e.sourceTarget);
+      }
+    } catch (err) {}
+  }
+  // Empêche le handler "click" de la carte de désélectionner aussitôt
+  // (le clic remonte de la trace vers la carte : propagation Leaflet,
+  // pas DOM, donc stopPropagation ne suffit pas). On pose un timestamp
+  // que le handler carte respecte (voir init.drupal.js).
   try {
-    if (typeof setCurrentTrace === "function") {
-      setCurrentTrace(e.sourceTarget);
+    if (map && map.lMap) {
+      map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+      map.lMap.leafletEdit.suppressMapClickUntil = Date.now() + 400;
+    }
+    if (e.originalEvent && typeof e.originalEvent.stopPropagation === "function") {
+      e.originalEvent.stopPropagation();
+    }
+    if (typeof L !== "undefined" && L.DomEvent && e.originalEvent) {
+      L.DomEvent.stopPropagation(e.originalEvent);
     }
   } catch (err) {}
   if (!isTouchDevice()) {
@@ -437,13 +551,525 @@ function evtLayerMouseout(e) {
 }
 
 function evtFeatureTooltipopen(e) {
+  // Points kilométriques au survol : seulement si l'option "Points km"
+  // est activée dans la barre Outils (désactivée par défaut).
   // console.log(e);
-  e.sourceTarget.addDistanceMarkers();
+  try {
+    if (map && map.lMap && map.lMap.leafletEdit && !map.lMap.leafletEdit.kmPoints) {
+      return;
+    }
+  } catch (err) {}
+  if (e.sourceTarget && typeof e.sourceTarget.addDistanceMarkers === "function") {
+    e.sourceTarget.addDistanceMarkers();
+  }
 }
 
 function evtFeatureTooltipclose(e) {
   // console.log(e);
-  e.sourceTarget.removeDistanceMarkers();
+  if (e.sourceTarget && typeof e.sourceTarget.removeDistanceMarkers === "function") {
+    e.sourceTarget.removeDistanceMarkers();
+  }
+}
+
+// Active / coupe les points km au survol (barre Outils).
+// Quand on coupe, retire les marqueurs éventuellement affichés.
+function setKmPointsEnabled(enabled) {
+  try {
+    map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+    map.lMap.leafletEdit.kmPoints = !!enabled;
+    if (!enabled) {
+      Object.values(map.leafletEditTraces || {}).forEach(function (l) {
+        try {
+          if (l && typeof l.removeDistanceMarkers === "function") {
+            l.removeDistanceMarkers();
+          }
+        } catch (err) {}
+      });
+    }
+    leafletEditNotify(
+      "info",
+      "Points km",
+      enabled ? "Points kilométriques affichés au survol." : "Points kilométriques masqués."
+    );
+  } catch (err) {}
+}
+
+function isKmPointsEnabled() {
+  try {
+    return !!(map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.kmPoints);
+  } catch (err) {
+    return false;
+  }
+}
+
+// -- Édition interactive du style (plugin leaflet-styleeditor) -------------
+// Le panneau StyleEditor applique chaque réglage DIRECTEMENT sur la
+// couche (layer.setStyle) et émet 'styleeditor:changed' sur la carte à
+// chaque fois. Notre handler récupère le style de la couche, le mémorise
+// (defaultOptions.style + recapture orig_style) et marque la trace comme
+// modifiée : la sauvegarde (Save) persiste alors le style via
+// getTraceBaseStyle(), exactement comme après une édition validée.
+// Lancement : barre métier "Style interactif" ou menu contextuel (la
+// trace courante ou visée). La librairie est chargée en dur par
+// LeafletEditService (plus d'option 'styleeditor' dans la config).
+var LE_STYLE_PATH_KEYS = [
+  "stroke",
+  "color",
+  "weight",
+  "opacity",
+  "lineCap",
+  "lineJoin",
+  "dashArray",
+  "dashOffset",
+  "fill",
+  "fillColor",
+  "fillOpacity",
+  "fillRule",
+];
+
+// Monte (une fois) le contrôle StyleEditor et branche le signal.
+// Usage programmatique doc : L.control.styleEditor() + enable(layer).
+// addControl() est REQUIS (il déclenche onAdd -> createUi qui initialise
+// options.map/controlUI/styleEditorDiv, utilisés par enable()).
+// L'icône de la barre gauche est ensuite masquée (display:none) : point
+// d'entrée unique = barre métier / menu contextuel.
+function ensureStyleEditor() {
+  try {
+    if (typeof L === "undefined" || !L.control || typeof L.control.styleEditor !== "function") {
+      leafletEditNotify(
+        "error",
+        "Style interactif",
+        "Librairie StyleEditor non chargée."
+      );
+      return null;
+    }
+    if (!map || !map.lMap) {
+      return null;
+    }
+    map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+    if (!map.lMap.leafletEdit.styleEditor) {
+      // Pas de tooltip "Cliquez sur l'élément..." : la trace est déjà
+      // choisie (barre métier / menu contextuel), le formulaire s'ouvre
+      // directement dessus.
+      var ctl = L.control.styleEditor({ position: "topleft", showTooltip: false });
+      map.lMap.addControl(ctl);
+      // Masque le bouton natif de la barre gauche (et son Cancel inerte).
+      // On utilise display:none (pas de remove) pour garder le contrôle
+      // fonctionnel. Le panneau (.leaflet-styleeditor, élément séparé)
+      // reste piloté par notre code (enable/disable programmatiques).
+      try {
+        var btnBox = ctl.options && ctl.options.controlDiv;
+        if (btnBox && btnBox.style) {
+          btnBox.style.display = "none";
+        }
+        if (map.lMap.getContainer && typeof map.lMap.getContainer().querySelector === "function") {
+          var native = map.lMap.getContainer().querySelector(".leaflet-control-styleeditor");
+          if (native && native.style) {
+            native.style.display = "none";
+          }
+        }
+      } catch (errBtn) {}
+      map.lMap.leafletEdit.styleEditor = ctl;
+      map.lMap.on("styleeditor:changed", onStyleEditorChanged);
+    }
+    return map.lMap.leafletEdit.styleEditor;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Le panneau StyleEditor est-il ouvert (mode édition) ?
+function isStyleEditorActive() {
+  try {
+    var ctl = map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.styleEditor;
+    return !!(ctl && typeof ctl.isEnabled === "function" && ctl.isEnabled());
+  } catch (err) {
+    return false;
+  }
+}
+
+// Une édition géométrique Geoman est-elle en cours (édition ou dessin) ?
+function isGeomanBusy() {
+  try {
+    if (!map || !map.lMap) {
+      return false;
+    }
+    var pm = map.lMap.pm;
+    if (pm && pm.Draw && typeof pm.Draw.getActiveShape === "function" && pm.Draw.getActiveShape()) {
+      return true;
+    }
+    var traces = map.leafletEditTraces || {};
+    return Object.values(traces).some(function (l) {
+      try {
+        return !!(l && l.pm && typeof l.pm.enabled === "function" && l.pm.enabled());
+      } catch (err) {
+        return false;
+      }
+    });
+  } catch (err2) {
+    return false;
+  }
+}
+
+// Ouvre le StyleEditor sur une trace (courante si non précisée).
+// Barre métier sans trace (appel sans couche) alors que le mode est déjà
+// actif : quitte le mode style. Le bouton natif étant retiré au montage,
+// la barre métier est l'unique interrupteur (entrée + sortie). Un appel
+// AVEC couche explicite (menu contextuel, popup tactile) ouvre toujours
+// le formulaire sur cette couche, même si le mode est déjà actif.
+// Une barre Valider (rond vert) / Annuler (croix rouge) s'affiche en bas
+// de carte pendant la session (voir showStyleConfirmBar).
+function editStyleInteractive(e) {
+  var layer = (e && e.relatedTarget) || null;
+  if (!layer && typeof isStyleEditorActive === "function" && isStyleEditorActive()) {
+    if (typeof finishStyleSession === "function") {
+      finishStyleSession(true);
+    }
+    return;
+  }
+  if (!layer && typeof getCurrentTrace === "function") {
+    try {
+      layer = getCurrentTrace();
+    } catch (err) {}
+  }
+  if (!layer) {
+    leafletEditNotify("warning", "Style interactif", "Touchez d'abord une trace sur la carte.");
+    return;
+  }
+  if (typeof isGeomanBusy === "function" && isGeomanBusy()) {
+    leafletEditNotify("warning", "Style interactif", "Terminez d'abord l'édition géométrique en cours.");
+    return;
+  }
+  var ctl = ensureStyleEditor();
+  if (!ctl) {
+    return;
+  }
+  // Snapshot pour "Annuler" : style persisté + style d'origine + flag.
+  try {
+    map.lMap.leafletEdit.styleSnapshot = {
+      style: JSON.parse(JSON.stringify((layer.defaultOptions && layer.defaultOptions.style) || {})),
+      orig: layer.orig_style ? JSON.parse(JSON.stringify(layer.orig_style)) : null,
+      hasOrig: !!layer.orig_style,
+      options: extractLeafletPathStyle(layer) || {},
+      updated: !!layer.leafletEditUpd,
+    };
+  } catch (errSnap) {
+    map.lMap.leafletEdit.styleSnapshot = null;
+  }
+  map.lMap.leafletEdit.styleLayer = layer;
+  try {
+    ctl.enable(layer);
+  } catch (err2) {
+    leafletEditNotify("error", "Style interactif", "Ouverture impossible sur cette trace.");
+    return;
+  }
+  if (typeof showStyleConfirmBar === "function") {
+    showStyleConfirmBar();
+  }
+  leafletEditNotify(
+    "info",
+    "Style interactif",
+    "Modifiez le style dans le panneau, puis Validez (rond vert) ou Annulez (croix rouge) en bas de carte."
+  );
+}
+
+// Termine la session de style. commit=false : restaure le snapshot
+// (style persisté + origine + flag + visuel). Sinon garde le style
+// appliqué en direct. Ferme le panneau et la barre de confirmation.
+function finishStyleSession(commit) {
+  var le = null;
+  try {
+    le = map && map.lMap && map.lMap.leafletEdit;
+  } catch (err) {}
+  if (!le) {
+    return;
+  }
+  var layer = le.styleLayer || null;
+  var snap = le.styleSnapshot || null;
+  if (commit === false && layer && snap) {
+    try {
+      layer.defaultOptions = layer.defaultOptions || {};
+      layer.defaultOptions.style = JSON.parse(JSON.stringify(snap.style || {}));
+      if (snap.hasOrig) {
+        layer.orig_style = JSON.parse(JSON.stringify(snap.orig));
+      } else {
+        layer.orig_style = undefined;
+        try {
+          delete layer.orig_style;
+        } catch (errDel) {}
+      }
+      layer.setStyle(JSON.parse(JSON.stringify(snap.options || {})));
+      layer.leafletEditUpd = !!snap.updated;
+      if (typeof refreshTraceStyle === "function") {
+        refreshTraceStyle(layer);
+      }
+    } catch (errRevert) {}
+    leafletEditNotify("info", "Style interactif", "Modifications de style annulées.");
+  } else if (commit !== false) {
+    leafletEditNotify("info", "Style interactif", "Style validé — pensez à Save pour persister.");
+  }
+  try {
+    if (le.styleEditor && typeof le.styleEditor.disable === "function") {
+      le.styleEditor.disable();
+    }
+  } catch (errOff) {}
+  le.styleLayer = null;
+  le.styleSnapshot = null;
+  if (typeof hideEditConfirmBar === "function") {
+    hideEditConfirmBar();
+  }
+}
+
+// Résout la trace visée par un événement 'styleeditor:changed'.
+// L'événement transporte une COPIE des propriétés de la couche : on
+// retrouve la vraie couche via son identifiant Leaflet, vérifié dans
+// le registre des traces (repli : couche de lancement explicite).
+function resolveStyleLayer(e) {
+  try {
+    var registry = (map && map.leafletEditTraces) || {};
+    var lid = e && e._leaflet_id;
+    if (lid) {
+      var found = Object.values(registry).filter(function (l) {
+        try {
+          return l && typeof L !== "undefined" && L.stamp(l) === lid;
+        } catch (err2) {
+          return false;
+        }
+      })[0];
+      if (found) {
+        return found;
+      }
+    }
+  } catch (err) {}
+  try {
+    var launched = map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.styleLayer;
+    if (launched) {
+      return launched;
+    }
+  } catch (err3) {}
+  return null;
+}
+
+// Extrait le style de chemin courant d'une couche (mêmes clés que
+// saveStyle()). null si rien d'exploitable (ex. marqueur icône).
+function extractLeafletPathStyle(layer) {
+  var out = null;
+  try {
+    var options = (layer && layer.options) || {};
+    LE_STYLE_PATH_KEYS.forEach(function (key) {
+      if (typeof options[key] !== "undefined" && options[key] !== null) {
+        out = out || {};
+        out[key] = options[key];
+      }
+    });
+  } catch (err) {}
+  return out;
+}
+
+// Signal 'styleeditor:changed' : récupère le style et marque à sauver,
+// SANS toucher au visuel. Surtout pas de setUpdated()/refreshTraceStyle()
+// ici : le style d'état orange écraserait le réglage en cours (chaque
+// curseur semblerait mort car immédiatement réinitialisé). Le flag seul
+// suffit à proposer la sauvegarde ; le style choisi reste affiché tel quel.
+function onStyleEditorChanged(e) {
+  var layer = resolveStyleLayer(e);
+  if (!layer) {
+    return;
+  }
+  var style = extractLeafletPathStyle(layer);
+  if (!style) {
+    return;
+  }
+  layer.defaultOptions = layer.defaultOptions || {};
+  layer.defaultOptions.style = Object.assign({}, layer.defaultOptions.style || {}, style);
+  // Mémorise comme style d'origine (sinon la désélection restaurerait
+  // l'ancien style, et Save persisterait l'ancien via getTraceBaseStyle).
+  try {
+    layer.orig_style = Object.assign({}, layer.orig_style || {}, style);
+  } catch (err) {}
+  layer.leafletEditUpd = true;
+}
+
+// Flèches de sens des traces (barre Outils), via leaflet-arrowheads.
+// Fallbacks kept in sync with LeafletEditFormatter::defaultSettings()
+// (used when the display predates these settings or values are invalid).
+// The effective values come from the content type configuration
+// (formatter 'Arrowheads Settings'), see getArrowsDefaults().
+var LE_ARROWS_FALLBACK = {
+  yawn: 50,
+  size: "30px",
+  frequency: "endonly",
+  fill: true,
+};
+var LE_TURF_SIMPLIFY_FALLBACK = {
+  tolerance: 0.0001,
+  highQuality: true,
+};
+
+// Reads the Arrowheads settings configured on the content type
+// (formatter 'Arrowheads Settings'), with safe fallbacks.
+function getArrowsDefaults() {
+  var out = {
+    yawn: LE_ARROWS_FALLBACK.yawn,
+    size: LE_ARROWS_FALLBACK.size,
+    frequency: LE_ARROWS_FALLBACK.frequency,
+    fill: LE_ARROWS_FALLBACK.fill,
+  };
+  try {
+    var cfg = drupalSettings[mapid] &&
+      drupalSettings[mapid].leaflet_edit &&
+      drupalSettings[mapid].leaflet_edit.arrowheads;
+    if (!cfg) {
+      return out;
+    }
+    var yawn = parseInt(cfg.yawn, 10);
+    if (!isNaN(yawn)) {
+      out.yawn = Math.min(120, Math.max(10, yawn));
+    }
+    var size = (cfg.size || "").toString().trim();
+    if (size !== "") {
+      out.size = size;
+    }
+    out.fill = !!cfg.fill;
+    var mode = (cfg.frequency_mode || "endonly").toString();
+    var value = (cfg.frequency_value || "").toString().trim();
+    if (mode === "allvertices" || mode === "endonly") {
+      out.frequency = mode;
+    } else if (mode === "count") {
+      var n = parseInt(value, 10);
+      out.frequency = !isNaN(n) && n > 0 ? n : LE_ARROWS_FALLBACK.frequency;
+    } else if (mode === "distance") {
+      out.frequency = /^\d+(\.\d+)?(m|px)$/.test(value) ? value : LE_ARROWS_FALLBACK.frequency;
+    }
+  } catch (err) {}
+  return out;
+}
+
+// Reads the Turf simplify settings configured on the content type
+// (formatter 'Turf Settings'), with safe fallbacks.
+function getTurfSimplifyOptions() {
+  var out = {
+    tolerance: LE_TURF_SIMPLIFY_FALLBACK.tolerance,
+    highQuality: LE_TURF_SIMPLIFY_FALLBACK.highQuality,
+  };
+  try {
+    var turf = drupalSettings[mapid] &&
+      drupalSettings[mapid].leaflet_edit &&
+      drupalSettings[mapid].leaflet_edit.turf;
+    var cfg = turf && turf.simplify;
+    if (!cfg) {
+      return out;
+    }
+    var tolerance = parseFloat(cfg.tolerance);
+    if (!isNaN(tolerance) && tolerance >= 0) {
+      out.tolerance = tolerance;
+    }
+    out.highQuality = !!cfg.high_quality;
+  } catch (err) {}
+  return out;
+}
+
+// Is the Turf 'simplify' operation enabled on the content type ?
+// (Absent settings = legacy displays : enabled.)
+function isTurfSimplifyEnabled() {
+  try {
+    var turf = drupalSettings[mapid] &&
+      drupalSettings[mapid].leaflet_edit &&
+      drupalSettings[mapid].leaflet_edit.turf;
+    if (!turf || !turf.operations) {
+      return true;
+    }
+    return !!turf.operations.simplify;
+  } catch (err) {
+    return true;
+  }
+}
+
+// Le plugin leaflet-arrowheads est-il chargé ?
+function arrowsPluginLoaded() {
+  try {
+    return !!(
+      typeof L !== "undefined" &&
+      L.Polyline &&
+      L.Polyline.prototype &&
+      typeof L.Polyline.prototype.arrowheads === "function"
+    );
+  } catch (err) {
+    return false;
+  }
+}
+
+function isArrowsEnabled() {
+  try {
+    return !!(map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.arrows);
+  } catch (err) {
+    return false;
+  }
+}
+
+// Retire les flèches d'une trace (sans toucher à l'état global).
+function clearArrows(layer) {
+  try {
+    if (layer && typeof layer.deleteArrowheads === "function") {
+      layer.deleteArrowheads();
+    }
+  } catch (err) {}
+}
+
+// (Dé)applique les flèches à UNE trace selon l'état global. Idempotent :
+// les anciennes flèches sont retirées avant reconstruction. Sans effet
+// si le plugin est absent, la couche hors carte ou non linéaire (points).
+function refreshArrows(layer) {
+  try {
+    if (!layer || typeof layer.arrowheads !== "function" || typeof layer.deleteArrowheads !== "function") {
+      return;
+    }
+    try {
+      layer.deleteArrowheads();
+    } catch (e) {}
+    if (!isArrowsEnabled() || !layer._map) {
+      return;
+    }
+    layer.arrowheads(getArrowsDefaults());
+    // arrowheads() ne fait que mémoriser les options : force le rendu
+    // immédiat (sinon visible seulement au prochain zoom/recentrage).
+    if (typeof layer._reset === "function") {
+      layer._reset();
+    }
+  } catch (err) {}
+}
+
+// Active / coupe les flèches de sens (barre Outils).
+function setArrowsEnabled(enabled) {
+  try {
+    if (enabled && !arrowsPluginLoaded()) {
+      leafletEditNotify(
+        "error",
+        "Flèches de sens",
+        "Librairie leaflet-arrowheads non chargée (outil désactivé dans la configuration)."
+      );
+      return;
+    }
+    map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+    map.lMap.leafletEdit.arrows = !!enabled;
+    Object.values(map.leafletEditTraces || {}).forEach(function (l) {
+      try {
+        if (!l) {
+          return;
+        }
+        if (enabled) {
+          refreshArrows(l);
+        } else {
+          clearArrows(l);
+        }
+      } catch (err) {}
+    });
+    leafletEditNotify(
+      "info",
+      "Flèches de sens",
+      enabled ? "Flèches de sens affichées." : "Flèches de sens masquées."
+    );
+  } catch (err) {}
 }
 
 function evtFeatureVertexadded(e) {
@@ -480,15 +1106,16 @@ function evtPanelAdd(e) {
 }
 
 function showCoordinates(e) {
-  a = getLayGroup(e.relatedTarget);
+  var le = (e.relatedTarget.defaultOptions && e.relatedTarget.defaultOptions.leafletEdit) ||
+    (e.relatedTarget.options && e.relatedTarget.options.leafletEdit) || {};
   alert(
     e.latlng +
       "\nColor: " +
       e.relatedTarget.options.color +
-      "\nEventParents: " +
-      Object.keys(e.relatedTarget._eventParents).toString() +
-      "\nLaygroupID: " +
-      a._leaflet_id +
+      "\nTrace ID: " +
+      (le.tid || "?") +
+      "\nFichier: " +
+      (le.filename || "—") +
       "\nisUpdated: " +
       isUpdated(e.relatedTarget) +
       "(any updated: " +
@@ -503,6 +1130,13 @@ function showCoordinates(e) {
 }
 
 function editLayer(e) {
+  // Une session de style en cours libère la barre de confirmation et le
+  // panneau (style gardé tel quel) avant l'édition géométrique.
+  try {
+    if (typeof isStyleEditorActive === "function" && isStyleEditorActive() && typeof finishStyleSession === "function") {
+      finishStyleSession(true);
+    }
+  } catch (errStyle) {}
   var layer = e.relatedTarget;
   // Mémorise les positions d'origine pour une annulation éventuelle.
   if (!layer.leafletEditOrigLatLngs) {
@@ -526,6 +1160,11 @@ function editLayer(e) {
   });
   // Style d'édition via le gestionnaire d'état (prioritaire).
   refreshTraceStyle(layer);
+  // Retire les flèches pendant l'édition (géométrie en cours de
+  // modification) : reconstruites à la validation (finEditLayer).
+  if (typeof clearArrows === "function") {
+    clearArrows(layer);
+  }
   // Affiche la barre Valider / Annuler.
   if (typeof showEditConfirmBar === "function") {
     showEditConfirmBar(layer);
@@ -558,6 +1197,10 @@ function finEditLayer(e, save) {
   if (typeof hideEditConfirmBar === "function") {
     hideEditConfirmBar();
   }
+  // La géométrie a pu changer : reconstruit les flèches de sens.
+  if (typeof refreshArrows === "function") {
+    refreshArrows(layer);
+  }
 }
 
 function moveValidation(layer, marker, event) {
@@ -570,13 +1213,31 @@ function removeValidation(obj) {
 }
 
 function leafletEditEndpoint(key, fallback) {
+  var url = fallback;
   try {
     var settings = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit;
     if (settings && settings.endpoints && settings.endpoints[key]) {
-      return settings.endpoints[key];
+      url = settings.endpoints[key];
     }
   } catch (e) {}
-  return fallback;
+  // Les routes POST exigent un token CSRF en query (?token=...), lié au
+  // chemin EXACT de la route (ex: 'leaflet-edit/trace/848'). Le JS le
+  // récupère via l'endpoint csrf-token (endpoints.csrfTokenUrl + path).
+  if ((key === "saveTrace") && url.indexOf("token=") === -1) {
+    try {
+      var settings2 = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit;
+      var tokenUrl = (settings2 && settings2.endpoints && settings2.endpoints.csrfTokenUrl) || null;
+      var path = url.replace(/^\//, "").split("?")[0];
+      if (tokenUrl) {
+        jQuery.ajax({ url: tokenUrl + encodeURIComponent(path), async: false }).done(function (data) {
+          if (data && data.token) {
+            url += (url.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(data.token);
+          }
+        });
+      }
+    } catch (e2) {}
+  }
+  return url;
 }
 
 function leafletEditNotify(type, title, message) {
@@ -611,6 +1272,7 @@ function showBusyModal(title, message) {
       jQuery("<div>").text(message || "Veuillez patienter…").html() + "</p></div>",
     modal: true,
     visible: false,
+    position: "top",
     closeButton: false,
   });
   win.show();
@@ -629,78 +1291,250 @@ function hideBusyModal() {
   } catch (err) {}
 }
 
-function saveEntity(e) {
-  console.log("Save");
-
-  var fd = new FormData();
-
-  // search all features with same fid
-  var nid = e.relatedTarget.options.leafletEdit["nid"];
-  var fid = e.relatedTarget.options.leafletEdit["fid"];
-  var leafletid = e.relatedTarget._leaflet_id;
-
-  var data = [];
-  data.push(e.relatedTarget.toGeoJSON()); /*= [
-     {
-      geojson: e.relatedTarget.toGeoJSON(),
-      type: e.relatedTarget.feature.properties["type"],
-    },
-
-  ];*/
-
-  for (const [key, value] of Object.entries(e.relatedTarget._map._layers)) {
-    console.log(key, value);
-    if (key == leafletid) {
-      continue;
-    }
-    if (value.options.leafletEdit) {
-      if (
-        value.options.leafletEdit["fid"] == fid &&
-        value.options.leafletEdit["nid"] == nid
-      ) {
-        // alert (key);
-        if (value.feature) {
-          if (value.defaultOptions) {
-            /* data.push({
-              geojson: value.toGeoJSON(),
-              type: value.feature.properties["type"],
-            }); */
-            data.push(value.toGeoJSON());
-            select_feature(value, 10000);
-          }
-        }
-      }
-    }
+// Construit les champs POST pour la création d'une trace (testable).
+// pending: {mode: 'existing'|'new', fid, filename, label}.
+function buildCreateTraceFields(pending, geojson, nid, label) {
+  var fields = {
+    nid: nid,
+    geojson: JSON.stringify(geojson),
+    label: label,
+  };
+  if (pending && pending.mode === "existing" && parseInt(pending.fid, 10) > 0) {
+    fields.fid = String(parseInt(pending.fid, 10));
+  } else if (pending && pending.mode !== "existing" && pending.filename) {
+    fields.filename = pending.filename;
   }
+  return fields;
+}
 
-  fd.append("fid", e.relatedTarget.defaultOptions.leafletEdit.fid);
-  fd.append("nid", e.relatedTarget.defaultOptions.leafletEdit.nid);
-  fd.append("geojson", JSON.stringify(turf.featureCollection(data)));
+// Crée côté serveur la trace dessinée (flux "Nouvelle trace").
+// Le fichier a été choisi AVANT le dessin : existant (fid) ou nouveau
+// (filename, créé par le serveur). Enregistre ensuite la couche avec
+// son vrai tid (plus de "drawn-*" unsauvegardable).
+function createTraceFromDraw(e) {
+  var pending = null;
+  try {
+    pending = map.lMap.leafletEdit.pendingNewTrace || null;
+    map.lMap.leafletEdit.pendingNewTrace = null;
+  } catch (err) {}
+  var drawnLayer = e && e.layer;
+  var geojson = null;
+  try {
+    geojson = drawnLayer ? drawnLayer.toGeoJSON() : null;
+  } catch (err2) {}
+  if (!pending || !drawnLayer || !geojson || !geojson.geometry) {
+    try {
+      if (drawnLayer && drawnLayer.remove) {
+        drawnLayer.remove();
+      }
+    } catch (err3) {}
+    leafletEditNotify("error", "Nouvelle trace", "Dessin inexploitable.");
+    return;
+  }
+  var label = pending.label || "Trace";
+  var nid = null;
+  try {
+    nid = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit && drupalSettings[mapid].leaflet_edit.nid;
+  } catch (err4) {}
+  var fields = buildCreateTraceFields(pending, geojson, nid, label);
+  var fd = new FormData();
+  Object.keys(fields).forEach(function (k) {
+    fd.append(k, fields[k]);
+  });
 
-  var rsave = [];
-  // Modale bloquante pendant la sauvegarde (évite les doubles clics /
-  // autres opérations concurrentes). Fermée dans success + error.
-  showBusyModal("Sauvegarde", "Sauvegarde de la trace en cours…");
+  showBusyModal("Création", "Création de la trace en cours…");
+
+  // Token CSRF lié au chemin EXACT 'leaflet-edit/trace' (voir saveEntity).
+  var createBase = leafletEditEndpoint("createTrace", "/leaflet-edit/trace");
+  createBase = createBase.split("?")[0];
+  var createUrl = createBase;
+  try {
+    var settings = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit;
+    var tokenUrl = (settings && settings.endpoints && settings.endpoints.csrfTokenUrl) || null;
+    var createPath = createUrl.replace(/^\//, "").split("?")[0];
+    if (tokenUrl) {
+      jQuery.ajax({ url: tokenUrl + encodeURIComponent(createPath), async: false }).done(function (data) {
+        if (data && data.token) {
+          createUrl += (createUrl.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(data.token);
+        }
+      });
+    }
+  } catch (err5) {}
 
   jQuery.ajax({
-    url: leafletEditEndpoint("save", "/leaflet-edit/save"),
+    url: createUrl,
     type: "post",
     data: fd,
     contentType: false,
     processData: false,
     success: function (response) {
       hideBusyModal();
-      rsave = response;
-      let result = response.success;
-      if (result) {
-        leafletEditNotify("success", "Save", "Saved");
-        // Sauvegarde OK : le groupe n'est plus "modifié", le style
-        // orange disparaît sur toutes ses traces.
-        e.relatedTarget.defaultOptions.leafletEdit.fid = response.fid;
-        clearUpdatedGroup(e.relatedTarget);
+      if (!response || !response.success || !response.trace_id) {
+        try {
+          drawnLayer.remove();
+        } catch (err6) {}
+        leafletEditNotify("error", "Nouvelle trace", "Création refusée : " + ((response && response.message) || "?"));
+        return;
+      }
+      var tid = parseInt(response.trace_id, 10);
+      var sourceFid = parseInt(response.source_fid || 0, 10) || 0;
+      var filename = response.filename || "";
+      var groupName = filename !== "" ? filename : "Traces";
+      try {
+        drawnLayer.remove();
+      } catch (err7) {}
+      // Reconstruit une couche propre (même modèle que le chargement
+      // bbox) avec le contexte serveur (vrai tid, révision, fichier).
+      var feature = {
+        type: "Feature",
+        geometry: geojson.geometry,
+        properties: {
+          _trace_id: tid,
+          _revision_id: response.revision_id || null,
+          _label: label,
+          _source: filename,
+          _source_fid: sourceFid,
+        },
+        style: response.style || { color: "#3388ff", weight: 3 },
+      };
+      var sub = L.geoJSON(feature, {
+        pointToLayer: function (f, latlng) {
+          return L.circleMarker(latlng, f.style || { color: "red", weight: 5 });
+        },
+      });
+      sub.eachLayer(function (value) {
+        value.defaultOptions = value.defaultOptions || {};
+        value.defaultOptions.leafletEdit = {
+          nid: nid,
+          tid: tid,
+          revision_id: response.revision_id || null,
+          description: label,
+          filename: filename,
+          source_fid: sourceFid,
+          _selected: false,
+          _updated: false,
+        };
+        value.defaultOptions.style = feature.style;
+        value.feature = value.feature || feature;
+        if (label) {
+          try {
+            value.bindTooltip(label, { sticky: true });
+          } catch (err8) {}
+        }
+        processLoadedData(value);
+        if (map && typeof map.registerTraceLayer === "function") {
+          map.registerTraceLayer(value, tid, label, groupName, false);
+        } else {
+          try {
+            value.addTo(map.lMap);
+          } catch (err9) {}
+          map.leafletEditTraces[tid] = value;
+        }
+        if (map && typeof map.indexTraceFile === "function") {
+          map.indexTraceFile(tid, sourceFid, groupName);
+        }
+        // Sélection visuelle (non bloquant : ne doit jamais empêcher
+        // la notification de succès ci-dessous).
+        try {
+          if (typeof select_feature === "function") {
+            select_feature(value);
+          }
+          if (typeof setCurrentTrace === "function") {
+            setCurrentTrace(value);
+          }
+        }
+        catch (err12) {}
+      });
+      leafletEditNotify("success", "Nouvelle trace", "Trace " + tid + " créée dans " + (filename !== "" ? filename : "Sans fichier") + ".");
+    },
+    error: function (xhr) {
+      hideBusyModal();
+      try {
+        drawnLayer.remove();
+      } catch (err10) {}
+      var detail = "";
+      try {
+        var resp = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+        if (resp && (resp.message || resp.error)) {
+          detail = " - " + (resp.message || resp.error);
+        }
+      } catch (err11) {}
+      leafletEditNotify("error", "Nouvelle trace", "Création impossible (" + xhr.status + ")" + detail);
+    },
+  });
+}
+
+function saveEntity(e) {
+  var le = (e.relatedTarget.defaultOptions && e.relatedTarget.defaultOptions.leafletEdit) ||
+    (e.relatedTarget.options && e.relatedTarget.options.leafletEdit) || {};
+  var tid = le.tid || e.relatedTarget._geofileTid || null;
+  if (!tid) {
+    leafletEditNotify("error", "Save", "Trace sans identifiant (rechargez la carte).");
+    return;
+  }
+  var fd = new FormData();
+  fd.append("geojson", JSON.stringify(e.relatedTarget.toGeoJSON()));
+  // Style PROPRE persisté avec la géométrie : jamais le style d'état
+  // "sélectionné" (violet) / "modifié" (orange). Si la trace est
+  // sélectionnée au moment du save, on envoie son style d'origine.
+  try {
+    var baseStyle = (typeof getTraceBaseStyle === "function")
+      ? getTraceBaseStyle(e.relatedTarget)
+      : (e.relatedTarget.options || {});
+    fd.append("style", JSON.stringify({
+      color: baseStyle.color,
+      weight: baseStyle.weight,
+      dashArray: baseStyle.dashArray || null,
+    }));
+  } catch (err) {}
+
+  // Modale bloquante pendant la sauvegarde (évite les doubles clics /
+  // autres opérations concurrentes). Fermée dans success + error.
+  showBusyModal("Sauvegarde", "Sauvegarde de la trace en cours…");
+
+  // Le token CSRF est lié au chemin EXACT de la route
+  // ('leaflet-edit/trace/{tid}') : on le demande pour l'URL complète
+  // (base + tid), pas pour la base seule (sinon 403 'csrf_token invalid').
+  // NOTE : leafletEditEndpoint("saveTrace") ajoute DÉJÀ un token calculé
+  // pour la base seule ('leaflet-edit/trace') : il faut le RETIRER avant
+  // d'ajouter le bon token, sinon l'URL finit en
+  // '/leaflet-edit/trace?token=<base>/924' (token invalide -> 403).
+  var saveBase = leafletEditEndpoint("saveTrace", "/leaflet-edit/trace");
+  // Retire un éventuel token calculé pour la base seule.
+  saveBase = saveBase.split("?")[0];
+  var saveUrl = saveBase + "/" + tid;
+  try {
+    if (saveUrl.indexOf("token=") === -1) {
+      var settings3 = drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit;
+      var tokenUrl3 = (settings3 && settings3.endpoints && settings3.endpoints.csrfTokenUrl) || null;
+      var savePath = saveUrl.replace(/^\//, "").split("?")[0];
+      if (tokenUrl3) {
+        jQuery.ajax({ url: tokenUrl3 + encodeURIComponent(savePath), async: false }).done(function (data) {
+          if (data && data.token) {
+            saveUrl += (saveUrl.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(data.token);
+          }
+        });
+      }
+    }
+  } catch (e3) {}
+
+  jQuery.ajax({
+    url: saveUrl,
+    type: "post",
+    data: fd,
+    contentType: false,
+    processData: false,
+    success: function (response) {
+      hideBusyModal();
+      if (response && response.success) {
+        leafletEditNotify("success", "Save", "Saved (révision " + response.revision_id + ")");
+        // Sauvegarde OK : la trace n'est plus "modifiée".
+        try {
+          e.relatedTarget.defaultOptions.leafletEdit.revision_id = response.revision_id;
+        } catch (err) {}
+        clearUpdated(e.relatedTarget);
       } else {
-        let msg = response.message;
-        leafletEditNotify("error", "Save", "file not uploaded: " + msg);
+        leafletEditNotify("error", "Save", "file not uploaded: " + ((response && response.message) || "?"));
       }
     },
     error: function (xhr) {
@@ -715,19 +1549,6 @@ function saveEntity(e) {
       leafletEditNotify("error", "Save", "file not uploaded (" + xhr.status + ")" + detail);
     },
   });
-  if (rsave.success) {
-    leafletEditNotify(
-      "success",
-      "Save",
-      "Saved (" +
-        e.relatedTarget.defaultOptions.leafletEdit.fid +
-        "=>" +
-        rsave.fid +
-        ")"
-    );
-    e.relatedTarget.defaultOptions.leafletEdit.fid = rsave.fid;
-    clearUpdatedGroup(e.relatedTarget);
-  }
 }
 
 async function exportGPX(e) {
@@ -787,41 +1608,52 @@ async function exportGPX(e) {
 async function exportGPXAll(e) {
   console.log("export GPX (All)");
 
-  var nid = e.relatedTarget.options.leafletEdit["nid"];
-  var fid = e.relatedTarget.options.leafletEdit["fid"];
-  var leafletid = e.relatedTarget._leaflet_id;
+  // Nouveau modèle : 1 trace = 1 layer, regroupées par fichier source.
+  // "Export All" = toutes les traces du MÊME fichier source que la trace
+  // courante (même groupe panel), pas tout le registre.
+  var cur = e.relatedTarget;
+  var curLe = (cur.defaultOptions && cur.defaultOptions.leafletEdit) ||
+    (cur.options && cur.options.leafletEdit) || {};
+  var curSource = curLe.filename || "";
+  var leafletid = cur._leaflet_id;
+
+  function layerSource(value) {
+    var le = (value.defaultOptions && value.defaultOptions.leafletEdit) ||
+      (value.options && value.options.leafletEdit) || {};
+    return le.filename || "";
+  }
+  function layerType(value) {
+    try {
+      return (value.feature && value.feature.properties && value.feature.properties.type) || "";
+    } catch (err) {
+      return "";
+    }
+  }
 
   data = [
     {
-      geojson: e.relatedTarget.toGeoJSON(),
-      type: e.relatedTarget.feature.properties["type"],
+      geojson: cur.toGeoJSON(),
+      type: layerType(cur),
     },
   ];
-  select_feature(e.relatedTarget, 10000);
+  select_feature(cur, 10000);
 
-  for (const [key, value] of Object.entries(e.relatedTarget._map._layers)) {
-    console.log(key, value);
-    if (key == leafletid) {
-      continue;
+  Object.values((map && map.leafletEditTraces) || {}).forEach(function (value) {
+    if (!value || value._leaflet_id === leafletid) {
+      return;
     }
-    if (value.options.leafletEdit) {
-      if (
-        value.options.leafletEdit["fid"] == fid &&
-        value.options.leafletEdit["nid"] == nid
-      ) {
-        // alert (key);
-        if (value.feature) {
-          if (value.defaultOptions) {
-            data.push({
-              geojson: value.toGeoJSON(),
-              type: value.feature.properties["type"],
-            });
-            select_feature(value, 10000);
-          }
-        }
-      }
+    if (!value.feature || !value.toGeoJSON) {
+      return;
     }
-  }
+    if (layerSource(value) !== curSource) {
+      return;
+    }
+    data.push({
+      geojson: value.toGeoJSON(),
+      type: layerType(value),
+    });
+    select_feature(value, 10000);
+  });
 
   var fd = new FormData();
   fd.append("geojson", JSON.stringify(data));
@@ -873,27 +1705,38 @@ async function exportGPXAll(e) {
 }
 
 async function exportGPXAllMerge(e) {
-  console.log("export GPX (All)");
+  console.log("export GPX (All Merge)");
 
-  var nid = e.relatedTarget.options.leafletEdit["nid"];
-  var fid = e.relatedTarget.options.leafletEdit["fid"];
-  var leafletid = e.relatedTarget._leaflet_id;
+  // Nouveau modèle : 1 trace = 1 layer. "All Merge" = toutes les traces
+  // du MÊME fichier source que la trace courante.
+  var cur = e.relatedTarget;
+  var curLe = (cur.defaultOptions && cur.defaultOptions.leafletEdit) ||
+    (cur.options && cur.options.leafletEdit) || {};
+  var curSource = curLe.filename || "";
 
   data = [];
-  for (const [pkey, pvalue] of Object.entries(e.relatedTarget._eventParents)) {
-    p = pkey;
-    v = pvalue;
-    for (const [lkey, lvalue] of Object.entries(pvalue._layers)) {
-      data.push({
-        geojson: lvalue.toGeoJSON(),
-        type: lvalue.feature.properties["type"] ?? "",
-        properties: JSON.stringify(e.relatedTarget.feature.properties) ?? "",
-        color: lvalue.options.color ?? "",
-        width: lvalue.options.weight ?? "",
-      });
-      select_feature(lvalue, 10000);
+  Object.values((map && map.leafletEditTraces) || {}).forEach(function (lvalue) {
+    if (!lvalue || !lvalue.toGeoJSON || !lvalue.feature) {
+      return;
     }
-  }
+    var le = (lvalue.defaultOptions && lvalue.defaultOptions.leafletEdit) ||
+      (lvalue.options && lvalue.options.leafletEdit) || {};
+    if ((le.filename || "") !== curSource) {
+      return;
+    }
+    var props = {};
+    try {
+      props = lvalue.feature.properties || {};
+    } catch (err) {}
+    data.push({
+      geojson: lvalue.toGeoJSON(),
+      type: props.type || "",
+      properties: JSON.stringify(cur.feature.properties) || "",
+      color: lvalue.options.color || "",
+      width: lvalue.options.weight || "",
+    });
+    select_feature(lvalue, 10000);
+  });
 
   var fd = new FormData();
   fd.append("geojson", JSON.stringify(data));
@@ -1012,10 +1855,18 @@ function simplify(e) {
     }
     return;
   }
+  if (!isTurfSimplifyEnabled()) {
+    if (map && map.lMap && map.lMap.notification) {
+      map.lMap.notification.warning("Simplify", "Opération désactivée dans la configuration du type de contenu.");
+    }
+    return;
+  }
 
+  // Tolérance / qualité configurées sur le content type (Turf Settings).
+  var simplifyOptions = getTurfSimplifyOptions();
   a = turf.simplify(e.relatedTarget.toGeoJSON(), {
-    tolerance: 0.0001,
-    highQuality: true,
+    tolerance: simplifyOptions.tolerance,
+    highQuality: simplifyOptions.highQuality,
   });
   // e.relatedTarget.feature.geometry=a.geometry;
   // e.relatedTarget.feature.bbox=a.bbox;
@@ -1029,6 +1880,10 @@ function simplify(e) {
     // La géométrie a été réécrite : marque la trace comme modifiée
     // (style orange + proposée au save), comme après une édition validée.
     setUpdated(e.relatedTarget);
+    // Reconstruit les flèches sur la nouvelle géométrie.
+    if (typeof refreshArrows === "function") {
+      refreshArrows(e.relatedTarget);
+    }
     map.lMap.notification.success(
       "Simplify",
       "Path simplified (" +

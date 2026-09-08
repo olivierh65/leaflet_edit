@@ -1,10 +1,12 @@
-uuid: c9981776-83c4-43be-8057-a44c693104da
+uuid: a4dc90bb-8557-4121-8af8-1320868d7852
 langcode: en
 status: true
+dependencies:
+  module:
+    - leaflet_edit
 id: leaflet_editor_import_gpx
 label: 'Leaflet Editor Import GPX'
 weight: 6
 is_admin: false
 permissions:
   - 'import leaflet tracks from gpx'
-  - 'restful get transfert_geojson'

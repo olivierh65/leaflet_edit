@@ -1,0 +1,88 @@
+uuid: c3f3578d-7ffb-427a-831c-e11e5aa58746
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_leaflet_tools
+field_name: field_leaflet_tools
+entity_type: node
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: geoman
+      label: 'Geoman (dessin)'
+    -
+      value: locatecontrol
+      label: 'LocateControl (géolocalisation)'
+    -
+      value: panel_layers
+      label: 'PanelLayers (fonds + traces)'
+    -
+      value: notifications
+      label: Notifications
+    -
+      value: fullscreen
+      label: 'Plein écran'
+    -
+      value: ajax
+      label: leaflet.ajax
+    -
+      value: contextmenu
+      label: 'Menu contextuel (clic droit)'
+    -
+      value: control_window
+      label: 'Fenêtres de contrôle'
+    -
+      value: cascadebuttons
+      label: 'Barre métier'
+    -
+      value: distance_markers
+      label: 'Bornes de distance'
+    -
+      value: geometryutil
+      label: GeometryUtil
+    -
+      value: turf
+      label: 'Turf (traitements)'
+    -
+      value: togeojson
+      label: ToGeoJSON
+    -
+      value: slider
+      label: 'Curseur opacité du fond'
+    -
+      value: arrowheads
+      label: 'Flèches de sens'
+    -
+      value: togpx
+      label: 'Export GPX'
+    -
+      value: feature_control
+      label: 'FeatureControl (legacy)'
+    -
+      value: doubleclick
+      label: 'Double-clic (legacy)'
+    -
+      value: toolbar
+      label: 'Toolbar (legacy)'
+    -
+      value: select2
+      label: 'Select2 (legacy)'
+    -
+      value: dialog
+      label: 'Dialogue (legacy)'
+    -
+      value: _none
+      label: 'Aucun outil (socle seul)'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: -1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false
+

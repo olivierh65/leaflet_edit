@@ -1,0 +1,22 @@
+uuid: 19e86dc3-e8e4-4fa5-bf39-4857f2bbfd0f
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_leaflet_basemap
+field_name: field_leaflet_basemap
+entity_type: node
+type: list_string
+settings:
+  allowed_values: {  }
+  allowed_values_function: leaflet_edit_basemap_allowed_values
+module: options
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false
+

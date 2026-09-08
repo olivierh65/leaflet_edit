@@ -1,0 +1,22 @@
+uuid: f94e06a3-d85a-4e98-a4ea-679986f78ef1
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_leaflet_locate_pos
+    - node.type.leaflet_map_editor
+  module:
+    - options
+id: node.leaflet_map_editor.field_leaflet_locate_pos
+field_name: field_leaflet_locate_pos
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Position LocateControl (surcharge)'
+description: 'Laissez vide pour hériter du content type.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string
+

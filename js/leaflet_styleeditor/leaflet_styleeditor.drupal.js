@@ -1,18 +1,18 @@
 /**
- * We are overriding the adding features functionality of the Leaflet module.
+ * @file
+ * Ancienne initialisation carte du StyleEditor — DÉSACTIVÉE.
+ *
+ * Le StyleEditor s'utilise uniquement en programmatique via
+ * ensureStyleEditor() (js/leaflet_edit.menu.drupal.js) :
+ *   var ctl = L.control.styleEditor({ showTooltip: false });
+ *   map.lMap.addControl(ctl); // requis : initialise options.map/controlUI
+ *   ctl.options.controlDiv.style.display = 'none'; // pas d'icône à gauche
+ *   ctl.enable(layer);
+ *
+ * Ce fichier est conservé comme no-op pour ne pas casser un éventuel
+ * attachement résiduel. Ne rien y réactiver.
  */
-
 (function ($, Drupal, drupalSettings) {
-  console.log("init StyleEditor_");
-  $(document).on("leafletMapInit", function (e, settings, lMap, mapid) {
-    console.log ("event  style editor");
-    var editSettings = (drupalSettings[mapid] && drupalSettings[mapid].leaflet_edit) || {};
-    if ((editSettings.styleeditor) && (editSettings.styleeditor.control)) {
-      lMap.addControl(
-        L.control.styleEditor({
-          position: editSettings.styleeditor.position,
-        })
-      );
-    }
-  });
+  "use strict";
+  // No-op : aucune icône carte, aucun addControl ici.
 })(jQuery, Drupal, drupalSettings);

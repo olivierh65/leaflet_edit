@@ -6,7 +6,10 @@ package: 'Custom'
 configure: leaflet_edit.settings
 dependencies:
   - drupal:leaflet
-  - drupal:rest
-  - drupal:serialization
+  - drupal:node
+  - drupal:user
+  - drupal:options
+  - drupal:text
   - geofield:geofield
-  - geojsonfile_field:geojsonfile_field
+  - geophp:geophp
+  - geofile_field:geofile_field
