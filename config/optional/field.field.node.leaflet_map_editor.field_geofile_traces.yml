@@ -1,0 +1,23 @@
+uuid: 1a2b3c4d-0000-4000-8000-000000000002
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_geofile_traces
+    - node.type.leaflet_map_editor
+  module:
+    - geofile_field
+id: node.leaflet_map_editor.field_geofile_traces
+field_name: field_geofile_traces
+entity_type: node
+bundle: leaflet_map_editor
+label: 'Geofile traces'
+description: 'Attach traces to this map (back-office autocomplete). Same trace can be attached to several maps.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:geofile_trace'
+  handler_settings: {  }
+field_type: entity_reference
