@@ -131,16 +131,34 @@ function processLoadedData(layer) {
     evtFeatureMarkerdragEnd(e);
   });
 
+  // TEST PERF CSS : le style de base vient de la classe commune
+  // .leaflet-edit-trace-perf (rendu identique pour toutes les entités).
+  // On pose juste la classe et on NE fait plus de setStyle par entité
+  // (sinon le style inline écrase la classe et fausse la mesure).
+  // feature.style / defaultOptions.style restent stockés (exports, panneau
+  // détail) ; seule la peinture change. La sélection/surbrillance
+  // (LE_STYLE_SELECTED & co, setStyle ponctuels) reste active par-dessus.
+  // Revert : décommenter le bloc setStyle ci-dessous.
+  try {
+    layer.options = layer.options || {};
+    var _prev = layer.options.className || "";
+    if (_prev.indexOf("leaflet-edit-trace-perf") === -1) {
+      layer.options.className = (_prev ? _prev + " " : "") + "leaflet-edit-trace-perf";
+    }
+    if (layer._path && layer._path.classList) {
+      layer._path.classList.add("leaflet-edit-trace-perf");
+    }
+  } catch (errPerf) {}
   // set global settings
-  if (layer.defaultOptions.style) {
-    // console.log("Style global");
-    layer.setStyle(layer.defaultOptions.style);
-    // layer.setStyle(JSON.stringify(layer.defaultOptions.style));
-    // layer.setStyle({ color: layer.defaultOptions.style['color'], weight: layer.defaultOptions.style['weight'] });
-  } else {
-    // console.log("Pas de Style global!!!");
-    layer.setStyle({ color: "red", weight: 5 });
-  }
+  // if (layer.defaultOptions.style) {
+  //   // console.log("Style global");
+  //   layer.setStyle(layer.defaultOptions.style);
+  //   // layer.setStyle(JSON.stringify(layer.defaultOptions.style));
+  //   // layer.setStyle({ color: layer.defaultOptions.style['color'], weight: layer.defaultOptions.style['weight'] });
+  // } else {
+  //   // console.log("Pas de Style global!!!");
+  //   layer.setStyle({ color: "red", weight: 5 });
+  // }
   // set global popup name
   if (layer.defaultOptions.leafletEdit.description) {
     layer.bindTooltip(layer.defaultOptions.leafletEdit.description, {

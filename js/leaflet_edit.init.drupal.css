@@ -447,3 +447,70 @@ input.leaflet-panel-layers-selector[type="radio"] {
         top: 8px;
     }
 }
+
+
+/* Points (circleMarker) : même teinte, remplissage par défaut Leaflet
+   (fillColor = color, fillOpacity 0.2). */
+circle.leaflet-edit-trace-perf {
+    stroke: #ff0000;
+    stroke-width: 5;
+    stroke-opacity: 1;
+    fill: #ff0000;
+    fill-opacity: 0.2;
+}
+
+/* Liseré blanc de part et d'autre du trait (halo). Le drop-shadow épouse
+   la forme du path : 4 ombres portées à 0 flou = ~1 px net tout autour.
+   Doubler avec les diagonales pour ~2 px. Coût GPU : à comparer avec/sans
+   dans la mesure de perfs (alternative "casing" = 2 polylignes). */
+path.leaflet-edit-trace-perf {
+    filter:
+        drop-shadow(2px 0 0 #ffffff)
+        drop-shadow(-2px 0 0 #ffffff)
+        drop-shadow(0 2px 0 #ffffff)
+        drop-shadow(0 -2px 0 #ffffff);
+}
+
+/* Pastille de progression du chargement des données (gros volumes).
+   Centrée horizontalement, SOUS la barre métier (topcenter, ~40 px de
+   haut) pour rester visible, au-dessus des tuiles, insensible au clic. */
+.leaflet-edit-loading {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    pointer-events: none;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #bbb;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #333;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+}
+
+.leaflet-edit-loading.visible {
+    display: flex;
+}
+
+.leaflet-edit-loading-spinner {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    border-top-color: #333;
+    animation: leaflet-edit-spin 0.8s linear infinite;
+}
+
+@keyframes leaflet-edit-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

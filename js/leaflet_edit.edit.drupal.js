@@ -623,9 +623,10 @@ function zoomToTrace(tid) {
     if (!layer) {
       return;
     }
+    // Groupe (fond découpé) : emprise via getBounds.
     var b = layer.getLatLngs
       ? L.latLngBounds(layer.getLatLngs())
-      : L.latLngBounds([layer.getLatLng(), layer.getLatLng()]);
+      : (layer.getBounds ? layer.getBounds() : L.latLngBounds([layer.getLatLng(), layer.getLatLng()]));
     map.leafletEditProgrammaticMove = true;
     map.lMap.fitBounds(b);
     setTimeout(function () {
@@ -1114,9 +1115,14 @@ function toggleFullscreen() {
 
 function zoomToTraces() {
   try {
-    if (map.bounds && map.bounds.isValid()) {
-      console.log("[leaflet_edit] zoomToTraces:", map.bounds.toBBoxString());
-      map.lMap.fitBounds(map.bounds);
+    // Visibles d'abord, totalité en repli (ex. que des fonds désactivés).
+    var b = (map.bounds && map.bounds.isValid()) ? map.bounds : null;
+    if (!b && map.boundsAll && map.boundsAll.isValid()) {
+      b = map.boundsAll;
+    }
+    if (b) {
+      console.log("[leaflet_edit] zoomToTraces:", b.toBBoxString());
+      map.lMap.fitBounds(b);
     } else {
       map.lMap.notification.info("Outils", "Aucune trace a cadrer.");
     }

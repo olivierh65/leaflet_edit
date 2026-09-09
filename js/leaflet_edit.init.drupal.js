@@ -141,9 +141,13 @@
     // par CSS. Pas de bouton carte dédié.
 
     // load datas
-    // map.bounds = emprise cumulée des traces (cadrage initial UNIQUEMENT).
+    // map.bounds = emprise des entités VISIBLES (cadrage initial UNIQUEMENT ;
+    // les fonds désactivés par défaut n'y participent pas).
+    // map.boundsAll = emprise de la TOTALITÉ des entités (repli si tout est
+    // caché, ex. carte avec uniquement des fonds).
     // Ne JAMAIS refaire fitBounds sur moveend : l'utilisateur garde son zoom.
     map.bounds = null;
+    map.boundsAll = null;
     // Garde-fou : fitBounds() déclenche moveend -> on ignore le moveend
     // programmatique pour ne pas relancer un chargement + un recadrage.
     map.leafletEditProgrammaticMove = false;
@@ -364,6 +368,9 @@
 
     // Gestion des couches à droite (topright), replié par défaut.
     // - Groupe "Cartes" : fonds de carte (choix restauré).
+    // - Groupe "Fonds" : couches non éditables, placé JUSTE APRÈS
+    //   "Cartes" (voir moveFondsAfterCartes) et DÉSACTIVÉ par défaut
+    //   (perf chargement initial, voir registerTraceLayer).
     // - Groupes dynamiques par fichier source : 1 entrée = 1 trace
     //   (afficher/masquer individuellement), regroupées par fichier.
     // - selectorGroup : case à cocher sur chaque groupe pour
@@ -410,6 +417,129 @@
     // currentTrace... déjà posés plus haut) : on fusionne.
     map.lMap.leafletEdit = map.lMap.leafletEdit || {};
     map.lMap.leafletEdit.LAYGROUP_CONTROL = panel;
+    // Groupes ouverts EXPLICITEMENT par l'utilisateur (noms) : on ne les
+    // referme jamais automatiquement (voir postPanelUpdate).
+    map.leafletEditExpandedGroups = {};
+    // Toute reconstruction du panel (addOverlay -> _update, à chaque
+    // trace/fond chargé) recrée le DOM : groupes nés dépliés, cases
+    // potentiellement désynchronisées, groupe "Fonds" en fin de liste.
+    // Ce hook rejoue APRÈS chaque _update : Fonds après Cartes, groupes
+    // de fichiers fermés par défaut, cases synchronisées avec la carte.
+    if (panel && typeof panel._update === "function") {
+      try {
+        var origPanelUpdate = panel._update.bind(panel);
+        panel._update = function () {
+          origPanelUpdate();
+          postPanelUpdate();
+        };
+      } catch (err) {}
+    }
+
+    // Post-traitement après chaque reconstruction du panel.
+    function postPanelUpdate() {
+      try {
+        // moveFondsAfterCartes vit dans le bloc "read" : absent si pas de
+        // permission de lecture (aucune trace chargée dans ce cas).
+        if (typeof moveFondsAfterCartes === "function") {
+          moveFondsAfterCartes();
+        }
+        collapseFileGroups();
+        syncPanelCheckboxes();
+      } catch (err) {}
+    }
+
+    // Referme les groupes de fichiers (recréés dépliés à chaque _update),
+    // SAUF "Cartes"/"Infos"/"Fonds" et ceux ouverts par l'utilisateur.
+    // Attache aussi (nœuds DOM frais à chaque rebuild, ré-attache sûre)
+    // l'écoute du clic sur chaque intitulé pour mémoriser l'intention
+    // d'ouverture explicite.
+    function collapseFileGroups() {
+      try {
+        if (!panel || !panel._groups) {
+          return;
+        }
+        map.leafletEditExpandedGroups = map.leafletEditExpandedGroups || {};
+        Object.keys(panel._groups).forEach(function (name) {
+          if (name === "Cartes" || name === "Infos" || name === "Fonds") {
+            return;
+          }
+          var groupdiv = panel._groups[name];
+          if (!groupdiv) {
+            return;
+          }
+          // Mémorise l'ouverture explicite. Notre écouteur tourne APRÈS
+          // celui du plugin (attaché à la création du groupe), donc la
+          // classe reflète déjà le nouvel état au moment de la lecture.
+          try {
+            var grouplabel = groupdiv.querySelector
+              ? groupdiv.querySelector("label.leaflet-panel-layers-grouplabel")
+              : null;
+            if (grouplabel && !grouplabel.leafletEditTracked) {
+              grouplabel.leafletEditTracked = true;
+              (function (groupName, groupDiv) {
+                grouplabel.addEventListener("click", function () {
+                  setTimeout(function () {
+                    try {
+                      var open = (typeof L !== "undefined" && L.DomUtil)
+                        ? L.DomUtil.hasClass(groupDiv, "expanded")
+                        : false;
+                      if (open) {
+                        map.leafletEditExpandedGroups[groupName] = true;
+                      } else {
+                        delete map.leafletEditExpandedGroups[groupName];
+                      }
+                    } catch (e) {}
+                  }, 0);
+                });
+              })(name, groupdiv);
+            }
+          } catch (e) {}
+          // Fermé par défaut, sauf intention explicite d'ouverture.
+          if (map.leafletEditExpandedGroups[name]) {
+            return;
+          }
+          if (typeof L !== "undefined" && L.DomUtil) {
+            if (L.DomUtil.hasClass(groupdiv, "expanded")) {
+              L.DomUtil.removeClass(groupdiv, "expanded");
+            }
+            var icon = groupdiv.querySelector && groupdiv.querySelector("label i");
+            if (icon) {
+              icon.innerHTML = " + ";
+            }
+          }
+        });
+      } catch (err) {}
+    }
+
+    // Synchronise les cases avec la carte (double sens) : cochée ssi la
+    // couche est affichée. Indispensable après chaque _update qui
+    // reconstruit les inputs (sinon cases décochées à l'ouverture alors
+    // que les couches sont visibles).
+    function syncPanelCheckboxes() {
+      try {
+        if (!panel || !panel._form) {
+          return;
+        }
+        Object.values(map.leafletEditTraces).forEach(function (l) {
+          try {
+            if (!l) {
+              return;
+            }
+            var lid = L.stamp(l);
+            var input = panel._form.querySelector('input[value="' + lid + '"]');
+            if (!input) {
+              return;
+            }
+            var on = false;
+            try {
+              on = map.lMap.hasLayer(l);
+            } catch (e) {}
+            input.checked = on;
+            input.defaultChecked = on;
+          } catch (err2) {}
+        });
+      } catch (err) {}
+    }
 
     // Clic sur le fond de carte = désélectionne la trace courante.
     // (Le toggle au clic sur la trace est géré dans evtFeatureClick.)
@@ -435,10 +565,23 @@
     //
 
     if (editPermissions["read"]) {
+      // Rendu dual :
+      // - données ÉDITABLES (traces) = SVG (1 path DOM par trace, classes
+      //   CSS + setStyle par entité, interactif/éditable via Geoman) ;
+      // - données NON ÉDITABLES (fonds/background) = Canvas (peint sur
+      //   <canvas>, performance gros volumes, non éditable, popup au clic
+      //   avec les attributs inclus).
+      // Surcharge possible via drupalSettings.leaflet_edit.renderers :
+      // { trace: 'svg'|'canvas', background: 'svg'|'canvas' }.
+      var TRACE_PERF_CLASS = "leaflet-edit-trace-perf";
+      var svgRenderer = L.svg();
       // Extend selection area
       const canvasRenderer = L.canvas({
         tolerance: 10,
       });
+      var renderersCfg = editSettings.renderers || {};
+      var TRACE_RENDERER = renderersCfg.trace === "canvas" ? canvasRenderer : svgRenderer;
+      var BACKGROUND_RENDERER = renderersCfg.background === "svg" ? svgRenderer : canvasRenderer;
 
       // Nouveau modèle : les géométries sont chargées via les endpoints
       // bbox (latest revision par défaut), avec cache par trace id et
@@ -459,13 +602,76 @@
         initialFitDone: false,
       };
 
+      // Indicateur de progression du CHARGEMENT INITIAL uniquement (gros
+      // volumes) : pastille "Chargement des données… N éléments", visible
+      // tant qu'au moins une requête initiale est en vol. Les rechargements
+      // au zoom/translation (isInitial === false) restent silencieux.
+      // Compteur équilibré : 1 loadingStart() par loadBboxPage initiale,
+      // 1 loadingDone() par issue (done/fail, pagination incluse).
+      var loadingState = { pending: 0, el: null, hideTimer: null };
+      function loadingElement() {
+        if (loadingState.el) {
+          return loadingState.el;
+        }
+        try {
+          var container = map.lMap.getContainer();
+          var el = document.createElement("div");
+          el.className = "leaflet-edit-loading";
+          el.innerHTML = '<span class="leaflet-edit-loading-spinner"></span><span class="leaflet-edit-loading-text"></span>';
+          container.appendChild(el);
+          loadingState.el = el;
+        } catch (e) {}
+        return loadingState.el;
+      }
+      function loadingRender() {
+        try {
+          var el = loadingElement();
+          if (!el) {
+            return;
+          }
+          var n = Object.keys(bboxState.loadedIds).length;
+          var txt = el.querySelector(".leaflet-edit-loading-text");
+          if (txt) {
+            txt.textContent = "Chargement des données… " + n + " élément" + (n > 1 ? "s" : "");
+          }
+          if (loadingState.pending > 0) {
+            if (loadingState.hideTimer) {
+              clearTimeout(loadingState.hideTimer);
+              loadingState.hideTimer = null;
+            }
+            el.classList.add("visible");
+          } else if (!loadingState.hideTimer) {
+            // Petit délai anti-scintillement entre 2 pages.
+            loadingState.hideTimer = setTimeout(function () {
+              loadingState.hideTimer = null;
+              try {
+                if (loadingState.pending === 0 && loadingState.el) {
+                  loadingState.el.classList.remove("visible");
+                }
+              } catch (e2) {}
+            }, 400);
+          }
+        } catch (err) {}
+      }
+      function loadingStart() {
+        loadingState.pending++;
+        loadingRender();
+      }
+      function loadingTick() {
+        loadingRender();
+      }
+      function loadingDone() {
+        loadingState.pending = Math.max(0, loadingState.pending - 1);
+        loadingRender();
+      }
+
       function bboxUrl(base, bounds, page) {
         var b = bounds.getWest() + "," + bounds.getSouth() + "," + bounds.getEast() + "," + bounds.getNorth();
         return base + "?bbox=" + b + "&page=" + (page || 0);
       }
 
-      function applyFeatureStyle(layer, feature) {
-        var style = feature.style || null;
+      function applyFeatureStyle(layer, feature, isBackground) {
+        var style = (feature && feature.style) || null;
         if (typeof style === "string") {
           try {
             style = JSON.parse(style);
@@ -473,13 +679,129 @@
             style = null;
           }
         }
+        if (isBackground) {
+          // Canvas non éditable : style direct (le Canvas ignore className
+          // et les dash complexes selon navigateurs : on reste sobre).
+          try {
+            layer.setStyle(Object.assign({ color: "#6c757d", weight: 3, opacity: 0.9 }, style || {}));
+          } catch (e) {}
+          return;
+        }
+        // SVG éditable : classe commune (rendu identique, surcharge CSS
+        // possible) + style par entité quand servi par le backend.
+        try {
+          layer.options = layer.options || {};
+          var prev = layer.options.className || "";
+          if (prev.indexOf(TRACE_PERF_CLASS) === -1) {
+            layer.options.className = (prev ? prev + " " : "") + TRACE_PERF_CLASS;
+          }
+          if (layer._path && layer._path.classList) {
+            layer._path.classList.add(TRACE_PERF_CLASS);
+          }
+        } catch (e) {}
         if (style && typeof style === "object") {
           try {
             layer.setStyle(style);
             return;
           } catch (e) {}
         }
-        layer.setStyle({ color: "red", weight: 5 });
+        try {
+          layer.setStyle({ color: "red", weight: 5 });
+        } catch (e) {}
+      }
+
+      /**
+       * Descripteurs par partie d'un fond fusionné (données pures, sans L).
+       *
+       * Chaque ligne du MultiLineString reçoit son label et son style issus
+       * des tableaux parallèles (_part_labels, _part_palette/_part_styles,
+       * alignés sur l'ordre des parties). Retourne null si non découpable
+       * (pas de labels, longueurs incohérentes…) : repli couche unique.
+       */
+      function backgroundPartDescriptors(feat, tid) {
+        try {
+          var props = (feat && feat.properties) || {};
+          var labels = props._part_labels;
+          var geom = (feat && feat.geometry) || {};
+          if (!Array.isArray(labels) || labels.length === 0 ||
+              geom.type !== "MultiLineString" || !Array.isArray(geom.coordinates) ||
+              geom.coordinates.length !== labels.length) {
+            return null;
+          }
+          var base = (feat && feat.style) || {};
+          if (typeof base === "string") {
+            try { base = JSON.parse(base); } catch (e) { base = {}; }
+          }
+          if (!base || typeof base !== "object") {
+            base = {};
+          }
+          var palette = Array.isArray(props._part_palette) ? props._part_palette : null;
+          var styleIdx = Array.isArray(props._part_styles) ? props._part_styles : null;
+          var fallbackLabel = traceLabel(feat, tid);
+          var out = [];
+          for (var i = 0; i < geom.coordinates.length; i++) {
+            var line = geom.coordinates[i];
+            if (!Array.isArray(line)) {
+              continue;
+            }
+            var latlngs = [];
+            for (var j = 0; j < line.length; j++) {
+              var p = line[j];
+              if (Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "number") {
+                latlngs.push([p[1], p[0]]);
+              }
+            }
+            if (latlngs.length < 2) {
+              continue;
+            }
+            var st = { color: "#6c757d", weight: 3, opacity: 0.9 };
+            Object.assign(st, base);
+            if (palette && styleIdx && styleIdx[i] !== undefined && styleIdx[i] !== null && palette[styleIdx[i]]) {
+              // Propriétés Leaflet uniquement (pas le 'label' métier).
+              var ps = palette[styleIdx[i]];
+              ["color", "weight", "opacity", "dashArray", "dashOffset", "lineCap", "lineJoin", "fill", "fillColor", "fillOpacity"].forEach(function (k) {
+                if (ps[k] !== undefined) {
+                  st[k] = ps[k];
+                }
+              });
+            }
+            var title = labels[i];
+            if (title === undefined || title === null || String(title).trim() === "") {
+              title = fallbackLabel;
+            } else {
+              title = String(title);
+            }
+            out.push({ latlngs: latlngs, style: st, title: title });
+          }
+          return out.length ? out : null;
+        } catch (err) {
+          return null;
+        }
+      }
+
+      /**
+       * Popup des couches NON éditables (Canvas) : titre = label, corps =
+       * table des attributs inclus (hors clés internes _*).
+       */
+      function backgroundPopupHtml(label, properties) {
+        var props = properties || {};
+        var keys = Object.keys(props).filter(function (k) { return k.charAt(0) !== "_"; });
+        var esc = function (s) {
+          return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        };
+        var html = '<div class="leaflet-edit-background-popup"><strong>' + esc(label || "Fond") + "</strong>";
+        if (keys.length) {
+          html += '<table style="border-collapse:collapse;margin-top:4px;font-size:12px;"><tbody>';
+          keys.forEach(function (k) {
+            var v = props[k];
+            if (v === undefined || v === null) {
+              return;
+            }
+            html += "<tr><th style='border:1px solid #ddd;padding:2px 6px;background:#f5f5f5;'>" + esc(k) + "</th><td style='border:1px solid #ddd;padding:2px 6px;'>" + esc(String(v)) + "</td></tr>";
+          });
+          html += "</tbody></table>";
+        }
+        return html + "</div>";
       }
 
       // Nom du groupe panel = fichier source (regroupement par fichier).
@@ -528,16 +850,79 @@
         } catch (err) {}
       }
 
+      // Enregistre les parties d'un fond fusionné : UN FeatureGroup (UNE
+      // entrée panneau, UNE bounding box) contenant UNE polyline Canvas par
+      // ligne, chacune avec son label/style propres (popup individuelle).
+      // Les fonds restent non éditables : pas de processLoadedData (pas de
+      // milliers de bindings), pas d'indexation fichier par partie.
+      function registerBackgroundParts(feat, tid, descs, label, groupName) {
+        var parts = [];
+        descs.forEach(function (d, i) {
+          try {
+            var pl = L.polyline(d.latlngs, Object.assign({ renderer: BACKGROUND_RENDERER }, d.style));
+            pl.bindPopup(backgroundPopupHtml(d.title, {}));
+            pl.defaultOptions = pl.defaultOptions || {};
+            pl.defaultOptions.leafletEdit = {
+              nid: mapid,
+              tid: tid,
+              part: i,
+              revision_id: (feat.properties && feat.properties._revision_id) || null,
+              description: d.title,
+              filename: (feat.properties && (feat.properties._source || feat.properties.filename)) || "",
+              source_fid: -1,
+              _selected: false,
+              _updated: false,
+            };
+            pl.defaultOptions.leafletEdit._editable = false;
+            pl.defaultOptions.leafletEdit._renderer = "canvas";
+            pl.feature = feat;
+            parts.push(pl);
+          } catch (e) {}
+        });
+        if (!parts.length) {
+          return;
+        }
+        var group = L.featureGroup(parts);
+        extendInitialBounds(group, false);
+        registerTraceLayer(group, tid, label, groupName, true);
+      }
+
       // Ajoute UNE trace comme entrée individuelle du panel, dans son
       // groupe fichier. Les entrées dynamiques passent par addOverlay()
       // pour que la case à cocher affiche/masque la trace.
-      // - active: true + ajout carte AVANT addOverlay : la case naît cochée
-      //   (checked = hasLayer) car les traces sont visibles au chargement ;
-      // - groupe replié par défaut : addOverlay() crée le groupe déplié,
-      //   on le referme aussitôt pour la lisibilité (voir collapsePanelGroup).
+      // - Traces éditables : active: true + ajout carte AVANT addOverlay,
+      //   la case naît cochée (checked = hasLayer), visibles au chargement ;
+      // - Fonds (non éditables) : DÉSACTIVÉS par défaut (perf chargement
+      //   initial : pas de rendu Canvas lourd), case décochée, couche NON
+      //   ajoutée à la carte. Activation via le panel (groupe "Fonds"
+      //   placé juste après "Cartes", voir moveFondsAfterCartes). Sans
+      //   panel (config dégradée), le fond est ajouté directement car
+      //   aucun interrupteur n'est disponible sinon.
+      // - groupe fermé par défaut : le hook postPanelUpdate (_update)
+      //   referme les groupes de fichiers après chaque reconstruction,
+      //   sauf ceux ouverts explicitement par l'utilisateur.
       function registerTraceLayer(value, tid, label, groupName, isBackground) {
         map.leafletEditTraces[tid] = value;
         bboxState.layersById[tid] = value;
+        if (isBackground && panel && typeof panel.addOverlay === "function") {
+          // Fond désactivé par défaut : surtout PAS d'ajout carte (le
+          // rendu Canvas d'un fond de 28 000 lignes coûte cher), entrée
+          // décochée. Popup/style déjà branchés : l'activation via le
+          // panel fonctionne immédiatement.
+          try {
+            if (map.lMap.hasLayer(value)) {
+              map.lMap.removeLayer(value);
+            }
+          } catch (err) {}
+          try {
+            panel.addOverlay({ layer: value, name: label, active: false }, label, groupName);
+          } catch (err) {
+            console.warn("[leaflet_edit] addOverlay failed for background " + tid, err);
+          }
+          // Le hook postPanelUpdate (_update) repositionne "Fonds" après
+          // "Cartes" et synchronise la case (décochée, couche hors carte).
+          return;
+        }
         // Trace visible par défaut : ajoutée à la carte AVANT addOverlay
         // pour que la case du panel naisse cochée (checked = hasLayer).
         try {
@@ -547,6 +932,8 @@
         } catch (err) {}
         // Couche sur la carte : applique les flèches de sens si l'option
         // est active (ne fait rien sinon, ou si le plugin est absent).
+        // (Les fonds désactivés n'en ont pas besoin : refreshArrows est
+        // de toute façon no-op hors carte.)
         if (typeof refreshArrows === "function") {
           refreshArrows(value);
         }
@@ -561,84 +948,75 @@
         } catch (err) {
           console.warn("[leaflet_edit] addOverlay failed for trace " + tid, err);
         }
-        // addOverlay() -> _update() reconstruit le DOM : la case peut naître
-        // décochée même si le layer est sur la carte. On force l'état coché
-        // sur TOUTES les cases de traces (pas seulement la courante), car
-        // le _update a pu recréer les inputs des traces précédentes.
-        try {
-          if (panel && panel._form) {
-            Object.values(map.leafletEditTraces).forEach(function (l) {
-              try {
-                if (!l) {
-                  return;
-                }
-                var lid = L.stamp(l);
-                var input = panel._form.querySelector('input[value="' + lid + '"]');
-                if (input && map.lMap.hasLayer(l)) {
-                  input.checked = true;
-                  input.defaultChecked = true;
-                }
-              } catch (err2) {}
-            });
-          }
-        } catch (err) {}
-        // Replie le groupe fichier pour la lisibilité (traces visibles
-        // mais menu compact). Le groupe "Fonds" reste déplié : 1 seul
-        // groupe générique, pas de bruit visuel.
-        if (!isBackground) {
-          collapsePanelGroup(groupName);
-        }
+        // Le hook postPanelUpdate (_update) synchronise la case (cochée,
+        // couche sur la carte) et referme le groupe fichier, sauf ceux
+        // ouverts explicitement par l'utilisateur.
       }
 
-      // Referme un groupe du panel (classe 'expanded' retirée, icône '+').
-      // Appelé à chaque ajout de trace : le groupe reste replié même quand
-      // les pages bbox arrivent au fil de l'eau.
-      // NOTE : addOverlay() -> _addLayer() -> _update() RECONSTRUIT tout le
-      // DOM du panel (_groups/_items recréés). Le repli doit donc avoir lieu
-      // APRÈS chaque _update, pas seulement après l'ajout courant : on
-      // replie TOUS les groupes de traces à chaque appel.
-      function collapsePanelGroup(groupName) {
+      // Remonte le groupe "Fonds" en tête des overlays, juste après le
+      // groupe "Cartes" (fonds de carte).
+      // Contexte : panel-layers tient 2 listes séparées (_baseLayersList
+      // pour "Cartes", _overlaysList pour "Infos"/"Fonds"/fichiers) et
+      // addOverlay() ajoute chaque nouveau groupe à la FIN des overlays
+      // (après les groupes de fichiers traces). Comme _update()
+      // reconstruit le DOM à chaque ajout, on rejoue ce déplacement
+      // après chaque fond enregistré.
+      function moveFondsAfterCartes() {
         try {
-          if (!panel || !panel._groups) {
+          if (!panel || !panel._groups || !panel._overlaysList) {
             return;
           }
-          Object.keys(panel._groups).forEach(function (name) {
-            // Ne jamais replier "Cartes" ni "Infos" (groupes natifs) :
-            // seuls les groupes de fichiers traces sont repliés.
-            if (name === "Cartes" || name === "Infos" || name === "Fonds") {
-              return;
-            }
-            var groupdiv = panel._groups[name];
-            if (!groupdiv) {
-              return;
-            }
-            if (typeof L !== "undefined" && L.DomUtil) {
-              if (L.DomUtil.hasClass(groupdiv, "expanded")) {
-                L.DomUtil.removeClass(groupdiv, "expanded");
-              }
-              var icon = groupdiv.querySelector && groupdiv.querySelector("label i");
-              if (icon) {
-                icon.innerHTML = " + ";
-              }
-            }
-          });
+          var fonds = panel._groups["Fonds"];
+          if (!fonds) {
+            return;
+          }
+          var list = panel._overlaysList;
+          if (fonds.parentNode !== list) {
+            return;
+          }
+          if (list.firstChild !== fonds) {
+            list.insertBefore(fonds, list.firstChild);
+          }
         } catch (err) {}
       }
 
-      function extendInitialBounds(value) {
+      // Cumule une emprise SANS jamais partager l'instance : chaque variable
+      // garde son propre objet (sinon bounds/boundsAll aliasés muteraient
+      // ensemble et les fonds pollueraient le cadrage des visibles).
+      function accumulateBound(current, b) {
+        var fresh = L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+        if (current && current.isValid()) {
+          return current.extend(fresh);
+        }
+        return fresh;
+      }
+
+      function extendInitialBounds(value, visible) {
         // Emprise cumulée pour le cadrage initial UNIQUEMENT.
         if (bboxState.initialFitDone) {
           return;
         }
         try {
-          var b = value.getLatLngs
-            ? L.latLngBounds(value.getLatLngs())
-            : L.latLngBounds([value.getLatLng(), value.getLatLng()]);
-          if (map.bounds && map.bounds.isValid()) {
-            map.bounds = map.bounds.extend(b);
+          var b;
+          if (value.getLatLngs) {
+            b = L.latLngBounds(value.getLatLngs());
+          } else if (value.getBounds) {
+            // Groupe (fond découpé) : copie neuve (jamais d'alias).
+            b = L.latLngBounds(value.getBounds().getSouthWest(), value.getBounds().getNorthEast());
           } else {
-            map.bounds = b;
+            b = L.latLngBounds([value.getLatLng(), value.getLatLng()]);
           }
+          if (!b || !b.isValid()) {
+            return;
+          }
+          // Totalité dans tous les cas (repli si tout est caché).
+          map.boundsAll = accumulateBound(map.boundsAll, b);
+          // Visibles seuls : les fonds désactivés par défaut (visible ===
+          // false) ne cadrent pas le zoom initial.
+          if (visible === false) {
+            return;
+          }
+          map.bounds = accumulateBound(map.bounds, b);
         } catch (e) {}
       }
 
@@ -651,9 +1029,23 @@
         }
         bboxState.initialFitDone = true;
         try {
-          if (map.bounds && map.bounds.isValid()) {
+          // Zoom initial sur les entités visibles ; si tout est caché
+          // (ex. carte avec uniquement des fonds désactivés), repli sur
+          // la totalité des entités.
+          var fit = (map.bounds && map.bounds.isValid()) ? map.bounds : null;
+          if (!fit && map.boundsAll && map.boundsAll.isValid()) {
+            fit = map.boundsAll;
+          }
+          // Diagnostic console (F12) : quelle emprise a servi au cadrage.
+          try {
+            console.debug("[leaflet_edit] initial fit:",
+              "visibles=" + (map.bounds && map.bounds.isValid() ? map.bounds.toBBoxString() : "∅"),
+              "totalité=" + (map.boundsAll && map.boundsAll.isValid() ? map.boundsAll.toBBoxString() : "∅"),
+              "retenue=" + (fit ? fit.toBBoxString() : "∅"));
+          } catch (e2) {}
+          if (fit) {
             map.leafletEditProgrammaticMove = true;
-            map.lMap.fitBounds(map.bounds);
+            map.lMap.fitBounds(fit);
             // moveend (asynchrone) retombe à false dans le handler.
             setTimeout(function () {
               map.leafletEditProgrammaticMove = false;
@@ -665,6 +1057,10 @@
       }
 
       function loadBboxPage(url, isBackground, isInitial) {
+        // Pastille réservée au chargement initial (silence au zoom/pan).
+        if (isInitial) {
+          loadingStart();
+        }
         jQuery.getJSON(url)
           .done(function (collection) {
             var feats = (collection && collection.features) || [];
@@ -675,11 +1071,40 @@
                 return;
               }
               bboxState.loadedIds[tid] = true;
+              // Rendu dual : SVG si éditable (trace), Canvas si fond.
+              var activeRenderer = isBackground ? BACKGROUND_RENDERER : TRACE_RENDERER;
+              var label = traceLabel(feat, tid);
+              var groupName = isBackground ? "Fonds" : traceGroupName(feat);
+              var sourceFid = isBackground ? -1 : traceSourceFid(feat);
+              // Fond fusionné avec labels par ligne : découpe en une
+              // polyline Canvas par partie (label/popup individuels),
+              // regroupées en UNE entrée panneau (pas d'explosion du menu).
+              if (isBackground) {
+                var partDescs = backgroundPartDescriptors(feat, tid);
+                if (partDescs) {
+                  registerBackgroundParts(feat, tid, partDescs, label, groupName);
+                  return;
+                }
+              }
               var sub = L.geoJSON(feat, {
-                renderer: canvasRenderer,
-                style: feat.style || undefined,
+                renderer: activeRenderer,
+                style: function (f) {
+                  // Style initial (affiné par applyFeatureStyle ci-dessous).
+                  var s = (f && f.style) || feat.style || {};
+                  if (typeof s === "string") {
+                    try { s = JSON.parse(s); } catch (e) { s = {}; }
+                  }
+                  if (isBackground) {
+                    return Object.assign({ color: "#6c757d", weight: 3 }, s);
+                  }
+                  s.className = s.className || TRACE_PERF_CLASS;
+                  return s;
+                },
                 pointToLayer: function (f, latlng) {
-                  return L.circleMarker(latlng, f.style || { color: "red", weight: 5 });
+                  if (isBackground) {
+                    return L.circleMarker(latlng, { renderer: activeRenderer });
+                  }
+                  return L.circleMarker(latlng, { renderer: activeRenderer, className: TRACE_PERF_CLASS });
                 },
                 // Options distanceMarkers par défaut : le plugin les crée
                 // au onAdd (points km, voir textFunction ci-dessous).
@@ -695,9 +1120,6 @@
                   },
                 },
               });
-              var label = traceLabel(feat, tid);
-              var groupName = isBackground ? "Fonds" : traceGroupName(feat);
-              var sourceFid = isBackground ? -1 : traceSourceFid(feat);
               sub.eachLayer(function (value) {
                 // Contexte leafletEdit : trace id + révision servie.
                 // source_fid = lien direct trace -> fichier geojson pour le
@@ -715,19 +1137,39 @@
                 };
                 value.defaultOptions.style = feat.style || null;
                 value.feature = value.feature || feat;
-                applyFeatureStyle(value, feat);
-                // Tooltip : label de la trace.
-                if (label) {
-                  value.bindTooltip(label, { sticky: true });
+                // Indique le moteur au reste du JS métier (édition interdite
+                // sur Canvas/fonds).
+                value.defaultOptions.leafletEdit._editable = !isBackground;
+                value.defaultOptions.leafletEdit._renderer = isBackground ? "canvas" : "svg";
+                applyFeatureStyle(value, feat, isBackground);
+                if (isBackground) {
+                  // Fond non éditable (Canvas) : popup au clic avec label +
+                  // attributs inclus (pas de tooltip permanent, pas
+                  // d'édition, pas de processLoadedData).
+                  try {
+                    value.bindPopup(backgroundPopupHtml(label, feat.properties || {}));
+                  } catch (e) {}
                 }
-                if (!isBackground) {
+                else {
+                  // Trace éditable (SVG) : tooltip + branchement édition.
+                  if (label) {
+                    value.bindTooltip(label, { sticky: true });
+                  }
                   processLoadedData(value);
                   indexTraceFile(tid, sourceFid, groupName);
                 }
-                extendInitialBounds(value);
+                // Visible par défaut sauf fond désactivé (même règle que
+                // registerTraceLayer) : le zoom initial ne cadre que les
+                // entités visibles.
+                var visibleByDefault = !isBackground || !panel || typeof panel.addOverlay !== "function";
+                extendInitialBounds(value, visibleByDefault);
                 registerTraceLayer(value, tid, label, groupName, isBackground);
               });
             });
+            // Compteur d'éléments chargés pour la pastille (initial seul).
+            if (isInitial) {
+              loadingTick();
+            }
             if (meta.has_more) {
               // Pagination : même mode (initial = sans bbox, sinon bbox courante).
               var nextPage = (meta.page || 0) + 1;
@@ -744,6 +1186,11 @@
                 );
               }
               loadBboxPage(nextUrl, isBackground, isInitial);
+              // La page suivante a démarré son propre compteur : on solde
+              // celui de la page courante (initial seul).
+              if (isInitial) {
+                loadingDone();
+              }
             } else {
               if (isBackground) {
                 bboxState.pendingBackground = false;
@@ -752,6 +1199,9 @@
               }
               // Cadrage initial une fois les 2 flux terminés.
               maybeInitialFit();
+              if (isInitial) {
+                loadingDone();
+              }
             }
           })
           .fail(function (xhr) {
@@ -762,6 +1212,9 @@
               bboxState.pendingTraces = false;
             }
             maybeInitialFit();
+            if (isInitial) {
+              loadingDone();
+            }
           });
       }
 
