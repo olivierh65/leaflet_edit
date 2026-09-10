@@ -59,6 +59,55 @@ function removeGeomanEditButtons(lMap) {
   }
 }
 
+// Visibilité de la barre Geoman (dessin, topleft) : masquée par défaut,
+// affichée uniquement pendant la création "Nouvelle trace" (dialogue
+// validé -> dessin -> pm:create / annulation -> masquée). Les options
+// sont celles mémorisées à l'init (init.drupal.js).
+function showGeomanToolbar() {
+  try {
+    var lMap = map && map.lMap;
+    if (!lMap || !lMap.pm || typeof lMap.pm.addControls !== "function") {
+      return false;
+    }
+    // Ré-ajout idempotent : on retire d'abord (évite les doublons si un
+    // affichage précédent n'a pas été refermé).
+    try {
+      if (typeof lMap.pm.removeControls === "function") {
+        lMap.pm.removeControls();
+      }
+    } catch (errRm) {}
+    var opts = (lMap.leafletEdit && lMap.leafletEdit.geomanControlsOptions) || { position: "topleft" };
+    lMap.pm.addControls(opts);
+    if (typeof removeGeomanEditButtons === "function") {
+      removeGeomanEditButtons(lMap);
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function hideGeomanToolbar() {
+  try {
+    var lMap = map && map.lMap;
+    if (!lMap || !lMap.pm) {
+      return false;
+    }
+    // Termine un éventuel dessin en cours (no-op sinon).
+    try {
+      if (typeof lMap.pm.disableDraw === "function") {
+        lMap.pm.disableDraw();
+      }
+    } catch (errDraw) {}
+    if (typeof lMap.pm.removeControls === "function") {
+      lMap.pm.removeControls();
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 function processLoadedData(layer) {
   // Contextmenu (clic droit) : desktop uniquement, et seulement si
   // l'outil leaflet-contextmenu est chargé. Sur mobile, le tap
@@ -484,7 +533,66 @@ function getLayGroup(layer) {
   return layer || null;
 }
 
-function select_feature(layer, duree = 0) {
+// Détection tactile locale (isTouchDevice vit dans menu.drupal.js :
+// on ne suppose pas son chargement, repli autonome).
+function leIsTouch() {
+  try {
+    if (typeof isTouchDevice === "function") {
+      return isTouchDevice();
+    }
+  } catch (err) {}
+  try {
+    if (typeof L !== "undefined" && L.Browser && L.Browser.mobile) {
+      return true;
+    }
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return window.matchMedia("(pointer: coarse)").matches;
+    }
+  } catch (err2) {}
+  return false;
+}
+
+// Label tactile : pas de survol sur mobile, mais le tap sélectionne déjà
+// la trace : on ouvre son tooltip "sticky" (label lié au chargement).
+// 2e tap / tap ailleurs / tap fond de carte = désélection = fermeture.
+// Desktop inchangé (survol natif, on ne touche à rien).
+function showTouchLabel(layer, latlng) {
+  if (!leIsTouch() || !layer || typeof layer.openTooltip !== "function") {
+    return;
+  }
+  try {
+    // Sans tooltip lié (fond non éditable...), rien à ouvrir.
+    if (typeof layer.getTooltip === "function" && !layer.getTooltip()) {
+      return;
+    }
+    var at = latlng || null;
+    if (!at) {
+      try {
+        if (layer.getBounds) {
+          at = layer.getBounds().getCenter();
+        } else if (layer.getLatLng) {
+          at = layer.getLatLng();
+        }
+      } catch (e2) {}
+    }
+    if (at) {
+      layer.openTooltip(at);
+    } else {
+      layer.openTooltip();
+    }
+  } catch (err) {}
+}
+
+function hideTouchLabel(layer) {
+  if (!leIsTouch() || !layer || typeof layer.closeTooltip !== "function") {
+    return;
+  }
+  try {
+    layer.closeTooltip();
+  } catch (err) {}
+}
+
+function select_feature(layer, duree = 0, latlng) {
   if (!layer) {
     return;
   }
@@ -492,6 +600,8 @@ function select_feature(layer, duree = 0) {
   deselectAllFeatures(layer);
   setSelected(layer);
   refreshTraceStyle(layer);
+  // Mobile : le tap affiche aussi le label (pas de survol).
+  showTouchLabel(layer, latlng || null);
 
   if (duree > 0) {
     setTimeout(unselect_feature, duree, layer);
@@ -504,6 +614,7 @@ function unselect_feature(layer) {
   }
   clearSelected(layer);
   refreshTraceStyle(layer);
+  hideTouchLabel(layer);
 }
 
 // Désélectionne toutes les traces sauf (optionnellement) celle donnée.
@@ -516,6 +627,7 @@ function deselectAllFeatures(except) {
       if (l.leafletEditSel) {
         l.leafletEditSel = false;
         refreshTraceStyle(l);
+        hideTouchLabel(l);
       }
     });
   } catch (err) {}

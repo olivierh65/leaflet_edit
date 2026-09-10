@@ -56,7 +56,9 @@
     if (toolEnabled("leaflet-contextmenu") && typeof wireMapContextMenuDismiss === "function") {
       wireMapContextMenuDismiss(map);
     }
-    // Geoman : barre de DESSIN à gauche (topleft forcé).
+    // Geoman : barre de DESSIN à gauche (topleft forcé), MASQUÉE par
+    // défaut : elle n'apparaît que pendant la création "Nouvelle trace"
+    // (voir showGeomanToolbar/hideGeomanToolbar, util.drupal.js).
     // Toute l'ÉDITION passe par la barre métier : voir geomanOpt()
     // (util.drupal.js) — boutons d'édition forcés à off.
     if (
@@ -67,7 +69,7 @@
     ) {
       L.PM.reInitLayer(map.lMap);
 
-      map.lMap.pm.addControls({
+      var geomanControlsOptions = {
         position: "topleft",
         drawMarker: geomanOpt(geomanSettings, "drawMarker"),
         drawCircleMarker: geomanOpt(geomanSettings, "drawCircleMarker"),
@@ -85,7 +87,18 @@
         drawControls: geomanOpt(geomanSettings, "drawControls"),
         editControls: geomanOpt(geomanSettings, "editControls"),
         customControls: geomanOpt(geomanSettings, "customControls"),
-      });
+      };
+      map.lMap.pm.addControls(geomanControlsOptions);
+      // Mémorise les options pour ré-affichage à la demande
+      // (showGeomanToolbar). Puis masque aussitôt : la barre Geoman ne
+      // s'affiche que pendant la création "Nouvelle trace".
+      try {
+        map.lMap.leafletEdit = map.lMap.leafletEdit || {};
+        map.lMap.leafletEdit.geomanControlsOptions = geomanControlsOptions;
+      } catch (errOpts) {}
+      try {
+        map.lMap.pm.removeControls();
+      } catch (errHide) {}
       // Ceinture + bretelles : retire tout bouton d'édition qui existerait
       // malgré les options ci-dessus (voir removeGeomanEditButtons()).
       if (typeof removeGeomanEditButtons === "function") {
@@ -617,6 +630,7 @@
           var container = map.lMap.getContainer();
           var el = document.createElement("div");
           el.className = "leaflet-edit-loading";
+          el.setAttribute("role", "status");
           el.innerHTML = '<span class="leaflet-edit-loading-spinner"></span><span class="leaflet-edit-loading-text"></span>';
           container.appendChild(el);
           loadingState.el = el;
@@ -640,6 +654,12 @@
               loadingState.hideTimer = null;
             }
             el.classList.add("visible");
+            // Force un reflow : sur certains navigateurs mobiles (dont
+            // Samsung Internet) l'ajout de classe au milieu du premier
+            // chargement peut sinon rater son paint initial.
+            try {
+              void el.offsetWidth;
+            } catch (e3) {}
           } else if (!loadingState.hideTimer) {
             // Petit délai anti-scintillement entre 2 pages.
             loadingState.hideTimer = setTimeout(function () {
@@ -1252,6 +1272,10 @@
       }
 
       map.lMap.whenReady(function () {
+        // Crée la pastille AVANT le premier chargement : la création
+        // paresseuse au milieu du premier rendu peut rater son paint
+        // initial sur certains navigateurs mobiles (Samsung Internet).
+        loadingElement();
         // Premier chargement : SANS filtre bbox (toutes les traces) pour
         // cadrer la carte dessus. Les moveend suivants utilisent la bbox.
         loadInitial();

@@ -112,8 +112,14 @@ function collapseContainer(container, mainButton){
     }
 }
 
-// Déplie/replie le sous-menu d'un groupe.
+// Déplie/replie le sous-menu d'un groupe. À l'ouverture, referme les
+// autres groupes éventuellement ouverts (barre métier : un seul menu
+// déplié à la fois : Fichier / Edition / Outils).
 function toggleContainer(container, mainButton, button){
+    var willOpen = mainButton.getAttribute("aria-expanded") !== "true";
+    if (willOpen) {
+        collapseSiblingContainers(container);
+    }
     container.childNodes.forEach((child, index) => {
         if(index!==0) child.classList.toggle('hidden');
     });
@@ -122,6 +128,31 @@ function toggleContainer(container, mainButton, button){
     mainButton.setAttribute('aria-expanded', !isAriaExpanded);
 
     (!button.ignoreActiveState) ? mainButton.classList.toggle('activeButton') : '';
+}
+
+// Referme tous les groupes frères d'un conteneur (même barre d'outils).
+function collapseSiblingContainers(container){
+    try {
+        if (!container || !container.parentNode) {
+            return;
+        }
+        Array.prototype.forEach.call(container.parentNode.childNodes, function (sibling) {
+            if (sibling === container || !sibling.querySelector) {
+                return;
+            }
+            var sibMain = sibling.querySelector(".cascade-main-btn");
+            if (!sibMain || sibMain.getAttribute("aria-expanded") !== "true") {
+                return;
+            }
+            Array.prototype.forEach.call(sibling.childNodes, function (child, index) {
+                if (index !== 0 && child.classList) {
+                    child.classList.add("hidden");
+                }
+            });
+            sibMain.setAttribute("aria-expanded", "false");
+            sibMain.classList.remove("activeButton");
+        });
+    } catch (err) {}
 }
 
 // Applique l'icone d'un bouton : SVG/HTML inline (commence par "<"),

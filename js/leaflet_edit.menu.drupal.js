@@ -294,6 +294,13 @@ function evtMapDrawend(e) {
       leafletEditNotify("info", "Nouvelle trace", "Dessin annulé.");
     }
   } catch (err) {}
+  // Session de dessin terminée (création ou annulation) : la barre
+  // Geoman se referme (no-op si déjà masquée).
+  try {
+    if (typeof hideGeomanToolbar === "function") {
+      hideGeomanToolbar();
+    }
+  } catch (errHide) {}
 }
 
 function evtMapCreate(e) {
@@ -302,6 +309,12 @@ function evtMapCreate(e) {
   try {
     if (map && map.lMap && map.lMap.leafletEdit && map.lMap.leafletEdit.pendingNewTrace) {
       createTraceFromDraw(e);
+      // Fin de création (tracé terminé) : la barre Geoman se referme.
+      try {
+        if (typeof hideGeomanToolbar === "function") {
+          hideGeomanToolbar();
+        }
+      } catch (errHide) {}
       return;
     }
   } catch (err) {}
@@ -553,7 +566,8 @@ function evtFeatureClick(e) {
         }
       } catch (err) {}
     } else {
-      select_feature(e.sourceTarget);
+      // Tap mobile : sélection + affichage du label (pas de survol).
+      select_feature(e.sourceTarget, 0, e.latlng);
       try {
         if (typeof setCurrentTrace === "function") {
           setCurrentTrace(e.sourceTarget);
@@ -612,7 +626,7 @@ function evtFeatureDblClick(e) {
   if (isSelected(e.sourceTarget)) {
     unselect_feature(e.sourceTarget);
   } else {
-    select_feature(e.sourceTarget);
+    select_feature(e.sourceTarget, 0, e.latlng);
   }
 }
 

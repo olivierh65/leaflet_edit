@@ -2,10 +2,15 @@
 // Barre "metier" (cascadeButtons, position topcenter)
 //
 // Layout cible :
-//   - Geoman (dessin/edition Leaflet) : topleft, gere dans init.drupal.js
+//   - Geoman (dessin Leaflet) : topleft, MASQUÉ par défaut, affiché
+//     uniquement pendant la création "Nouvelle trace" (voir
+//     showGeomanToolbar/hideGeomanToolbar, util.drupal.js ; piloté
+//     depuis openNewTraceDialog, evtMapCreate, evtMapDrawend).
 //   - panelLayers (fonds + traces)    : topright, gere dans init.drupal.js
 //   - Barre metier (fichier/edition)  : topcenter, construite ici via
 //     L.cascadeButtons : 1 tap = deplie le sous-menu, 2e tap = action.
+//     Un seul menu déplié à la fois (voir toggleContainer,
+//     L.cascadeButtons.js).
 //   - Fullscreen : integre comme item "Plein ecran" du groupe "Vue".
 ////////////////////////
 
@@ -272,6 +277,14 @@ function openNewTraceDialog() {
         try {
           map.lMap.pm.disableDraw();
         } catch (err) {}
+        // La barre Geoman (masquée par défaut) s'affiche pour la durée
+        // du dessin ; elle se referme en fin de création (pm:create) ou
+        // à l'annulation (pm:drawend). Voir hideGeomanToolbar().
+        try {
+          if (typeof showGeomanToolbar === "function") {
+            showGeomanToolbar();
+          }
+        } catch (errBar) {}
         // Active le dessin APRES la fin de la propagation du clic OK : la
         // fenêtre vit dans le conteneur de la carte, donc un enableDraw
         // synchrone capterait ce même clic (remontée/bubbling) comme
@@ -294,10 +307,14 @@ function openNewTraceDialog() {
     },
   });
   // Fermeture par la croix (sans OK) : oublie tout choix en cours.
+  // (La barre Geoman n'a été affichée qu'au OK : sécurité no-op sinon.)
   win.on("close hide", function () {
     try {
       if (!confirmed && map && map.lMap && map.lMap.leafletEdit) {
         map.lMap.leafletEdit.pendingNewTrace = null;
+      }
+      if (!confirmed && typeof hideGeomanToolbar === "function") {
+        hideGeomanToolbar();
       }
     } catch (err) {}
   });
@@ -734,6 +751,7 @@ function showTraceInfo() {
   var contentHtml =
     '<div class="leaflet-edit-info">' +
     '<table class="leaflet-edit-info-table">' +
+    infoRow("ID", info.id) +
     infoRow("Type", info.type) +
     infoRow("Points", info.nbPoints) +
     infoRow("Longueur", info.length) +
@@ -863,11 +881,13 @@ function toHexColor(c) {
   return "#3388ff";
 }
 
-// Calcule les infos d'une trace : type géométrique, nb de points,
+// Calcule les infos d'une trace : identifiant (tid, pour retrouver la
+// trace lors des vérifications), type géométrique, nb de points,
 // longueur (turf si dispo, sinon haversine), état, nom de fichier.
 function getTraceInfo(layer) {
   var title = "Trace";
   var filename = "";
+  var tid = null;
   try {
     var le = layer.defaultOptions && layer.defaultOptions.leafletEdit;
     if (le) {
@@ -877,6 +897,7 @@ function getTraceInfo(layer) {
         title = le.filename;
       }
       filename = le.filename || "";
+      tid = le.tid || null;
     }
   } catch (err) {}
   var geojson = null;
@@ -899,6 +920,7 @@ function getTraceInfo(layer) {
     }
   } catch (err) {}
   return {
+    id: tid != null ? tid : "—",
     title: title,
     type: geomType,
     nbPoints: nbPoints,

@@ -473,17 +473,23 @@ path.leaflet-edit-trace-perf {
 
 /* Pastille de progression du chargement des données (gros volumes).
    Centrée horizontalement, SOUS la barre métier (topcenter, ~40 px de
-   haut) pour rester visible, au-dessus des tuiles, insensible au clic. */
+   haut) pour rester visible, au-dessus des tuiles, insensible au clic.
+   Correctifs Samsung Internet / mobile : z-index au-dessus des contrôles
+   (topcenter = 1000), largeur plafonnée + ellipsis (écrans étroits,
+   grossissement de police), préfixes -webkit- (anciens Chromium),
+   repli sans "gap" flex, top relevé sur mobile (barre plus haute). */
 .leaflet-edit-loading {
     position: absolute;
     top: 58px;
     left: 50%;
+    -webkit-transform: translateX(-50%);
     transform: translateX(-50%);
-    z-index: 900;
+    z-index: 1200;
     pointer-events: none;
     display: none;
     align-items: center;
-    gap: 8px;
+    max-width: calc(100% - 20px);
+    overflow: hidden;
     background: rgba(255, 255, 255, 0.94);
     border: 1px solid #bbb;
     border-radius: 20px;
@@ -495,22 +501,64 @@ path.leaflet-edit-trace-perf {
     white-space: nowrap;
 }
 
+/* Repli navigateurs sans flex : display:block + enfants inline-block. */
 .leaflet-edit-loading.visible {
+    display: block;
     display: flex;
 }
 
+@supports (gap: 8px) {
+    .leaflet-edit-loading {
+        gap: 8px;
+    }
+
+    .leaflet-edit-loading-spinner {
+        margin-right: 0;
+    }
+}
+
 .leaflet-edit-loading-spinner {
+    display: inline-block;
+    vertical-align: middle;
     width: 14px;
     height: 14px;
     flex: 0 0 auto;
+    /* Repli des navigateurs sans "gap" dans les flexbox (anciens
+       Samsung Internet) : l'espacement reste assuré par la marge. */
+    margin-right: 8px;
     border-radius: 50%;
     border: 2px solid #ccc;
     border-top-color: #333;
+    -webkit-animation: leaflet-edit-spin 0.8s linear infinite;
     animation: leaflet-edit-spin 0.8s linear infinite;
+}
+
+.leaflet-edit-loading-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@-webkit-keyframes leaflet-edit-spin {
+    to {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes leaflet-edit-spin {
     to {
+        -webkit-transform: rotate(360deg);
         transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 768px) {
+    /* Barre métier plus haute sur mobile (boutons 38 px + marges
+       Leaflet) : la pastille reste dégagée en dessous, en une ligne
+       tronquée proprement au lieu de déborder (overflow:hidden). */
+    .leaflet-edit-loading {
+        top: 70px;
+        font-size: 12px;
+        padding: 6px 12px;
     }
 }
