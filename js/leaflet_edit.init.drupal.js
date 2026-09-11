@@ -626,18 +626,69 @@
       // même sur les chargements rapides, et survit aux navigateurs qui ne
       // peignent qu'après le premier rendu (Samsung Internet).
       var LE_LOADING_MIN_MS = 700;
+      function loadingEnsureControl() {
+        // La pastille est un contrôle Leaflet natif (coin topcenter, créé
+        // si besoin comme la barre métier) : c'est le seul chemin de rendu
+        // qui s'affiche de façon fiable sur tous les navigateurs mobiles,
+        // dont Samsung Internet (un <div> absolu posé à la racine du
+        // conteneur de carte n'y est jamais peint).
+        // Noms de classes neutres (sans "loading") : certains bloqueurs de
+        // contenu des navigateurs Samsung masquent les éléments dont la
+        // classe évoque un chargement.
+        try {
+          if (!map || !map.lMap || typeof L === "undefined" || !L.Control) {
+            return null;
+          }
+          if (!map.lMap._controlCorners.topcenter && map.lMap._controlContainer) {
+            var corner = L.DomUtil.create(
+              "div",
+              "leaflet-top leaflet-center leaflet-top-center",
+              map.lMap._controlContainer
+            );
+            corner.setAttribute("aria-hidden", "true");
+            map.lMap._controlCorners.topcenter = corner;
+          }
+          if (!map.lMap._controlCorners.topcenter) {
+            return null;
+          }
+          var Ctl = L.Control.extend({
+            options: { position: "topcenter" },
+            onAdd: function () {
+              var div = L.DomUtil.create("div", "leaflet-edit-progress");
+              div.setAttribute("role", "status");
+              div.innerHTML = '<span class="leaflet-edit-progress-spinner"></span><span class="leaflet-edit-progress-text"></span>';
+              try {
+                L.DomEvent.disableClickPropagation(div);
+              } catch (eProp) {}
+              return div;
+            },
+          });
+          var ctl = new Ctl();
+          map.lMap.addControl(ctl);
+          return ctl.getContainer() || null;
+        } catch (err) {
+          return null;
+        }
+      }
       function loadingElement() {
-        if (loadingState.el) {
+        if (loadingState.el && loadingState.el.parentNode) {
           return loadingState.el;
         }
+        var el = loadingEnsureControl();
+        if (el) {
+          loadingState.el = el;
+          return el;
+        }
+        // Repli (moteurs très anciens) : <div> absolu à la racine du
+        // conteneur de carte.
         try {
           var container = map.lMap.getContainer();
-          var el = document.createElement("div");
-          el.className = "leaflet-edit-loading";
-          el.setAttribute("role", "status");
-          el.innerHTML = '<span class="leaflet-edit-loading-spinner"></span><span class="leaflet-edit-loading-text"></span>';
-          container.appendChild(el);
-          loadingState.el = el;
+          var legacy = document.createElement("div");
+          legacy.className = "leaflet-edit-progress leaflet-edit-progress-legacy";
+          legacy.setAttribute("role", "status");
+          legacy.innerHTML = '<span class="leaflet-edit-progress-spinner"></span><span class="leaflet-edit-progress-text"></span>';
+          container.appendChild(legacy);
+          loadingState.el = legacy;
         } catch (e) {}
         return loadingState.el;
       }
@@ -686,7 +737,7 @@
             return;
           }
           var n = Object.keys(bboxState.loadedIds).length;
-          var txt = el.querySelector(".leaflet-edit-loading-text");
+          var txt = el.querySelector(".leaflet-edit-progress-text");
           if (txt) {
             txt.textContent = "Chargement des données… " + n + " élément" + (n > 1 ? "s" : "");
           }
@@ -1329,10 +1380,14 @@
       }
 
       map.lMap.whenReady(function () {
-        // Crée la pastille AVANT le premier chargement : la création
-        // paresseuse au milieu du premier rendu peut rater son paint
-        // initial sur certains navigateurs mobiles (Samsung Internet).
+        // Crée la pastille AVANT le premier chargement (contrôle Leaflet
+        // natif : seul rendu fiable sur Samsung Internet, voir
+        // loadingEnsureControl).
         loadingElement();
+        // Expose l'état pour diagnostic à distance (console) si besoin.
+        try {
+          window.leafletEditLoading = loadingState;
+        } catch (eDbg) {}
         // Premier chargement : SANS filtre bbox (toutes les traces) pour
         // cadrer la carte dessus. Les moveend suivants utilisent la bbox.
         loadInitial();

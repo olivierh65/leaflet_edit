@@ -472,23 +472,22 @@ path.leaflet-edit-trace-perf {
 }
 
 /* Pastille de progression du chargement des données (gros volumes).
-   Centrée horizontalement, SOUS la barre métier (topcenter, ~40 px de
-   haut) pour rester visible, au-dessus des tuiles, insensible au clic.
-   Correctifs Samsung Internet / mobile : z-index au-dessus des contrôles
-   (topcenter = 1000), largeur plafonnée + ellipsis (écrans étroits,
-   grossissement de police), préfixes -webkit- (anciens Chromium),
-   repli sans "gap" flex, top relevé sur mobile (barre plus haute). */
-.leaflet-edit-loading {
+   Rendue comme un contrôle Leaflet natif (coin topcenter, SOUS la barre
+   métier) : seul chemin d'affichage fiable sur tous les navigateurs
+   mobiles, dont Samsung Internet. Aucun flex/grid requis (block +
+   inline-block uniquement) pour les vieux moteurs. Insensible au clic.
+   Classes neutres (sans "loading") : certains bloqueurs de contenu
+   Samsung masquent les éléments dont la classe évoque un chargement. */
+.leaflet-top-center .leaflet-control.leaflet-edit-progress,
+.leaflet-edit-progress-legacy {
     position: absolute;
-    top: 58px;
     left: 50%;
     -webkit-transform: translateX(-50%);
     transform: translateX(-50%);
     z-index: 1200;
     pointer-events: none;
     display: none;
-    align-items: center;
-    max-width: calc(100% - 20px);
+    max-width: 86vw;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.94);
     border: 1px solid #bbb;
@@ -499,32 +498,30 @@ path.leaflet-edit-trace-perf {
     color: #333;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     white-space: nowrap;
+    opacity: 1;
 }
 
-/* Repli navigateurs sans flex : display:block + enfants inline-block. */
-.leaflet-edit-loading.visible {
+/* Dans le coin topcenter (positionné : référentiel), juste sous la barre. */
+.leaflet-top-center .leaflet-control.leaflet-edit-progress {
+    top: 100%;
+    margin-top: 8px;
+}
+
+/* Repli moteurs très anciens : pastille absolue racine de carte. */
+.leaflet-edit-progress-legacy {
+    top: 58px;
+}
+
+.leaflet-top-center .leaflet-control.leaflet-edit-progress.visible,
+.leaflet-edit-progress-legacy.visible {
     display: block;
-    display: flex;
 }
 
-@supports (gap: 8px) {
-    .leaflet-edit-loading {
-        gap: 8px;
-    }
-
-    .leaflet-edit-loading-spinner {
-        margin-right: 0;
-    }
-}
-
-.leaflet-edit-loading-spinner {
+.leaflet-edit-progress-spinner {
     display: inline-block;
     vertical-align: middle;
     width: 14px;
     height: 14px;
-    flex: 0 0 auto;
-    /* Repli des navigateurs sans "gap" dans les flexbox (anciens
-       Samsung Internet) : l'espacement reste assuré par la marge. */
     margin-right: 8px;
     border-radius: 50%;
     border: 2px solid #ccc;
@@ -533,7 +530,10 @@ path.leaflet-edit-trace-perf {
     animation: leaflet-edit-spin 0.8s linear infinite;
 }
 
-.leaflet-edit-loading-text {
+.leaflet-edit-progress-text {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 70vw;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -553,11 +553,10 @@ path.leaflet-edit-trace-perf {
 }
 
 @media (max-width: 768px) {
-    /* Barre métier plus haute sur mobile (boutons 38 px + marges
-       Leaflet) : la pastille reste dégagée en dessous, en une ligne
-       tronquée proprement au lieu de déborder (overflow:hidden). */
-    .leaflet-edit-loading {
-        top: 70px;
+    /* Pastille : texte légèrement réduit sur mobile, tronqué proprement
+       au lieu de déborder (overflow:hidden). */
+    .leaflet-top-center .leaflet-control.leaflet-edit-progress,
+    .leaflet-edit-progress-legacy {
         font-size: 12px;
         padding: 6px 12px;
     }
@@ -565,24 +564,14 @@ path.leaflet-edit-trace-perf {
 
 /* Correctifs mobiles (Android Chrome / Samsung Internet) : la barre ne
    laisse pas les gestes tactiles traverser vers la carte et la pastille
-   reste peinte même sur les moteurs sans flex/gap/animation récents. */
+   reste insensible au clic (ne bloque jamais les interactions). */
 .leaflet-control-businessBar,
 .leaflet-control-businessBar button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
 }
 
-.leaflet-edit-loading {
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    will-change: transform;
-    opacity: 1;
-}
-
-.leaflet-edit-loading.visible {
-    display: block;
-    display: -webkit-box;
-    display: -webkit-flex;
-    display: flex;
-    opacity: 1;
+.leaflet-top-center .leaflet-control.leaflet-edit-progress,
+.leaflet-edit-progress-legacy {
+    pointer-events: none !important;
 }
