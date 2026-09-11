@@ -309,6 +309,23 @@ input.leaflet-panel-layers-selector[type="radio"] {
     box-shadow: 0 1px 3px rgb(0 0 0 / 40%);
 }
 
+/* La carte est un contenu clair (tuiles) : on le déclare explicitement pour
+   que les navigateurs mobiles (Samsung Internet en mode Nuit, Chrome avec
+   assombrissement auto) n'appliquent pas d'assombrissement forcé qui rend
+   la carte plus sombre que prévu. */
+.leaflet-container {
+    color-scheme: light;
+}
+
+/* Compensation du mode Nuit Samsung Internet : avec une préférence sombre,
+   le navigateur assombrit les tuiles raster (fond de carte). On restaure
+   une luminosité normale sur les tuiles uniquement — traces, pastille et
+   contrôles ne sont pas touchés. Classe posée par le JS quand
+   SamsungBrowser + prefers-color-scheme: dark sont détectés. */
+.leaflet-container.leaflet-edit-samsung-night .leaflet-tile {
+    filter: brightness(1.18);
+}
+
 /* Layout 3 barres : Geoman à gauche, layers à droite, métier en haut. */
 .leaflet-top.leaflet-center,
 .leaflet-top-center,

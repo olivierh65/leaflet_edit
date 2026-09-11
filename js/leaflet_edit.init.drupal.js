@@ -8,6 +8,39 @@
 
     map.lMap.doubleClickZoom.disable();
 
+    // Mode Nuit Samsung Internet : le navigateur assombrit les tuiles raster
+    // (fond de carte) au rendu, ce que color-scheme ne suffit pas toujours à
+    // empêcher. On compense uniquement sur les tuiles (traces et contrôles
+    // non affectés), et uniquement sur SamsungBrowser en préférence sombre.
+    try {
+      var leIsSamsung = /SamsungBrowser/i.test(navigator.userAgent || "");
+      var leDarkMq = (typeof window.matchMedia === "function")
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : null;
+      var leApplySamsungNight = function () {
+        try {
+          var night = !!(leIsSamsung && leDarkMq && leDarkMq.matches);
+          var cont = map.lMap.getContainer();
+          if (!cont || !cont.classList) {
+            return;
+          }
+          if (night) {
+            cont.classList.add("leaflet-edit-samsung-night");
+          } else {
+            cont.classList.remove("leaflet-edit-samsung-night");
+          }
+        } catch (eN) {}
+      };
+      leApplySamsungNight();
+      if (leDarkMq) {
+        if (typeof leDarkMq.addEventListener === "function") {
+          leDarkMq.addEventListener("change", leApplySamsungNight);
+        } else if (typeof leDarkMq.addListener === "function") {
+          leDarkMq.addListener(leApplySamsungNight);
+        }
+      }
+    } catch (errNight) {}
+
     // Workaround for https://github.com/elmarquis/Leaflet.GestureHandling/issues/75
     if (map.lMap.gestureHandling) {
       map.lMap.whenReady(() => map.lMap.gestureHandling?._handleMouseOver?.());
