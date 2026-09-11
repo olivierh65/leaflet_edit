@@ -626,6 +626,34 @@
       // même sur les chargements rapides, et survit aux navigateurs qui ne
       // peignent qu'après le premier rendu (Samsung Internet).
       var LE_LOADING_MIN_MS = 700;
+      // Styles visuels critiques en INLINE (fond opaque, pilule, anneau) :
+      // ils survivent à un CSS agrégé périmé en cache (navigateurs mobiles
+      // agressifs, dont Samsung Internet). Le CSS externe n'apporte plus que
+      // l'animation du spinner et l'ellipsis. topCss = "100%" (contrôle sous
+      // la barre) ou "58px" (repli racine de carte).
+      function loadingStylePill(el, topCss) {
+        try {
+          if (!el) {
+            return;
+          }
+          el.style.cssText = "display:none;position:absolute;top:" + topCss + ";left:50%;" +
+            "-webkit-transform:translateX(-50%);transform:translateX(-50%);" +
+            (topCss === "100%" ? "margin-top:8px;" : "") +
+            "z-index:1200;max-width:86vw;overflow:hidden;background:#ffffff;" +
+            "border:1px solid #888;border-radius:20px;padding:6px 14px;" +
+            "font-size:13px;line-height:1.4;color:#222;text-align:left;" +
+            "box-shadow:0 1px 5px rgba(0,0,0,0.35);white-space:nowrap;pointer-events:none;";
+          var spin = el.querySelector(".leaflet-edit-progress-spinner");
+          if (spin) {
+            spin.style.cssText = "display:inline-block;vertical-align:middle;width:14px;height:14px;" +
+              "margin-right:8px;border-radius:50%;border:2px solid #ccc;border-top-color:#333;";
+          }
+          var label = el.querySelector(".leaflet-edit-progress-text");
+          if (label) {
+            label.style.cssText = "display:inline-block;vertical-align:middle;";
+          }
+        } catch (err) {}
+      }
       function loadingEnsureControl() {
         // La pastille est un contrôle Leaflet natif (coin topcenter, créé
         // si besoin comme la barre métier) : c'est le seul chemin de rendu
@@ -657,6 +685,7 @@
               var div = L.DomUtil.create("div", "leaflet-edit-progress");
               div.setAttribute("role", "status");
               div.innerHTML = '<span class="leaflet-edit-progress-spinner"></span><span class="leaflet-edit-progress-text"></span>';
+              loadingStylePill(div, "100%");
               try {
                 L.DomEvent.disableClickPropagation(div);
               } catch (eProp) {}
@@ -687,6 +716,7 @@
           legacy.className = "leaflet-edit-progress leaflet-edit-progress-legacy";
           legacy.setAttribute("role", "status");
           legacy.innerHTML = '<span class="leaflet-edit-progress-spinner"></span><span class="leaflet-edit-progress-text"></span>';
+          loadingStylePill(legacy, "58px");
           container.appendChild(legacy);
           loadingState.el = legacy;
         } catch (e) {}
@@ -708,20 +738,17 @@
               return;
             }
             el.classList.add("visible");
+            // Affichage piloté en INLINE (pas seulement par la classe) : le
+            // masquage/affichage fonctionne même avec un CSS périmé en cache.
+            try {
+              el.style.display = "block";
+            } catch (eDisp) {}
             // Force un reflow : sur certains navigateurs mobiles (dont
             // Samsung Internet) l'ajout de classe au milieu du premier
             // chargement peut sinon rater son paint initial.
             try {
               void el.offsetWidth;
             } catch (e3) {}
-            // Repli : si le display calculé reste "none" (moteur sans flex,
-            // surcharge CSS inattendue...), force un display inline.
-            try {
-              if (typeof window !== "undefined" && window.getComputedStyle &&
-                window.getComputedStyle(el).display === "none") {
-                el.style.display = "block";
-              }
-            } catch (e4) {}
           } catch (e2) {}
         };
         try {
@@ -759,7 +786,7 @@
             }
             var isVisible = false;
             try {
-              isVisible = !!(el.classList && el.classList.contains("visible"));
+              isVisible = !!((el.classList && el.classList.contains("visible")) || el.style.display === "block");
             } catch (eVis) {}
             if (!isVisible) {
               loadingPaint(el);
@@ -780,7 +807,7 @@
                 if (loadingState.pending === 0 && loadingState.el) {
                   loadingState.el.classList.remove("visible");
                   try {
-                    loadingState.el.style.display = "";
+                    loadingState.el.style.display = "none";
                   } catch (e5) {}
                 }
                 loadingState.shownAt = 0;
