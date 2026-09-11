@@ -621,7 +621,11 @@
       // au zoom/translation (isInitial === false) restent silencieux.
       // Compteur équilibré : 1 loadingStart() par loadBboxPage initiale,
       // 1 loadingDone() par issue (done/fail, pagination incluse).
-      var loadingState = { pending: 0, el: null, hideTimer: null };
+      var loadingState = { pending: 0, el: null, hideTimer: null, shownAt: 0 };
+      // Durée d'affichage minimale (ms) : la pastille reste perceptible
+      // même sur les chargements rapides, et survit aux navigateurs qui ne
+      // peignent qu'après le premier rendu (Samsung Internet).
+      var LE_LOADING_MIN_MS = 700;
       function loadingElement() {
         if (loadingState.el) {
           return loadingState.el;
@@ -636,6 +640,44 @@
           loadingState.el = el;
         } catch (e) {}
         return loadingState.el;
+      }
+      // Affiche la pastille en laissant le navigateur peindre AVANT le
+      // parsing GeoJSON synchrone (qui bloque le thread principal sur les
+      // gros volumes : sans ce délai, certains navigateurs mobiles ne
+      // peignent jamais la pastille).
+      function loadingPaint(el) {
+        var show = function () {
+          try {
+            el.classList.add("visible");
+            // Force un reflow : sur certains navigateurs mobiles (dont
+            // Samsung Internet) l'ajout de classe au milieu du premier
+            // chargement peut sinon rater son paint initial.
+            try {
+              void el.offsetWidth;
+            } catch (e3) {}
+            // Repli : si le display calculé reste "none" (moteur sans flex,
+            // surcharge CSS inattendue...), force un display inline.
+            try {
+              if (typeof window !== "undefined" && window.getComputedStyle &&
+                window.getComputedStyle(el).display === "none") {
+                el.style.display = "block";
+              }
+            } catch (e4) {}
+          } catch (e2) {}
+        };
+        try {
+          if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+            window.requestAnimationFrame(function () {
+              try {
+                window.requestAnimationFrame(show);
+              } catch (eRaf) {
+                show();
+              }
+            });
+            return;
+          }
+        } catch (err) {}
+        show();
       }
       function loadingRender() {
         try {
@@ -653,23 +695,38 @@
               clearTimeout(loadingState.hideTimer);
               loadingState.hideTimer = null;
             }
-            el.classList.add("visible");
-            // Force un reflow : sur certains navigateurs mobiles (dont
-            // Samsung Internet) l'ajout de classe au milieu du premier
-            // chargement peut sinon rater son paint initial.
+            if (!loadingState.shownAt) {
+              loadingState.shownAt = Date.now();
+            }
+            var isVisible = false;
             try {
-              void el.offsetWidth;
-            } catch (e3) {}
+              isVisible = !!(el.classList && el.classList.contains("visible"));
+            } catch (eVis) {}
+            if (!isVisible) {
+              loadingPaint(el);
+            } else {
+              try {
+                void el.offsetWidth;
+              } catch (e3) {}
+            }
           } else if (!loadingState.hideTimer) {
-            // Petit délai anti-scintillement entre 2 pages.
+            // Anti-scintillement entre 2 pages + durée minimale
+            // d'affichage (la pastille ne disparaît jamais avant
+            // LE_LOADING_MIN_MS, même sur chargement éclair).
+            var elapsed = loadingState.shownAt ? Date.now() - loadingState.shownAt : LE_LOADING_MIN_MS;
+            var wait = Math.max(400, LE_LOADING_MIN_MS - elapsed);
             loadingState.hideTimer = setTimeout(function () {
               loadingState.hideTimer = null;
               try {
                 if (loadingState.pending === 0 && loadingState.el) {
                   loadingState.el.classList.remove("visible");
+                  try {
+                    loadingState.el.style.display = "";
+                  } catch (e5) {}
                 }
+                loadingState.shownAt = 0;
               } catch (e2) {}
-            }, 400);
+            }, wait);
           }
         } catch (err) {}
       }

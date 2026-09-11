@@ -562,3 +562,27 @@ path.leaflet-edit-trace-perf {
         padding: 6px 12px;
     }
 }
+
+/* Correctifs mobiles (Android Chrome / Samsung Internet) : la barre ne
+   laisse pas les gestes tactiles traverser vers la carte et la pastille
+   reste peinte même sur les moteurs sans flex/gap/animation récents. */
+.leaflet-control-businessBar,
+.leaflet-control-businessBar button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.leaflet-edit-loading {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    opacity: 1;
+}
+
+.leaflet-edit-loading.visible {
+    display: block;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    opacity: 1;
+}
