@@ -699,6 +699,14 @@
       function loadingPaint(el) {
         var show = function () {
           try {
+            // Garde : si le chargement est terminé entre-temps (le minuteur
+            // de masquage a déjà consommé l'affichage), ne PAS ré-afficher
+            // la pastille — sinon elle reste bloquée visible, aucun minuteur
+            // ne venant plus la retirer (constaté sur Samsung Internet où le
+            // parsing GeoJSON retarde le rAF au-delà du masquage).
+            if (loadingState.pending <= 0 || loadingState.el !== el) {
+              return;
+            }
             el.classList.add("visible");
             // Force un reflow : sur certains navigateurs mobiles (dont
             // Samsung Internet) l'ajout de classe au milieu du premier
